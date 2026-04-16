@@ -34,4 +34,17 @@ return [
         FILTER_VALIDATE_BOOLEAN
     ),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Código de barras en despacho (coincidencia con inventario local)
+    |--------------------------------------------------------------------------
+    |
+    | Si el lector envía p. ej. 2604-02375-6000 y en base local el id es 2604-02375,
+    | el último segmento tras "-" debe ser solo dígitos y de esta longitud (p. ej. 4 para 6000).
+    | Con menos de tres segmentos no se recorta (p. ej. 2604-02375 se deja igual).
+    |
+    */
+
+    'codigo_barras_suffix_digitos' => max(1, min(12, (int) env('DESPACHO_CODIGO_BARRAS_SUFIJO_DIGITOS', 4))),
+
 ];

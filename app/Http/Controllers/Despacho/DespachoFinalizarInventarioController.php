@@ -1,0 +1,90 @@
+<?php
+
+namespace App\Http\Controllers\Despacho;
+
+use App\Http\Controllers\Controller;
+use App\Models\IngresoLenguaLocal;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Throwable;
+
+class DespachoFinalizarInventarioController extends Controller
+{
+    /**
+     * Da de baja en inventario local una fila por cada código despachado (id_producto más reciente).
+     */
+    public function __invoke(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'codigos' => ['required', 'array', 'min:1', 'max:500'],
+            'codigos.*' => ['required', 'string', 'max:80'],
+        ]);
+
+        $notFound = [];
+        $removed = 0;
+
+        try {
+            DB::transaction(function () use ($validated, &$notFound, &$removed): void {
+                foreach ($validated['codigos'] as $codigo) {
+                    $codigo = trim((string) $codigo);
+                    if ($codigo === '') {
+                        continue;
+                    }
+
+                    $row = IngresoLenguaLocal::query()
+                        ->sinDespachar()
+                        ->where('id_producto', $codigo)
+                        ->orderByDesc('imported_at')
+                        ->orderByDesc('id')
+                        ->first();
+
+                    if ($row === null) {
+                        $notFound[] = $codigo;
+
+                        continue;
+                    }
+
+                    $row->despachado_at = now();
+                    $row->save();
+                    $removed++;
+                }
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo actualizar el inventario local. Intente nuevamente.',
+            ], 500);
+        }
+
+        if ($removed === 0) {
+            return response()->json([
+                'ok' => false,
+                'removed' => 0,
+                'not_found' => $notFound,
+                'message' => 'Ningún código coincidía con el inventario local; no se aplicaron bajas.',
+            ], 422);
+        }
+
+        $message = $removed === 1
+            ? 'Se marcó como despachado 1 registro en el inventario local (no volverá a mostrarse ni al sincronizar con SIRT).'
+            : "Se marcaron como despachados {$removed} registros en el inventario local (no volverán a mostrarse ni al sincronizar con SIRT).";
+
+        if ($notFound !== []) {
+            $slice = array_slice($notFound, 0, 15);
+            $message .= ' Sin fila en inventario (no descontados): '.implode(', ', $slice);
+            if (count($notFound) > 15) {
+                $message .= '…';
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'removed' => $removed,
+            'not_found' => $notFound,
+            'message' => $message,
+        ]);
+    }
+}

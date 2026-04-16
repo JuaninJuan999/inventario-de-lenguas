@@ -157,7 +157,15 @@
                 </a>
                 <a class="module-card" href="{{ route('inventario.lenguas') }}">
                     <h3>Inventario de Lenguas</h3>
-                    <p>Consulta y administración del inventario de <strong>lenguas</strong>.</p>
+                    <p>
+                        Réplica local del ingreso de <strong>lenguas</strong> con trazabilidad corporativa, consultas
+                        filtradas e indicadores de vigencia operativa para el control de existencias a planta.
+                    </p>
+                    <span class="arrow">Abrir →</span>
+                </a>
+                <a class="module-card" href="{{ route('ingresos.lenguas') }}">
+                    <h3>Ingresos de Lenguas</h3>
+                    <p>Listado de <strong>ingresos</strong> desde trazabilidad (insensibilización y datos asociados).</p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('despacho.lenguas') }}">

@@ -164,6 +164,13 @@
                 line-height: 1.45;
                 color: color-mix(in srgb, var(--text) 88%, transparent);
             }
+            .field-card__text code {
+                font-size: 0.86em;
+                padding: 0.1rem 0.35rem;
+                border-radius: 4px;
+                background: rgba(0, 0, 0, 0.35);
+                border: 1px solid color-mix(in srgb, var(--brand-green) 35%, transparent);
+            }
             .field-card input[type="text"].field-card__input {
                 width: 100%;
                 padding: 0.5rem 0.7rem;
@@ -429,7 +436,9 @@
 
                 <div class="field-card">
                     <h2 class="field-card__title">Código de lengua</h2>
-                    <p class="field-card__text">Ingrese el código de la lengua y pulse <strong>Enter</strong> para añadirla a la lista.</p>
+                    <p class="field-card__text">
+                        Escanee o escriba el código y pulse <strong>Enter</strong>.
+                    </p>
                     <input
                         class="field-card__input"
                         type="text"
@@ -501,6 +510,8 @@
 
         <script>
             window.despachoVehiculosUrl = @json(route('despacho.lookup.vehiculos'));
+            window.despachoLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino'));
+            window.despachoFinalizarInventarioUrl = @json(route('despacho.finalizar.inventario'));
         </script>
         <script>
             (function () {
@@ -709,11 +720,14 @@
         </script>
         <script>
             (function () {
+                var formDespacho = document.getElementById('form-despacho');
                 var inputCodigo = document.getElementById('codigo-lengua');
                 var tbody = document.getElementById('tbody-despacho');
                 var totalEl = document.getElementById('total-lenguas');
                 var btnTerminar = document.getElementById('btn-terminar');
                 var codes = new Set();
+                var agregarEnCurso = false;
+                var finalizarEnCurso = false;
 
                 function hoyTexto() {
                     var d = new Date();
@@ -727,19 +741,73 @@
                     totalEl.textContent = String(tbody.querySelectorAll('tr').length);
                 }
 
-                function agregarFila() {
-                    var cod = (inputCodigo.value || '').trim();
-                    if (!cod) {
+                async function agregarFila() {
+                    if (agregarEnCurso) {
+                        return;
+                    }
+                    var raw = (inputCodigo.value || '').trim();
+                    if (!raw) {
                         alert('Ingrese el código de la lengua.');
                         inputCodigo.focus();
                         return;
                     }
-                    if (codes.has(cod.toLowerCase())) {
-                        alert('Ese código ya está en la lista.');
-                        inputCodigo.select();
+                    var urlBase = window.despachoLenguaDestinoUrl || '';
+                    if (!urlBase) {
+                        alert('No está configurada la ruta de consulta de inventario.');
                         return;
                     }
-                    codes.add(cod.toLowerCase());
+                    agregarEnCurso = true;
+                    inputCodigo.disabled = true;
+                    var idNorm = raw;
+                    var destinoTxt = '';
+                    var encontrado = false;
+                    try {
+                        var res = await fetch(
+                            urlBase + '?codigo=' + encodeURIComponent(raw),
+                            {
+                                headers: {
+                                    Accept: 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                credentials: 'same-origin',
+                            },
+                        );
+                        var ct = res.headers.get('content-type') || '';
+                        if (!ct.includes('application/json')) {
+                            throw new Error('Respuesta no JSON');
+                        }
+                        var json = await res.json();
+                        if (!json.ok) {
+                            alert(json.message || 'No se pudo validar el código.');
+                            inputCodigo.focus();
+                            return;
+                        }
+                        idNorm = (json.id_producto || raw).trim();
+                        encontrado = !!json.encontrado;
+                        destinoTxt =
+                            json.destino != null && String(json.destino).trim() !== ''
+                                ? String(json.destino).trim()
+                                : '';
+                    } catch (err) {
+                        alert('No se pudo consultar el inventario local. Revise la sesión o la red.');
+                        inputCodigo.focus();
+                        return;
+                    } finally {
+                        inputCodigo.disabled = false;
+                        agregarEnCurso = false;
+                    }
+
+                    if (!idNorm) {
+                        inputCodigo.focus();
+                        return;
+                    }
+                    if (codes.has(idNorm.toLowerCase())) {
+                        alert('Ese id de producto ya está en la lista.');
+                        inputCodigo.value = '';
+                        inputCodigo.focus();
+                        return;
+                    }
+                    codes.add(idNorm.toLowerCase());
 
                     var tr = document.createElement('tr');
                     var td1 = document.createElement('td');
@@ -748,12 +816,23 @@
                     var inCod = document.createElement('input');
                     inCod.type = 'text';
                     inCod.name = 'codigos[]';
-                    inCod.value = cod;
+                    inCod.className = 'inp-codigo-despacho';
+                    inCod.value = idNorm;
                     inCod.readOnly = true;
+                    if (raw !== idNorm) {
+                        inCod.title = 'Leído: ' + raw;
+                    }
                     var inDest = document.createElement('input');
                     inDest.type = 'text';
                     inDest.name = 'destinos[]';
-                    inDest.placeholder = 'Destino';
+                    inDest.placeholder = encontrado
+                        ? destinoTxt
+                            ? 'Destino'
+                            : 'Sin destino registrado (editable)'
+                        : 'Sin fila en inventario para este id (editable)';
+                    if (destinoTxt) {
+                        inDest.value = destinoTxt;
+                    }
                     var inFecha = document.createElement('input');
                     inFecha.type = 'text';
                     inFecha.name = 'fechas[]';
@@ -774,11 +853,18 @@
                 inputCodigo.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        agregarFila();
+                        void agregarFila();
                     }
                 });
 
                 btnTerminar.addEventListener('click', function () {
+                    void terminarDespacho();
+                });
+
+                async function terminarDespacho() {
+                    if (finalizarEnCurso) {
+                        return;
+                    }
                     var n = tbody.querySelectorAll('tr').length;
                     if (n === 0) {
                         alert('No hay lenguas en el despacho.');
@@ -786,19 +872,79 @@
                     }
                     if (
                         !confirm(
-                            '¿Confirma terminar el despacho con ' + n + ' lengua(s)?\n(La grabación en servidor se implementará después.)'
+                            '¿Confirma terminar el despacho con ' +
+                                n +
+                                ' lengua(s)?\n\nSe darán de baja del inventario local los registros cuyo id de producto coincida con cada código de la lista.',
                         )
                     ) {
                         return;
                     }
-                    // Aquí luego: envío por fetch o submit del formulario
-                    tbody.innerHTML = '';
-                    codes.clear();
-                    actualizarTotal();
-                    document.getElementById('empresa').value = '';
-                    document.getElementById('placa').value = '';
-                    document.getElementById('conductor').value = '';
-                });
+                    var urlFin = window.despachoFinalizarInventarioUrl || '';
+                    if (!urlFin || !formDespacho) {
+                        alert('No está configurada la ruta para finalizar el despacho.');
+                        return;
+                    }
+                    var tokenEl = formDespacho.querySelector('[name="_token"]');
+                    if (!tokenEl || !tokenEl.value) {
+                        alert('Falta el token de seguridad; recargue la página.');
+                        return;
+                    }
+                    var fd = new FormData();
+                    fd.append('_token', tokenEl.value);
+                    tbody.querySelectorAll('input.inp-codigo-despacho').forEach(function (inp) {
+                        fd.append('codigos[]', (inp.value || '').trim());
+                    });
+                    finalizarEnCurso = true;
+                    btnTerminar.disabled = true;
+                    try {
+                        var res = await fetch(urlFin, {
+                            method: 'POST',
+                            body: fd,
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        });
+                        var ct = res.headers.get('content-type') || '';
+                        if (!ct.includes('application/json')) {
+                            throw new Error('Respuesta no JSON');
+                        }
+                        var json = await res.json();
+                        if (!json.ok) {
+                            var errMsg = json.message || 'No se pudo dar de baja el inventario.';
+                            if (json.errors && typeof json.errors === 'object') {
+                                var parts = [];
+                                Object.keys(json.errors).forEach(function (k) {
+                                    var arr = json.errors[k];
+                                    if (Array.isArray(arr)) {
+                                        parts = parts.concat(arr);
+                                    }
+                                });
+                                if (parts.length) {
+                                    errMsg = parts.join(' ');
+                                }
+                            }
+                            alert(errMsg);
+                            return;
+                        }
+                        alert(json.message || 'Despacho finalizado.');
+                        tbody.innerHTML = '';
+                        codes.clear();
+                        actualizarTotal();
+                        document.getElementById('empresa').value = '';
+                        document.getElementById('placa').value = '';
+                        document.getElementById('conductor').value = '';
+                        if (inputCodigo) {
+                            inputCodigo.focus();
+                        }
+                    } catch (err) {
+                        alert('Error de red o del servidor al actualizar el inventario.');
+                    } finally {
+                        btnTerminar.disabled = false;
+                        finalizarEnCurso = false;
+                    }
+                }
             })();
         </script>
     </body>
