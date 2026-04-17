@@ -21,6 +21,8 @@ class IngresoLenguaLocal extends Model
         'fecha_turno_referencia',
         'imported_at',
         'user_id',
+        'despacho_id',
+        'despachado_at',
     ];
 
     protected function casts(): array
@@ -43,5 +45,10 @@ class IngresoLenguaLocal extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function despacho(): BelongsTo
+    {
+        return $this->belongsTo(Despacho::class, 'despacho_id');
     }
 }

@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        @include('partials.favicon')
         <title>Iniciar sesión — {{ config('app.name') }}</title>
         <style>
             :root {
@@ -19,8 +20,10 @@
                 min-height: 100vh;
                 min-height: 100dvh;
                 display: flex;
+                flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                gap: 1rem;
                 padding: 1.5rem;
                 font-family: ui-sans-serif, system-ui, sans-serif;
                 background: var(--bg);
@@ -135,6 +138,7 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <div class="card">
             <h1>Iniciar sesión</h1>
 

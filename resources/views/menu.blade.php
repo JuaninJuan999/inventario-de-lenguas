@@ -3,7 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Menú — {{ config('app.name') }}</title>
+        @include('partials.favicon')
+        <title>{{ config('app.name') }}</title>
         <style>
             :root {
                 --brand-rose: #f9dff8;
@@ -133,6 +134,7 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <header class="top">
             <div>
                 <h1>Menú</h1>
@@ -171,6 +173,14 @@
                 <a class="module-card" href="{{ route('despacho.lenguas') }}">
                     <h3>Despacho de Lenguas</h3>
                     <p>Salida, pedidos y distribución de <strong>lenguas</strong>.</p>
+                    <span class="arrow">Abrir →</span>
+                </a>
+                <a class="module-card" href="{{ route('historia.despacho.lenguas') }}">
+                    <h3>Historial de despacho de lenguas</h3>
+                    <p>
+                        Consulta de despachos finalizados: fecha, empresa, conductor, placa, cantidad y usuario, con
+                        detalle por <strong>id de producto</strong>, propietario y destino.
+                    </p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('entrega.conformidad') }}">

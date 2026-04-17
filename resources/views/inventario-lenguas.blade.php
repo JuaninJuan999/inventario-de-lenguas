@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        @include('partials.favicon')
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>Inventario de Lenguas — {{ config('app.name') }}</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -171,20 +172,23 @@
                 padding-bottom: 1.25rem;
                 border-bottom: 1px solid color-mix(in srgb, var(--brand-green) 22%, transparent);
             }
-            .filters-grid {
-                display: grid;
-                gap: 0.75rem 1rem;
-                grid-template-columns: 1fr;
+            .filters-grid.filters-grid--single-row {
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: flex-end;
+                gap: 0.65rem 0.75rem;
+                overflow-x: auto;
+                overflow-y: visible;
+                padding-bottom: 0.15rem;
+                scrollbar-color: color-mix(in srgb, var(--brand-green) 55%, transparent) rgba(0, 0, 0, 0.25);
             }
-            @media (min-width: 640px) {
-                .filters-grid {
-                    grid-template-columns: repeat(2, 1fr);
-                }
+            .filters-grid.filters-grid--single-row .filter-field {
+                flex: 1 1 0;
+                min-width: 7.5rem;
             }
-            @media (min-width: 960px) {
-                .filters-grid {
-                    grid-template-columns: repeat(4, 1fr);
-                }
+            .filters-grid.filters-grid--single-row .filter-field--date {
+                flex: 0 0 10.75rem;
+                min-width: 10.25rem;
             }
             .filter-field label {
                 display: block;
@@ -208,6 +212,24 @@
             .filter-field input:focus {
                 outline: 2px solid var(--brand-green);
                 outline-offset: 1px;
+            }
+            /* Icono calendario siempre claro: Chromium a veces ignora filter en el pictograma nativo. */
+            .filter-field input[type="date"]::-webkit-calendar-picker-indicator {
+                cursor: pointer;
+                width: 1.45rem;
+                height: 1.35rem;
+                min-width: 1.45rem;
+                min-height: 1.35rem;
+                padding: 0;
+                margin-inline-start: 0.2rem;
+                opacity: 1;
+                filter: none;
+                background: transparent center / 1.12rem 1.12rem no-repeat
+                    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f4fffa' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+            }
+            .filter-field input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+            .filter-field input[type="date"]::-webkit-datetime-edit-text {
+                color: var(--text);
             }
             .filter-field .err {
                 margin: 0.3rem 0 0;
@@ -256,6 +278,7 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <header class="page-bar">
             <div>
                 <h1>Inventario de Lenguas</h1>
@@ -311,26 +334,28 @@
                 action="{{ route('inventario.lenguas') }}"
                 aria-label="Criterios de consulta del inventario de lenguas"
             >
-                <div class="filters-grid">
-                    <div class="filter-field">
+                <div class="filters-grid filters-grid--single-row">
+                    <div class="filter-field filter-field--date">
                         <label for="inv-fecha-desde">Fecha desde (ref. turno)</label>
                         <input
                             id="inv-fecha-desde"
                             type="date"
                             name="fecha_desde"
                             value="{{ $filters['fecha_desde'] ?? '' }}"
+                            autocomplete="off"
                         />
                         @error('fecha_desde')
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div class="filter-field">
+                    <div class="filter-field filter-field--date">
                         <label for="inv-fecha-hasta">Fecha hasta (ref. turno)</label>
                         <input
                             id="inv-fecha-hasta"
                             type="date"
                             name="fecha_hasta"
                             value="{{ $filters['fecha_hasta'] ?? '' }}"
+                            autocomplete="off"
                         />
                         @error('fecha_hasta')
                             <p class="err">{{ $message }}</p>
@@ -366,19 +391,25 @@
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
+                    <div class="filter-field">
+                        <label for="inv-vida-util">Vida útil</label>
+                        <input
+                            id="inv-vida-util"
+                            type="text"
+                            name="vida_util"
+                            value="{{ $filters['vida_util'] ?? '' }}"
+                            maxlength="32"
+                            placeholder="Búsqueda global (días)"
+                            autocomplete="off"
+                        />
+                        @error('vida_util')
+                            <p class="err">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
                 <div class="filter-actions">
                     <button class="btn-apply" type="submit">Aplicar</button>
-                    @php
-                        $soloFechasInv = array_filter(
-                            [
-                                'fecha_desde' => $filters['fecha_desde'] ?? '',
-                                'fecha_hasta' => $filters['fecha_hasta'] ?? '',
-                            ],
-                            static fn ($v) => $v !== null && $v !== '',
-                        );
-                    @endphp
-                    <a class="btn-clear" href="{{ route('inventario.lenguas', $soloFechasInv) }}">Limpiar</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}">Limpiar</a>
                     <a
                         class="btn-clear"
                         href="{{ route('inventario.lenguas', ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
@@ -447,7 +478,13 @@
                     body.append('_token', csrfToken());
                     const filterForm = document.getElementById('inv-filters');
                     if (filterForm) {
-                        ['fecha_desde', 'fecha_hasta', 'id_producto', 'propietario'].forEach(function (name) {
+                        [
+                            'fecha_desde',
+                            'fecha_hasta',
+                            'id_producto',
+                            'propietario',
+                            'vida_util',
+                        ].forEach(function (name) {
                             const el = filterForm.querySelector('[name="' + name + '"]');
                             body.append(name, el ? el.value : '');
                         });

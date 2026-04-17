@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        @include('partials.favicon')
         <title>Despacho de Lenguas — {{ config('app.name') }}</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700,800" rel="stylesheet" />
@@ -158,6 +159,10 @@
                 text-transform: uppercase;
                 color: var(--brand-rose);
             }
+            .field-card__text .hint-quitar {
+                color: #ffb4b4;
+                font-weight: 800;
+            }
             .field-card__text {
                 margin: 0 0 0.65rem;
                 font-size: 0.88rem;
@@ -229,11 +234,16 @@
                 border-collapse: collapse;
                 font-size: 0.88rem;
             }
+            .dispatch-table-wrap {
+                overflow-x: auto;
+                max-width: 100%;
+            }
             .dispatch-table th,
             .dispatch-table td {
                 border: 1px solid color-mix(in srgb, var(--brand-green) 28%, rgba(0, 0, 0, 0.5));
                 padding: 0.4rem 0.5rem;
                 text-align: left;
+                vertical-align: top;
             }
             .dispatch-table th {
                 background: linear-gradient(
@@ -247,25 +257,69 @@
                 font-size: 0.7rem;
                 color: var(--text);
             }
-            .dispatch-table td input {
-                width: 100%;
-                border: none;
-                background: transparent;
-                padding: 0.2rem;
+            .dispatch-cell {
+                margin: 0;
                 font-size: inherit;
+                line-height: 1.45;
                 color: var(--text);
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                min-width: 0;
             }
-            .dispatch-table td input::placeholder {
-                color: color-mix(in srgb, var(--text) 38%, transparent);
+            .dispatch-cell--empty {
+                color: color-mix(in srgb, var(--text) 52%, transparent);
+                font-style: italic;
             }
-            .dispatch-table td input:focus {
-                outline: 1px solid var(--brand-green);
-                outline-offset: 1px;
-                background: color-mix(in srgb, var(--brand-green) 8%, transparent);
-                border-radius: 4px;
+            .dispatch-table th.col-codigo,
+            .dispatch-table td.col-codigo {
+                width: 0.01%;
+                white-space: nowrap;
+                vertical-align: middle;
+            }
+            .dispatch-cell.dispatch-cell--codigo {
+                white-space: nowrap;
+                word-break: normal;
+                overflow-wrap: normal;
+                max-width: none;
             }
             .dispatch-table tbody tr:nth-child(even) {
                 background: rgba(0, 0, 0, 0.18);
+            }
+            .dispatch-table th.col-quitar,
+            .dispatch-table td.col-quitar {
+                width: 3.5rem;
+                text-align: center;
+                vertical-align: middle;
+            }
+            .dispatch-table td input.inp-codigo-despacho[type="hidden"] {
+                display: none;
+            }
+            .btn-retirar-codigo {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 2rem;
+                height: 2rem;
+                margin: 0 auto;
+                padding: 0;
+                border: 1px solid color-mix(in srgb, #ff6b6b 75%, transparent);
+                border-radius: 6px;
+                background: color-mix(in srgb, #c92a2a 42%, rgba(0, 0, 0, 0.35));
+                color: #ffc9c9;
+                font-size: 1.4rem;
+                font-weight: 700;
+                line-height: 1;
+                cursor: pointer;
+                font-family: inherit;
+            }
+            .btn-retirar-codigo:hover {
+                background: color-mix(in srgb, #e03131 55%, rgba(0, 0, 0, 0.25));
+                color: #fff;
+            }
+            .btn-retirar-codigo:focus-visible {
+                outline: 2px solid color-mix(in srgb, #ffb4b4 90%, #fff);
+                outline-offset: 2px;
             }
             .footer-actions {
                 display: flex;
@@ -399,6 +453,7 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <div class="page-bar">
             <h1>Despacho de Lenguas</h1>
             <a class="link-menu" href="{{ route('menu') }}">← Volver al menú</a>
@@ -437,7 +492,9 @@
                 <div class="field-card">
                     <h2 class="field-card__title">Código de lengua</h2>
                     <p class="field-card__text">
-                        Escanee o escriba el código y pulse <strong>Enter</strong>.
+                        Escanee o escriba el código y pulse <strong>Enter</strong>. Si agregó uno por error, use la
+                        <strong class="hint-quitar">×</strong> roja en la tabla para retirarlo de este despacho (sigue en
+                        inventario hasta que pulse <strong>Terminar despacho</strong> con la lista definitiva).
                     </p>
                     <input
                         class="field-card__input"
@@ -457,16 +514,20 @@
                         </div>
                     </div>
 
-                    <table class="dispatch-table" aria-label="Lenguas en despacho">
-                        <thead>
-                            <tr>
-                                <th scope="col">Código</th>
-                                <th scope="col">Destino</th>
-                                <th scope="col">Fecha despacho</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-despacho"></tbody>
-                    </table>
+                    <div class="dispatch-table-wrap">
+                        <table class="dispatch-table" aria-label="Lenguas en despacho">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="col-codigo">Código</th>
+                                    <th scope="col">Propietario</th>
+                                    <th scope="col">Destino</th>
+                                    <th scope="col">Fecha despacho</th>
+                                    <th scope="col" class="col-quitar">Quitar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-despacho"></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="footer-actions">
@@ -741,6 +802,13 @@
                     totalEl.textContent = String(tbody.querySelectorAll('tr').length);
                 }
 
+                function dispatchCell(text, emptyLabel) {
+                    var d = document.createElement('div');
+                    d.className = 'dispatch-cell' + (text ? '' : ' dispatch-cell--empty');
+                    d.textContent = text || emptyLabel;
+                    return d;
+                }
+
                 async function agregarFila() {
                     if (agregarEnCurso) {
                         return;
@@ -759,6 +827,7 @@
                     agregarEnCurso = true;
                     inputCodigo.disabled = true;
                     var idNorm = raw;
+                    var propietarioTxt = '';
                     var destinoTxt = '';
                     var encontrado = false;
                     try {
@@ -784,6 +853,10 @@
                         }
                         idNorm = (json.id_producto || raw).trim();
                         encontrado = !!json.encontrado;
+                        propietarioTxt =
+                            json.propietario != null && String(json.propietario).trim() !== ''
+                                ? String(json.propietario).trim()
+                                : '';
                         destinoTxt =
                             json.destino != null && String(json.destino).trim() !== ''
                                 ? String(json.destino).trim()
@@ -811,39 +884,59 @@
 
                     var tr = document.createElement('tr');
                     var td1 = document.createElement('td');
+                    td1.className = 'col-codigo';
                     var td2 = document.createElement('td');
                     var td3 = document.createElement('td');
-                    var inCod = document.createElement('input');
-                    inCod.type = 'text';
-                    inCod.name = 'codigos[]';
-                    inCod.className = 'inp-codigo-despacho';
-                    inCod.value = idNorm;
-                    inCod.readOnly = true;
+                    var td4 = document.createElement('td');
+                    var hiddenCod = document.createElement('input');
+                    hiddenCod.type = 'hidden';
+                    hiddenCod.name = 'codigos[]';
+                    hiddenCod.className = 'inp-codigo-despacho';
+                    hiddenCod.value = idNorm;
+                    var divCod = document.createElement('div');
+                    divCod.className = 'dispatch-cell dispatch-cell--codigo';
+                    divCod.textContent = idNorm;
                     if (raw !== idNorm) {
-                        inCod.title = 'Leído: ' + raw;
+                        divCod.title = 'Leído (código): ' + raw;
                     }
-                    var inDest = document.createElement('input');
-                    inDest.type = 'text';
-                    inDest.name = 'destinos[]';
-                    inDest.placeholder = encontrado
-                        ? destinoTxt
-                            ? 'Destino'
-                            : 'Sin destino registrado (editable)'
-                        : 'Sin fila en inventario para este id (editable)';
-                    if (destinoTxt) {
-                        inDest.value = destinoTxt;
-                    }
-                    var inFecha = document.createElement('input');
-                    inFecha.type = 'text';
-                    inFecha.name = 'fechas[]';
-                    inFecha.value = hoyTexto();
-                    inFecha.readOnly = true;
-                    td1.appendChild(inCod);
-                    td2.appendChild(inDest);
-                    td3.appendChild(inFecha);
+                    var divProp = dispatchCell(
+                        propietarioTxt,
+                        encontrado ? 'Sin propietario en inventario' : 'Sin fila en inventario',
+                    );
+                    var divDest = dispatchCell(
+                        destinoTxt,
+                        encontrado ? 'Sin destino registrado' : 'Sin fila en inventario',
+                    );
+                    var divFecha = dispatchCell(hoyTexto(), '');
+                    var td5 = document.createElement('td');
+                    td5.className = 'col-quitar';
+                    var btnRetirar = document.createElement('button');
+                    btnRetirar.type = 'button';
+                    btnRetirar.className = 'btn-retirar-codigo';
+                    btnRetirar.setAttribute('aria-label', 'Retirar código ' + idNorm + ' de este despacho');
+                    btnRetirar.title = 'Retirar de la lista (no se dará de baja hasta terminar el despacho)';
+                    btnRetirar.textContent = '\u00D7';
+                    btnRetirar.addEventListener('click', function () {
+                        var h = tr.querySelector('input.inp-codigo-despacho');
+                        var k = (h && h.value ? h.value : '').trim().toLowerCase();
+                        if (k) {
+                            codes.delete(k);
+                        }
+                        tr.remove();
+                        actualizarTotal();
+                        inputCodigo.focus();
+                    });
+                    td5.appendChild(btnRetirar);
+                    td1.appendChild(hiddenCod);
+                    td1.appendChild(divCod);
+                    td2.appendChild(divProp);
+                    td3.appendChild(divDest);
+                    td4.appendChild(divFecha);
                     tr.appendChild(td1);
                     tr.appendChild(td2);
                     tr.appendChild(td3);
+                    tr.appendChild(td4);
+                    tr.appendChild(td5);
                     tbody.appendChild(tr);
                     inputCodigo.value = '';
                     inputCodigo.focus();
@@ -889,11 +982,18 @@
                         alert('Falta el token de seguridad; recargue la página.');
                         return;
                     }
+                    function valCampo(id) {
+                        var el = document.getElementById(id);
+                        return el ? String(el.value || '').trim() : '';
+                    }
                     var fd = new FormData();
                     fd.append('_token', tokenEl.value);
                     tbody.querySelectorAll('input.inp-codigo-despacho').forEach(function (inp) {
                         fd.append('codigos[]', (inp.value || '').trim());
                     });
+                    fd.append('empresa', valCampo('empresa'));
+                    fd.append('conductor', valCampo('conductor'));
+                    fd.append('placa', valCampo('placa'));
                     finalizarEnCurso = true;
                     btnTerminar.disabled = true;
                     try {

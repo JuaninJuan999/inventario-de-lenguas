@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Decomisos\InspeccionSirtController;
 use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
+use App\Http\Controllers\Despacho\HistoriaDespachoLenguasController;
 use App\Http\Controllers\Despacho\LenguaDestinoInventarioController;
 use App\Http\Controllers\Despacho\VehiculoAsignadoLookupController;
 use App\Http\Controllers\Ingresos\IngresosLenguasController;
@@ -36,6 +37,10 @@ Route::middleware('auth')->group(function () {
         ->name('despacho.lookup.lengua_destino');
     Route::post('/despacho-de-lenguas/finalizar-inventario', DespachoFinalizarInventarioController::class)
         ->name('despacho.finalizar.inventario');
+    Route::get('/historia-despacho-lenguas', [HistoriaDespachoLenguasController::class, 'index'])
+        ->name('historia.despacho.lenguas');
+    Route::get('/historia-despacho-lenguas/{despacho}/detalle', [HistoriaDespachoLenguasController::class, 'detalle'])
+        ->name('historia.despacho.lenguas.detalle');
     Route::view('/entrega-de-conformidad', 'entrega-conformidad')->name('entrega.conformidad');
     Route::get('/decomisos-de-lenguas', [InspeccionSirtController::class, 'index'])->name('decomisos.lenguas');
 });

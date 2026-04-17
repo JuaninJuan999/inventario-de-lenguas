@@ -40,7 +40,7 @@
                     <th>Peso</th>
                     <th>Ref. turno</th>
                     <th>Fecha de vencimiento</th>
-                    <th>Próxima a vencer</th>
+                    <th>Vida útil</th>
                 </tr>
             </thead>
             <tbody>

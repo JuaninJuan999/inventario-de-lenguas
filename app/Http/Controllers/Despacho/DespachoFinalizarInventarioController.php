@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Despacho;
 
 use App\Http\Controllers\Controller;
+use App\Models\Despacho;
 use App\Models\IngresoLenguaLocal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,20 +13,33 @@ use Throwable;
 class DespachoFinalizarInventarioController extends Controller
 {
     /**
-     * Da de baja en inventario local una fila por cada código despachado (id_producto más reciente).
+     * Da de baja en inventario local una fila por cada código despachado (id_producto más reciente)
+     * y registra cabecera en historial de despachos.
      */
     public function __invoke(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'codigos' => ['required', 'array', 'min:1', 'max:500'],
             'codigos.*' => ['required', 'string', 'max:80'],
+            'empresa' => ['nullable', 'string', 'max:512'],
+            'conductor' => ['nullable', 'string', 'max:255'],
+            'placa' => ['nullable', 'string', 'max:64'],
         ]);
 
         $notFound = [];
         $removed = 0;
 
         try {
-            DB::transaction(function () use ($validated, &$notFound, &$removed): void {
+            DB::transaction(function () use ($validated, $request, &$notFound, &$removed): void {
+                $realizadoAt = now();
+                $despacho = Despacho::query()->create([
+                    'user_id' => $request->user()?->id,
+                    'empresa' => $this->nullIfBlank($validated['empresa'] ?? null),
+                    'conductor' => $this->nullIfBlank($validated['conductor'] ?? null),
+                    'placa' => $this->nullIfBlank($validated['placa'] ?? null),
+                    'realizado_at' => $realizadoAt,
+                ]);
+
                 foreach ($validated['codigos'] as $codigo) {
                     $codigo = trim((string) $codigo);
                     if ($codigo === '') {
@@ -45,9 +59,14 @@ class DespachoFinalizarInventarioController extends Controller
                         continue;
                     }
 
-                    $row->despachado_at = now();
+                    $row->despachado_at = $realizadoAt;
+                    $row->despacho_id = $despacho->id;
                     $row->save();
                     $removed++;
+                }
+
+                if ($removed === 0) {
+                    $despacho->delete();
                 }
             });
         } catch (Throwable $e) {
@@ -86,5 +105,12 @@ class DespachoFinalizarInventarioController extends Controller
             'not_found' => $notFound,
             'message' => $message,
         ]);
+    }
+
+    private function nullIfBlank(?string $value): ?string
+    {
+        $t = $value !== null ? trim($value) : '';
+
+        return $t === '' ? null : $t;
     }
 }

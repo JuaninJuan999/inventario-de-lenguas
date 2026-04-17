@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Inventario;
 use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Services\IngresosLenguas\IngresosLenguasConsultaSirt;
+use App\Support\VencimientoLengua;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,7 +75,13 @@ class InventarioLenguasController extends Controller
             ]);
         }
 
-        $queryFiltros = $request->only(['fecha_desde', 'fecha_hasta', 'id_producto', 'propietario']);
+        $queryFiltros = $request->only([
+            'fecha_desde',
+            'fecha_hasta',
+            'id_producto',
+            'propietario',
+            'vida_util',
+        ]);
 
         if ($outcome['success']) {
             return redirect()
@@ -89,7 +97,13 @@ class InventarioLenguasController extends Controller
     /**
      * @return array{
      *     rows: Collection<int, IngresoLenguaLocal>,
-     *     filters: array{fecha_desde: string, fecha_hasta: string, id_producto: string, propietario: string},
+     *     filters: array{
+     *         fecha_desde: string,
+     *         fecha_hasta: string,
+     *         id_producto: string,
+     *         propietario: string,
+     *         vida_util: string,
+     *     },
      *     filtrosActivos: bool,
      *     listadoEmptyHint: 'validation'|'filtered'|'global',
      *     validator: ValidatorInstance
@@ -105,12 +119,14 @@ class InventarioLenguasController extends Controller
             'fecha_hasta' => (string) $request->input('fecha_hasta', ''),
             'id_producto' => substr($request->string('id_producto')->trim()->toString(), 0, 80),
             'propietario' => substr($request->string('propietario')->trim()->toString(), 0, 200),
+            'vida_util' => substr($request->string('vida_util')->trim()->toString(), 0, 32),
         ];
 
         $filtrosActivos = $fechaDesdeTrim !== ''
             || $fechaHastaTrim !== ''
             || $filters['id_producto'] !== ''
-            || $filters['propietario'] !== '';
+            || $filters['propietario'] !== ''
+            || $filters['vida_util'] !== '';
 
         $validator = $this->buildInventarioValidator($fechaDesdeTrim, $fechaHastaTrim, $filters);
 
@@ -129,6 +145,7 @@ class InventarioLenguasController extends Controller
             $fechaHastaTrim,
             $filters['id_producto'],
             $filters['propietario'],
+            $filters['vida_util'],
         );
 
         $listadoEmptyHint = 'global';
@@ -146,7 +163,11 @@ class InventarioLenguasController extends Controller
     }
 
     /**
-     * @param  array{id_producto: string, propietario: string}  $filters
+     * @param  array{
+     *     id_producto: string,
+     *     propietario: string,
+     *     vida_util: string,
+     * }  $filters
      */
     private function buildInventarioValidator(
         string $fechaDesdeTrim,
@@ -158,6 +179,7 @@ class InventarioLenguasController extends Controller
             'propietario' => $filters['propietario'],
             'fecha_desde' => $fechaDesdeTrim === '' ? null : $fechaDesdeTrim,
             'fecha_hasta' => $fechaHastaTrim === '' ? null : $fechaHastaTrim,
+            'vida_util' => $filters['vida_util'] === '' ? null : $filters['vida_util'],
         ];
 
         $validator = Validator::make($data, [
@@ -165,6 +187,7 @@ class InventarioLenguasController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'fecha_desde' => ['nullable', 'date'],
             'fecha_hasta' => ['nullable', 'date'],
+            'vida_util' => ['nullable', 'string', 'max:32'],
         ]);
 
         $validator->after(function ($v) use ($fechaDesdeTrim, $fechaHastaTrim): void {
@@ -188,10 +211,14 @@ class InventarioLenguasController extends Controller
         string $fechaHastaTrim,
         string $idProducto,
         string $propietario,
+        string $vidaUtilTrim,
     ): Collection {
         $op = $this->likeOperator();
         $patId = '%'.$idProducto.'%';
         $patProp = '%'.$propietario.'%';
+
+        $hoyYmd = Carbon::now(VencimientoLengua::zona())->startOfDay()->format('Y-m-d');
+        $castDiasTexto = $this->sqlCastDiasHastaVencimientoAsText();
 
         $q = IngresoLenguaLocal::query()
             ->sinDespachar()
@@ -204,11 +231,43 @@ class InventarioLenguasController extends Controller
             ->when($propietario !== '', function ($q) use ($op, $patProp): void {
                 $q->where('propietario', $op, $patProp);
             })
+            ->when($vidaUtilTrim !== '', function ($q) use ($castDiasTexto, $hoyYmd, $vidaUtilTrim, $op): void {
+                $needle = '%'.addcslashes($vidaUtilTrim, '%_\\').'%';
+                if ($op === 'ilike') {
+                    $q->whereRaw("({$castDiasTexto}) ilike ?", [$hoyYmd, $needle]);
+                } else {
+                    $q->whereRaw("({$castDiasTexto}) like ?", [$hoyYmd, $needle]);
+                }
+            })
             ->orderByDesc('imported_at')
             ->orderByDesc('id')
             ->limit(2000);
 
         return $q->get();
+    }
+
+    /**
+     * Días hasta vencimiento (fecha registro + 4 días calendario vs. hoy en zona operación), alineado a {@see VencimientoLengua::diasHastaVencimiento()}.
+     * El fragmento incluye un marcador ? para la fecha de referencia (Y-m-d).
+     */
+    private function sqlDiasHastaVencimientoColumn(): string
+    {
+        return match (DB::getDriverName()) {
+            'pgsql' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE ((fecha_registro + INTERVAL \'4 days\')::date - CAST(? AS date))::integer END)',
+            'sqlite' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE CAST(ROUND(julianday(date(fecha_registro, \'+4 days\')) - julianday(?)) AS INTEGER) END)',
+            default => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE DATEDIFF(DATE_ADD(fecha_registro, INTERVAL 4 DAY), ?) END)',
+        };
+    }
+
+    /** Texto del número de días (misma idea que la columna, sin la palabra «días»), para búsqueda libre con LIKE. */
+    private function sqlCastDiasHastaVencimientoAsText(): string
+    {
+        $inner = $this->sqlDiasHastaVencimientoColumn();
+
+        return match (DB::getDriverName()) {
+            'pgsql' => "CAST(({$inner}) AS TEXT)",
+            default => "CAST(({$inner}) AS CHAR)",
+        };
     }
 
     private function likeOperator(): string

@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        @include('partials.favicon')
         <title>Dashboard — {{ config('app.name') }}</title>
         <style>
             :root {
@@ -71,6 +72,7 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <header class="top">
             <div>
                 <h1>Dashboard</h1>

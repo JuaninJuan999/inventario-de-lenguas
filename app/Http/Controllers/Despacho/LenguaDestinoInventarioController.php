@@ -36,6 +36,7 @@ class LenguaDestinoInventarioController extends Controller
             'ok' => true,
             'codigo_leido' => $codigo,
             'id_producto' => $idProducto,
+            'propietario' => $row?->propietario,
             'destino' => $row?->destino,
             'encontrado' => $row !== null,
         ]);

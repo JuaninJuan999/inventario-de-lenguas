@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        @include('partials.favicon')
         <title>Decomisos de Lenguas — {{ config('app.name') }}</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700,800" rel="stylesheet" />
@@ -97,6 +98,11 @@
                 background: color-mix(in srgb, #5c1a1a 55%, rgba(0, 0, 0, 0.35));
                 color: #ffe4e4;
             }
+            .alert--ok {
+                border: 1px solid color-mix(in srgb, var(--brand-green) 45%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 12%, rgba(0, 0, 0, 0.35));
+                color: var(--text);
+            }
             .table-wrap {
                 overflow-x: auto;
                 border-radius: 0.65rem;
@@ -140,20 +146,34 @@
                 padding-bottom: 1.25rem;
                 border-bottom: 1px solid color-mix(in srgb, var(--brand-green) 22%, transparent);
             }
-            .filters-grid {
-                display: grid;
-                gap: 0.75rem 1rem;
-                grid-template-columns: 1fr;
+            .filters-row {
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: flex-end;
+                gap: 0.65rem 0.85rem;
+                overflow-x: auto;
+                padding-bottom: 0.1rem;
+                -webkit-overflow-scrolling: touch;
             }
-            @media (min-width: 640px) {
-                .filters-grid {
-                    grid-template-columns: repeat(2, 1fr);
-                }
+            .filter-field--grow {
+                flex: 1 1 10rem;
+                min-width: 8rem;
             }
-            @media (min-width: 960px) {
-                .filters-grid {
-                    grid-template-columns: repeat(4, 1fr);
-                }
+            .filter-field--date {
+                flex: 0 0 auto;
+            }
+            .filter-field--date input[type="date"] {
+                width: auto;
+                min-width: 10.75rem;
+            }
+            .filter-actions {
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: center;
+                gap: 0.5rem;
+                flex-shrink: 0;
+                margin: 0;
+                padding-bottom: 0.05rem;
             }
             .filter-field label {
                 display: block;
@@ -183,13 +203,7 @@
                 font-size: 0.75rem;
                 font-weight: 600;
                 color: #ffb4b4;
-            }
-            .filter-actions {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.65rem;
-                align-items: center;
-                margin-top: 1rem;
+                white-space: nowrap;
             }
             .btn-apply {
                 display: inline-flex;
@@ -225,11 +239,16 @@
         </style>
     </head>
     <body>
+        @include('partials.logo-institucional')
         <header class="page-bar">
             <div>
                 <h1>Decomisos de Lenguas</h1>
                 <p class="sub">
-                    Listado desde <strong>SIRT</strong> (filtros opcionales por id producto, fechas y tipo de enfermedad).
+                    Listado desde <strong>SIRT</strong>. Sin búsqueda libre, el listado usa por defecto la
+                    <strong>fecha de registro de hoy</strong> (puede cambiar desde/hasta). Si escribe en
+                    <strong>búsqueda libre</strong> (p. ej. id de producto), la consulta ignora las fechas y busca en
+                    todo el historial disponible (hasta 500 filas, las más recientes). Tras cada consulta exitosa,
+                    los id listados se sincronizan con el inventario local (misma baja que al despachar).
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -237,32 +256,41 @@
 
         <section class="sheet" aria-labelledby="tabla-decomisos">
             <p id="tabla-decomisos" class="meta">
-                Columnas mostradas: id producto · fecha registro · hora registro · dictamen · enfermedad
+                Columnas: id producto · fecha registro · hora registro · dictamen · enfermedad
             </p>
 
             @if (! empty($error))
                 <p class="alert" role="alert">{{ $error }}</p>
             @endif
+            @if (! empty($invSyncDecomisoError))
+                <p class="alert" role="alert">{{ $invSyncDecomisoError }}</p>
+            @elseif (($invRetiradosDecomiso ?? 0) > 0)
+                <p class="alert alert--ok" role="status">
+                    Inventario local: se retiraron automáticamente
+                    <strong>{{ (int) $invRetiradosDecomiso }}</strong>
+                    lengua(s) cuyo id de producto aparece en esta consulta de decomisos SIRT.
+                </p>
+            @endif
 
             <form class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
-                <div class="filters-grid">
-                    <div class="filter-field">
-                        <label for="f-id-producto">Id producto</label>
+                <div class="filters-row">
+                    <div class="filter-field filter-field--grow">
+                        <label for="f-q">Búsqueda libre</label>
                         <input
-                            id="f-id-producto"
-                            type="text"
-                            name="id_producto"
-                            value="{{ $filters['id_producto'] ?? '' }}"
-                            maxlength="80"
-                            placeholder="Contiene… (ej. 2604)"
+                            id="f-q"
+                            type="search"
+                            name="q"
+                            value="{{ $filters['q'] ?? '' }}"
+                            maxlength="200"
+                            placeholder="Id, dictamen o enfermedad…"
                             autocomplete="off"
                         />
-                        @error('id_producto')
+                        @error('q')
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div class="filter-field">
-                        <label for="f-fecha-desde">Fecha desde</label>
+                    <div class="filter-field filter-field--date">
+                        <label for="f-fecha-desde">Desde</label>
                         <input
                             id="f-fecha-desde"
                             type="date"
@@ -273,8 +301,8 @@
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div class="filter-field">
-                        <label for="f-fecha-hasta">Fecha hasta</label>
+                    <div class="filter-field filter-field--date">
+                        <label for="f-fecha-hasta">Hasta</label>
                         <input
                             id="f-fecha-hasta"
                             type="date"
@@ -285,25 +313,10 @@
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div class="filter-field">
-                        <label for="f-enfermedad">Tipo de enfermedad</label>
-                        <input
-                            id="f-enfermedad"
-                            type="text"
-                            name="enfermedad"
-                            value="{{ $filters['enfermedad'] ?? '' }}"
-                            maxlength="200"
-                            placeholder="Contiene texto en nombre de enfermedad…"
-                            autocomplete="off"
-                        />
-                        @error('enfermedad')
-                            <p class="err">{{ $message }}</p>
-                        @enderror
+                    <div class="filter-actions">
+                        <button class="btn-apply" type="submit">Aplicar</button>
+                        <a class="btn-clear" href="{{ route('decomisos.lenguas') }}">Limpiar</a>
                     </div>
-                </div>
-                <div class="filter-actions">
-                    <button class="btn-apply" type="submit">Aplicar filtros</button>
-                    <a class="btn-clear" href="{{ route('decomisos.lenguas') }}">Limpiar</a>
                 </div>
             </form>
 
@@ -311,9 +324,9 @@
                 <p class="alert" role="alert">Revise los filtros marcados abajo.</p>
             @endif
 
-            @if (empty($error) && ! $errors->any() && count($rows) === 0)
+            @if (empty($error) && count($rows) === 0)
                 <p class="muted">No hay filas para los filtros indicados (máx. 500 por consulta).</p>
-            @elseif (empty($error) && ! $errors->any())
+            @elseif (empty($error))
                 <p class="muted" style="margin: 0 0 0.75rem">{{ count($rows) }} registro(s).</p>
                 <div class="table-wrap">
                     <table class="data">
@@ -330,6 +343,7 @@
                             @foreach ($rows as $row)
                                 @php
                                     $r = (array) $row;
+                                    $idProd = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
                                     $hora = $r['hora_registro'] ?? null;
                                     if ($hora instanceof \DateTimeInterface) {
                                         $horaTxt = $hora->format('H:i:s');
@@ -344,7 +358,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $r['id_producto'] ?? '—' }}</td>
+                                    <td>{{ $idProd !== '' ? $idProd : '—' }}</td>
                                     <td>{{ $fechaTxt }}</td>
                                     <td>{{ $horaTxt }}</td>
                                     <td>{{ $r['nombre_dictamen'] ?? '—' }}</td>
