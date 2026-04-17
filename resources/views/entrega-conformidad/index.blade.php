@@ -134,6 +134,13 @@
                 text-decoration: none;
                 background: linear-gradient(145deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 72%, var(--green-deep)));
             }
+            a.btn-pdf {
+                font-size: 1.35rem;
+                line-height: 1;
+                padding: 0.28rem 0.5rem;
+                text-transform: none;
+                letter-spacing: normal;
+            }
             .btn-pdf:hover {
                 filter: brightness(1.06);
             }
@@ -217,8 +224,10 @@
                                                 href="{{ route('entrega.conformidad.pdf', $d) }}"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
+                                                aria-label="Generar documento PDF de despacho"
+                                                title="Generar documento PDF"
                                             >
-                                                Generar documento de despacho
+                                                📄
                                             </a>
                                         @else
                                             <span class="btn-pdf is-disabled" aria-disabled="true">Sin lenguas</span>
