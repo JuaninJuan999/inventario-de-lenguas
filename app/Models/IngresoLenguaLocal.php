@@ -22,6 +22,7 @@ class IngresoLenguaLocal extends Model
         'imported_at',
         'user_id',
         'despacho_id',
+        'desposte_id',
         'despachado_at',
     ];
 
@@ -50,5 +51,10 @@ class IngresoLenguaLocal extends Model
     public function despacho(): BelongsTo
     {
         return $this->belongsTo(Despacho::class, 'despacho_id');
+    }
+
+    public function desposte(): BelongsTo
+    {
+        return $this->belongsTo(Desposte::class, 'desposte_id');
     }
 }

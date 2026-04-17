@@ -105,6 +105,30 @@
             table.data tbody tr:nth-child(even) {
                 background: rgba(0, 0, 0, 0.2);
             }
+            table.data th.col-tipo,
+            table.data td.col-tipo {
+                white-space: nowrap;
+                vertical-align: middle;
+            }
+            .badge-tipo {
+                display: inline-block;
+                padding: 0.2rem 0.45rem;
+                border-radius: 6px;
+                font-size: 0.65rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+            .badge-tipo--despacho {
+                border: 1px solid color-mix(in srgb, var(--brand-green) 55%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 18%, transparent);
+                color: var(--text);
+            }
+            .badge-tipo--desposte {
+                border: 1px solid color-mix(in srgb, var(--brand-rose) 55%, transparent);
+                background: color-mix(in srgb, var(--brand-rose) 14%, transparent);
+                color: var(--text);
+            }
             table.data th.col-empresa,
             table.data td.col-empresa {
                 min-width: 8rem;
@@ -254,31 +278,32 @@
             <div>
                 <h1>Historial de despacho de lenguas</h1>
                 <p class="sub">
-                    Registro de despachos finalizados: fecha, empresa, conductor, placa, cantidad de lenguas y usuario.
-                    Use <strong>Ver detalle</strong> para ver id de producto, propietario y destino de cada lengua del
-                    despacho.
+                    Registro unificado de <strong>despachos</strong> y de <strong>movimientos a Planta de Desposte</strong>:
+                    fecha, tipo, datos de transporte (si aplica), cantidad de lenguas y usuario. Use
+                    <strong>Ver detalle</strong> para ver id de producto, propietario y destino de cada lengua.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
         </header>
 
         <section class="sheet">
-            @if ($despachos->isEmpty())
+            @if ($movimientos->isEmpty())
                 <p class="muted">
-                    Aún no hay despachos registrados en el historial. Los registros aparecen al usar
-                    <strong>Terminar despacho</strong> en el módulo de despacho (desde la última actualización del
-                    sistema).
+                    Aún no hay movimientos en el historial. Aparecen al usar <strong>Terminar despacho</strong> en
+                    despacho de lenguas o <strong>Registrar movimiento a Planta de Desposte</strong> en Lenguas
+                    Desposte.
                 </p>
             @else
                 <p class="muted">
-                    Se muestran <strong>{{ $despachos->total() }}</strong> despacho(s) en total. Página
-                    {{ $despachos->currentPage() }} de {{ $despachos->lastPage() }}.
+                    Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s) en total. Página
+                    {{ $movimientos->currentPage() }} de {{ $movimientos->lastPage() }}.
                 </p>
                 <div class="table-wrap">
                     <table class="data">
                         <thead>
                             <tr>
-                                <th>Fecha despacho</th>
+                                <th>Fecha</th>
+                                <th class="col-tipo">Tipo</th>
                                 <th class="col-empresa">Empresa</th>
                                 <th>Conductor</th>
                                 <th>Placa</th>
@@ -288,19 +313,27 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($despachos as $d)
+                            @foreach ($movimientos as $m)
                                 <tr>
-                                    <td>{{ $d->realizado_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
-                                    <td class="col-empresa">{{ $d->empresa !== null && $d->empresa !== '' ? $d->empresa : '—' }}</td>
-                                    <td>{{ $d->conductor !== null && $d->conductor !== '' ? $d->conductor : '—' }}</td>
-                                    <td>{{ $d->placa !== null && $d->placa !== '' ? $d->placa : '—' }}</td>
-                                    <td>{{ (int) ($d->lenguas_count ?? 0) }}</td>
-                                    <td>{{ $d->user?->name ?? '—' }}</td>
+                                    <td>{{ $m->realizado_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="col-tipo">
+                                        @if ($m->movimiento_tipo === 'desposte')
+                                            <span class="badge-tipo badge-tipo--desposte">Desposte</span>
+                                        @else
+                                            <span class="badge-tipo badge-tipo--despacho">Despacho</span>
+                                        @endif
+                                    </td>
+                                    <td class="col-empresa">{{ $m->empresa !== null && $m->empresa !== '' ? $m->empresa : '—' }}</td>
+                                    <td>{{ $m->conductor !== null && $m->conductor !== '' ? $m->conductor : '—' }}</td>
+                                    <td>{{ $m->placa !== null && $m->placa !== '' ? $m->placa : '—' }}</td>
+                                    <td>{{ (int) ($m->lenguas_count ?? 0) }}</td>
+                                    <td>{{ $m->user?->name ?? '—' }}</td>
                                     <td>
                                         <button
                                             type="button"
                                             class="btn-detalle"
-                                            data-detalle-url="{{ route('historia.despacho.lenguas.detalle', $d) }}"
+                                            data-detalle-url="{{ $m->detalle_url }}"
+                                            data-dialog-title="{{ e($m->dialog_title) }}"
                                         >
                                             Ver detalle
                                         </button>
@@ -310,16 +343,16 @@
                         </tbody>
                     </table>
                 </div>
-                @if ($despachos->hasPages())
+                @if ($movimientos->hasPages())
                     <nav class="pagination-wrap" aria-label="Paginación del historial">
-                        @if ($despachos->onFirstPage())
+                        @if ($movimientos->onFirstPage())
                             <span class="page-now" style="opacity: 0.45">← Anterior</span>
                         @else
-                            <a href="{{ $despachos->previousPageUrl() }}">← Anterior</a>
+                            <a href="{{ $movimientos->previousPageUrl() }}">← Anterior</a>
                         @endif
-                        <span class="page-now">Página {{ $despachos->currentPage() }} de {{ $despachos->lastPage() }}</span>
-                        @if ($despachos->hasMorePages())
-                            <a href="{{ $despachos->nextPageUrl() }}">Siguiente →</a>
+                        <span class="page-now">Página {{ $movimientos->currentPage() }} de {{ $movimientos->lastPage() }}</span>
+                        @if ($movimientos->hasMorePages())
+                            <a href="{{ $movimientos->nextPageUrl() }}">Siguiente →</a>
                         @else
                             <span class="page-now" style="opacity: 0.45">Siguiente →</span>
                         @endif
@@ -371,9 +404,15 @@
                     return d.innerHTML;
                 }
 
+                var dialogTitleEl = document.getElementById('hist-dialog-title');
+
                 document.querySelectorAll('.btn-detalle').forEach(function (btn) {
                     btn.addEventListener('click', function () {
                         var url = btn.getAttribute('data-detalle-url');
+                        var title = btn.getAttribute('data-dialog-title');
+                        if (dialogTitleEl && title) {
+                            dialogTitleEl.textContent = title;
+                        }
                         if (!url || !bodyEl) return;
                         bodyEl.innerHTML = '<p class="muted" style="margin:0">Cargando…</p>';
                         openModal();
@@ -432,7 +471,7 @@
                                 var intro = document.createElement('p');
                                 intro.className = 'muted';
                                 intro.style.margin = '0 0 0.5rem';
-                                intro.textContent = lineas.length + ' lengua(s) en este despacho.';
+                                intro.textContent = lineas.length + ' lengua(s) en este movimiento.';
                                 bodyEl.appendChild(intro);
                                 bodyEl.appendChild(wrap);
                             })

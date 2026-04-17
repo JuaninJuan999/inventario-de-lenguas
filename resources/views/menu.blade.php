@@ -175,17 +175,26 @@
                     <p>Salida, pedidos y distribución de <strong>lenguas</strong>.</p>
                     <span class="arrow">Abrir →</span>
                 </a>
+                <a class="module-card" href="{{ route('desposte.lenguas') }}">
+                    <h3>Lenguas Desposte</h3>
+                    <p>Lenguas que pasan al proceso de la <strong>Planta de Desposte</strong>.</p>
+                    <span class="arrow">Abrir →</span>
+                </a>
                 <a class="module-card" href="{{ route('historia.despacho.lenguas') }}">
                     <h3>Historial de despacho de lenguas</h3>
                     <p>
-                        Consulta de despachos finalizados: fecha, empresa, conductor, placa, cantidad y usuario, con
-                        detalle por <strong>id de producto</strong>, propietario y destino.
+                        Consulta de despachos y de movimientos a <strong>Planta de Desposte</strong>: fecha, tipo,
+                        empresa, conductor, placa, cantidad y usuario, con detalle por <strong>id de producto</strong>,
+                        propietario y destino.
                     </p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('entrega.conformidad') }}">
                     <h3>Entrega de Conformidad</h3>
-                    <p>Actas de entrega conforme y recepción de <strong>lenguas</strong>.</p>
+                    <p>
+                        PDF de conformidad por cada <strong>despacho</strong> finalizado: resumen, nota legal y detalle
+                        de lenguas (código, beneficio, destino).
+                    </p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('decomisos.lenguas') }}">

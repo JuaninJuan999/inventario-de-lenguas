@@ -6,6 +6,8 @@ use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
 use App\Http\Controllers\Despacho\HistoriaDespachoLenguasController;
 use App\Http\Controllers\Despacho\LenguaDestinoInventarioController;
 use App\Http\Controllers\Despacho\VehiculoAsignadoLookupController;
+use App\Http\Controllers\Desposte\DesposteFinalizarInventarioController;
+use App\Http\Controllers\EntregaConformidadController;
 use App\Http\Controllers\Ingresos\IngresosLenguasController;
 use App\Http\Controllers\Inventario\InventarioLenguasController;
 use Illuminate\Support\Facades\Route;
@@ -37,10 +39,17 @@ Route::middleware('auth')->group(function () {
         ->name('despacho.lookup.lengua_destino');
     Route::post('/despacho-de-lenguas/finalizar-inventario', DespachoFinalizarInventarioController::class)
         ->name('despacho.finalizar.inventario');
+    Route::view('/lenguas-desposte', 'lenguas-desposte')->name('desposte.lenguas');
+    Route::post('/lenguas-desposte/finalizar-inventario', DesposteFinalizarInventarioController::class)
+        ->name('desposte.finalizar.inventario');
     Route::get('/historia-despacho-lenguas', [HistoriaDespachoLenguasController::class, 'index'])
         ->name('historia.despacho.lenguas');
+    Route::get('/historia-despacho-lenguas/desposte/{desposte}/detalle', [HistoriaDespachoLenguasController::class, 'detalleDesposte'])
+        ->name('historia.desposte.lenguas.detalle');
     Route::get('/historia-despacho-lenguas/{despacho}/detalle', [HistoriaDespachoLenguasController::class, 'detalle'])
         ->name('historia.despacho.lenguas.detalle');
-    Route::view('/entrega-de-conformidad', 'entrega-conformidad')->name('entrega.conformidad');
+    Route::get('/entrega-de-conformidad', [EntregaConformidadController::class, 'index'])->name('entrega.conformidad');
+    Route::get('/entrega-de-conformidad/{despacho}/pdf', [EntregaConformidadController::class, 'pdf'])
+        ->name('entrega.conformidad.pdf');
     Route::get('/decomisos-de-lenguas', [InspeccionSirtController::class, 'index'])->name('decomisos.lenguas');
 });
