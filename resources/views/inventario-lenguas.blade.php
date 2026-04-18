@@ -167,6 +167,11 @@
                 font-size: 0.85rem;
                 color: color-mix(in srgb, var(--text) 65%, transparent);
             }
+            .hint-fechar-turno {
+                margin: 0.15rem 0 0.65rem;
+                font-size: 0.76rem;
+                line-height: 1.4;
+            }
             .filters {
                 margin-bottom: 1.25rem;
                 padding-bottom: 1.25rem;
@@ -286,8 +291,9 @@
                     <strong>Propósito:</strong> disponer de una réplica institucional del <strong>registro de ingresos de
                     lenguas</strong> a planta, alineada a la trazabilidad corporativa y a los mismos criterios de faena
                     que el módulo de ingresos (turno y fecha de plan). <strong>Alcance:</strong> las consultas y filtros
-                    operan exclusivamente sobre la base local; la integración con el origen (SIRT) se ejecuta de forma
-                    programada mientras esta vista permanezca abierta. <strong>Presentación:</strong> hasta 2.000
+                    operan sobre la base local; la sincronización con SIRT usa el mismo rango <strong>fecha desde / hasta
+                    (ref. turno)</strong> cuando ambas están indicadas (como en Ingresos); si están vacías, solo se
+                    consulta el día de operación actual. <strong>Presentación:</strong> hasta 2.000
                     registros, con indicadores de vigencia operativa (fecha de vencimiento y proximidad respecto del
                     día de registro).
                 </p>
@@ -299,7 +305,7 @@
             id="inv-sheet"
             class="sheet"
             aria-labelledby="inv-tabla"
-            data-import-url="{{ route('inventario.lenguas.importar_hoy') }}"
+            data-import-url="{{ route('inventario.lenguas.importar_hoy', [], false) }}"
             data-sync-interval="{{ (int) $inventarioSyncIntervalSeconds }}"
         >
             <div class="toolbar">
@@ -407,6 +413,9 @@
                         @enderror
                     </div>
                 </div>
+                <p class="muted hint-fechar-turno">
+                    Si indica solo una fecha de ref. turno, se usa ese mismo día como rango (desde y hasta).
+                </p>
                 <div class="filter-actions">
                     <button class="btn-apply" type="submit">Aplicar</button>
                     <a class="btn-clear" href="{{ route('inventario.lenguas') }}">Limpiar</a>

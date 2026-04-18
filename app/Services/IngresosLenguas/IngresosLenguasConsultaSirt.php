@@ -94,8 +94,10 @@ EXISTS (
     FROM trazabilidad_proceso.plan_faena_producto pfp_f
     INNER JOIN trazabilidad_proceso.plan_faena_turno pft_f
         ON pfp_f.id_plan_faena = pft_f.id_plan_faena
+    INNER JOIN trazabilidad_proceso.plan_faena pf_f
+        ON pf_f.id = pfp_f.id_plan_faena
     INNER JOIN trazabilidad_proceso.turno tur_f
-        ON tur_f.id = pft_f.id_turno
+        ON tur_f.id = pf_f.id_turno
     WHERE pfp_f.id_producto = ins.id_producto{$fechaSql}
 )
 SQL;
@@ -120,6 +122,69 @@ SQL;
     }
 
     /**
+     * Fecha de turno usada en trazabilidad (mismo origen que el EXISTS de {@see buildTurnoFechaExistsPredicate}),
+     * como subconsulta escalar para enlazar cada fila a una fecha Y-m-d coherente con Ingresos.
+     *
+     * @param  string  $idProductoExpr  expresión SQL del id_producto (p. ej. i.id_producto)
+     */
+    public function buildTurnoFechaReferenciaScalarSubquery(string $idProductoExpr): string
+    {
+        $bind = strtolower(trim((string) config('ingresos_lenguas.turno_fecha_bind', 'plan_faena')));
+
+        if ($bind === 'plan_faena_turno') {
+            $col = $this->resolveFechaColumn('ingresos_lenguas.plan_faena_turno_fecha_column', 'fecha_registro');
+
+            return <<<SQL
+(
+    SELECT (pft_ref.{$col})::date
+    FROM trazabilidad_proceso.plan_faena_producto pfp_ref
+    INNER JOIN trazabilidad_proceso.plan_faena_turno pft_ref
+        ON pfp_ref.id_plan_faena = pft_ref.id_plan_faena
+    WHERE pfp_ref.id_producto = {$idProductoExpr}
+    ORDER BY pfp_ref.id_plan_faena DESC NULLS LAST, (pft_ref.{$col})::date DESC NULLS LAST
+    LIMIT 1
+)
+SQL;
+        }
+
+        if ($bind === 'turno') {
+            $col = $this->resolveFechaColumn('ingresos_lenguas.turno_tabla_fecha_column', 'fecha');
+
+            return <<<SQL
+(
+    SELECT (tur_ref.{$col})::date
+    FROM trazabilidad_proceso.plan_faena_producto pfp_ref
+    INNER JOIN trazabilidad_proceso.plan_faena_turno pft_ref
+        ON pfp_ref.id_plan_faena = pft_ref.id_plan_faena
+    INNER JOIN trazabilidad_proceso.plan_faena pf_ref_tur
+        ON pf_ref_tur.id = pfp_ref.id_plan_faena
+    INNER JOIN trazabilidad_proceso.turno tur_ref
+        ON tur_ref.id = pf_ref_tur.id_turno
+    WHERE pfp_ref.id_producto = {$idProductoExpr}
+    ORDER BY pfp_ref.id_plan_faena DESC NULLS LAST, pf_ref_tur.id_turno DESC NULLS LAST
+    LIMIT 1
+)
+SQL;
+        }
+
+        $col = $this->resolveFechaColumn('ingresos_lenguas.plan_faena_fecha_column', 'fecha_plan');
+
+        return <<<SQL
+(
+    SELECT (pf_ref.{$col})::date
+    FROM trazabilidad_proceso.plan_faena_producto pfp_ref
+    INNER JOIN trazabilidad_proceso.plan_faena_turno pft_ref
+        ON pfp_ref.id_plan_faena = pft_ref.id_plan_faena
+    INNER JOIN trazabilidad_proceso.plan_faena pf_ref
+        ON pf_ref.id = pfp_ref.id_plan_faena
+    WHERE pfp_ref.id_producto = {$idProductoExpr}
+    ORDER BY pfp_ref.id_plan_faena DESC NULLS LAST, pf_ref.id_turno DESC NULLS LAST
+    LIMIT 1
+)
+SQL;
+    }
+
+    /**
      * @param  array{id_producto: string, propietario: string}  $filters
      * @return array{rows: array<int, object>, exception: Throwable|null}
      */
@@ -133,6 +198,7 @@ SQL;
         bool $incluirIdInsensibilizacion = false,
     ): array {
         $idParteProducto = (int) config('ingresos_lenguas.id_parte_producto', 4);
+        $insLimit = max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000)));
 
         $conRangoFechaEnExists = $primeraCarga
             || ($fechaDesdeTrim !== '' && $fechaHastaTrim !== '');
@@ -172,6 +238,11 @@ SQL;
         }
 
         $colIdIns = $incluirIdInsensibilizacion ? "    i.id AS insensibilizacion_id,\n" : '';
+        $colFechaTurnoRef = '';
+        if ($incluirIdInsensibilizacion) {
+            $fechaTurnoSql = $this->buildTurnoFechaReferenciaScalarSubquery('i.id_producto');
+            $colFechaTurnoRef = "    {$fechaTurnoSql} AS fecha_turno_referencia,\n";
+        }
 
         $sql = <<<SQL
 WITH ins_filtrada AS (
@@ -179,10 +250,10 @@ WITH ins_filtrada AS (
     FROM trazabilidad_proceso.insensibilizacion ins
     WHERE {$turnoExists}{$cteExtraWhere}
     ORDER BY ins.id DESC
-    LIMIT 1000
+    LIMIT {$insLimit}
 )
 SELECT
-{$colIdIns}    i.id_producto,
+{$colIdIns}{$colFechaTurnoRef}    i.id_producto,
     i.fecha_registro,
     i.hora_registro,
     prop.nombre AS propietario,

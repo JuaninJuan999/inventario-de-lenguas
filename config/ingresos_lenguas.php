@@ -20,6 +20,12 @@ return [
     'id_parte_producto' => (int) env('INGRESOS_LENGUAS_ID_PARTE_PRODUCTO', 4),
 
     /*
+    | Máximo de insensibilizaciones por consulta a SIRT (CTE ins_filtrada).
+    | Debe cubrir picos de un turno; el visor local lista hasta 2.000.
+    */
+    'consulta_insensibilizacion_limit' => (int) env('INGRESOS_LENGUAS_CONSULTA_LIMIT', 2000),
+
+    /*
     | Origen de la fecha del filtro "desde/hasta", siempre con producto
     | vinculado a un turno en plan_faena_turno:
     | - plan_faena: fecha en la tabla plan_faena (caso habitual si turno no tiene fecha).

@@ -370,8 +370,8 @@
         </div>
 
         <script>
-            window.desposteLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino'));
-            window.desposteFinalizarInventarioUrl = @json(route('desposte.finalizar.inventario'));
+            window.desposteLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino', [], false));
+            window.desposteFinalizarInventarioUrl = @json(route('desposte.finalizar.inventario', [], false));
         </script>
         <script>
             (function () {
@@ -436,10 +436,19 @@
                     var destinoTxt = '';
                     var encontrado = false;
                     try {
-                        var res = await fetch(urlBase + '?codigo=' + encodeURIComponent(raw), {
+                        var u;
+                        try {
+                            u = new URL(String(urlBase), window.location.href);
+                            u.searchParams.set('codigo', raw);
+                        } catch (e1) {
+                            alert('Ruta de inventario inválida. Recargue la página (Ctrl+F5).');
+                            return;
+                        }
+                        var res = await fetch(u.toString(), {
                             headers: {
                                 Accept: 'application/json',
                                 'X-Requested-With': 'XMLHttpRequest',
+                                'X-Despacho-Codigo-Lengua': raw,
                             },
                             credentials: 'same-origin',
                         });

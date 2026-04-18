@@ -304,7 +304,7 @@
                             <tr>
                                 <th>Fecha</th>
                                 <th class="col-tipo">Tipo</th>
-                                <th class="col-empresa">Empresa</th>
+                                <th class="col-empresa">Operador logístico</th>
                                 <th>Conductor</th>
                                 <th>Placa</th>
                                 <th>Lenguas</th>

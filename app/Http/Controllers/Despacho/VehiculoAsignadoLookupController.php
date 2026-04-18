@@ -52,11 +52,14 @@ class VehiculoAsignadoLookupController extends Controller
             ], 500);
         }
 
-        $focus = strtolower(trim((string) $request->query('focus', '')));
+        $focus = strtolower(trim((string) $request->get('focus', '')));
+        if ($focus === '') {
+            $focus = strtolower(trim((string) $request->header('X-Despacho-Lookup-Focus', '')));
+        }
         if (! in_array($focus, ['empresa', 'placa', 'conductor'], true)) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Indique focus=empresa, focus=placa o focus=conductor.',
+                'message' => 'No se recibió el tipo de búsqueda (empresa, placa o conductor). Cierre el cuadro y ábralo de nuevo con el botón correspondiente, o recargue la página (Ctrl+F5).',
                 'data' => [],
             ], 422);
         }

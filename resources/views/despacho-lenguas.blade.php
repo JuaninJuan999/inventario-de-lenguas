@@ -465,22 +465,22 @@
 
                 <div class="row-field">
                     <button type="button" class="btn-3d label-fixed" data-open-lookup="empresa" aria-haspopup="dialog">
-                        Empresa
+                        Operador logístico
                     </button>
                     <input
                         type="text"
                         name="empresa"
                         id="empresa"
                         autocomplete="organization"
-                        placeholder="Nombre o razón social"
+                        placeholder="Código operador (listado COLBEEF)"
                     >
                 </div>
 
                 <div class="row-field">
                     <button type="button" class="btn-3d label-fixed" data-open-lookup="placa" aria-haspopup="dialog">
-                        Placa vehiculo
+                        Placa vehículo
                     </button>
-                    <input type="text" name="placa" id="placa" autocomplete="off" placeholder="">
+                    <input type="text" name="placa" id="placa" autocomplete="off" placeholder="Placa asignada al operador">
                 </div>
                 <div class="row-field">
                     <button type="button" class="btn-3d label-fixed" data-open-lookup="conductor" aria-haspopup="dialog">
@@ -550,7 +550,7 @@
                         type="search"
                         class="lookup-dialog__search"
                         id="lookup-search"
-                        placeholder="Filtrar por placa, conductor o empresa…"
+                        placeholder="Filtrar resultados del cuadro…"
                         autocomplete="off"
                     >
                 </div>
@@ -570,9 +570,10 @@
         </div>
 
         <script>
-            window.despachoVehiculosUrl = @json(route('despacho.lookup.vehiculos'));
-            window.despachoLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino'));
-            window.despachoFinalizarInventarioUrl = @json(route('despacho.finalizar.inventario'));
+            window.despachoVehiculosUrl = @json(route('despacho.lookup.vehiculos', [], false));
+            window.despachoLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino', [], false));
+            window.despachoFinalizarInventarioUrl = @json(route('despacho.finalizar.inventario', [], false));
+            window.despachoOperadorPlacaFilas = @json($operadorPlacaFilas ?? []);
         </script>
         <script>
             (function () {
@@ -598,9 +599,12 @@
                 function setLookupThead(field) {
                     var thead = document.getElementById('lookup-thead');
                     if (!thead) return;
+                    if (field === 'empresa' || field === 'placa') {
+                        thead.innerHTML =
+                            '<tr><th>Operador logístico</th><th>Placa vehículo</th></tr>';
+                        return;
+                    }
                     var labels = {
-                        empresa: 'Empresa',
-                        placa: 'Placa vehículo',
                         conductor: 'Conductor',
                     };
                     var th = labels[field] || 'Valor';
@@ -610,13 +614,13 @@
                 function openLookup(field) {
                     lookupTargetField = field;
                     var titles = {
-                        empresa: 'Buscar empresa',
-                        placa: 'Buscar placa de vehículo',
-                        conductor: 'Buscar conductor',
+                        empresa: 'Operador logístico y placa (COLBEEF)',
+                        placa: 'Operador logístico y placa (COLBEEF)',
+                        conductor: 'Buscar conductor (SIRT)',
                     };
                     var placeholders = {
-                        empresa: 'Escriba para filtrar por empresa…',
-                        placa: 'Escriba para filtrar por placa…',
+                        empresa: 'Filtrar por operador o placa…',
+                        placa: 'Filtrar por operador o placa…',
                         conductor: 'Escriba para filtrar por nombre de conductor…',
                     };
                     lookupTitle.textContent = titles[field] || 'Buscar';
@@ -624,8 +628,13 @@
                     lookupSearch.value = '';
                     lookupTbody.innerHTML = '';
                     setLookupThead(field);
-                    lookupStatus.textContent =
-                        'Listado según la columna seleccionada. Escriba para acotar la búsqueda.';
+                    if (field === 'empresa' || field === 'placa') {
+                        lookupStatus.textContent =
+                            'Listado estándar COLBEEF. Pulse una fila para rellenar operador y placa.';
+                    } else {
+                        lookupStatus.textContent =
+                            'Consulta SIRT (vehículo asignado). Escriba para acotar la búsqueda.';
+                    }
                     lookupStatus.className = 'lookup-msg lookup-msg--muted';
                     lookupBackdrop.hidden = false;
                     lookupBackdrop.removeAttribute('hidden');
@@ -635,7 +644,11 @@
                     setTimeout(function () {
                         lookupSearch.focus();
                     }, 50);
-                    runLookup('');
+                    if (field === 'empresa' || field === 'placa') {
+                        runLocalOperadorCatalog('');
+                    } else {
+                        runLookup('');
+                    }
                 }
 
                 function closeLookup() {
@@ -653,27 +666,103 @@
 
                 function applySelection(row) {
                     if (!lookupTargetField) return;
-                    var inputId =
-                        lookupTargetField === 'empresa'
-                            ? 'empresa'
-                            : lookupTargetField === 'placa'
-                              ? 'placa'
-                              : 'conductor';
-                    var el = document.getElementById(inputId);
+                    if (lookupTargetField === 'empresa' || lookupTargetField === 'placa') {
+                        var op = document.getElementById('empresa');
+                        var pl = document.getElementById('placa');
+                        if (op) {
+                            op.value = row.operador != null ? String(row.operador) : '';
+                        }
+                        if (pl) {
+                            pl.value = row.placa != null ? String(row.placa) : '';
+                        }
+                        if (lookupTargetField === 'empresa' && op) {
+                            op.focus();
+                        } else if (pl) {
+                            pl.focus();
+                        }
+                        closeLookup();
+                        return;
+                    }
+                    var el = document.getElementById('conductor');
                     if (!el) return;
-                    var val = '';
-                    if (lookupTargetField === 'empresa') val = row.empresa || '';
-                    if (lookupTargetField === 'placa') val = row.placa_vehiculo || '';
-                    if (lookupTargetField === 'conductor') val = row.nombre_conductor || '';
-                    el.value = val;
+                    el.value = row.nombre_conductor || '';
                     el.focus();
                     closeLookup();
                 }
 
                 function cellValueForFocus(row, field) {
-                    if (field === 'empresa') return row.empresa;
-                    if (field === 'placa') return row.placa_vehiculo;
                     return row.nombre_conductor;
+                }
+
+                function filaOperadorCoincide(row, q) {
+                    if (q == null || String(q).trim() === '') {
+                        return true;
+                    }
+                    var qn = String(q).trim().toLowerCase();
+                    var qCompact = qn.replace(/\s+/g, '');
+                    var op = String(row.operador != null ? row.operador : '').toLowerCase();
+                    var pl = String(row.placa != null ? row.placa : '').toLowerCase();
+                    var plCompact = pl.replace(/\s+/g, '');
+                    return (
+                        op.indexOf(qn) !== -1 ||
+                        pl.indexOf(qn) !== -1 ||
+                        plCompact.indexOf(qCompact) !== -1
+                    );
+                }
+
+                function runLocalOperadorCatalog(q) {
+                    var focus = lookupTargetField;
+                    if (focus !== 'empresa' && focus !== 'placa') {
+                        return;
+                    }
+                    var todas = window.despachoOperadorPlacaFilas;
+                    if (!Array.isArray(todas) || todas.length === 0) {
+                        lookupStatus.textContent =
+                            'No hay filas configuradas (despacho_operadores_placas).';
+                        lookupStatus.className = 'lookup-msg';
+                        lookupTbody.innerHTML = '';
+                        return;
+                    }
+                    var qq = q == null ? '' : String(q).trim();
+                    var filtradas = todas.filter(function (row) {
+                        return filaOperadorCoincide(row, qq);
+                    });
+                    renderLocalOperadorRows(filtradas);
+                }
+
+                function renderLocalOperadorRows(rows) {
+                    lookupTbody.innerHTML = '';
+                    if (!rows.length) {
+                        lookupStatus.textContent =
+                            'Sin coincidencias en el listado COLBEEF. Puede escribir el operador o la placa a mano en el formulario.';
+                        lookupStatus.className = 'lookup-msg';
+                        return;
+                    }
+                    lookupStatus.textContent =
+                        rows.length +
+                        ' fila(s). Pulse una fila para rellenar operador logístico y placa.';
+                    lookupStatus.className = 'lookup-msg lookup-msg--muted';
+                    rows.forEach(function (row) {
+                        var tr = document.createElement('tr');
+                        tr.setAttribute('role', 'button');
+                        tr.tabIndex = 0;
+                        tr.innerHTML =
+                            '<td>' +
+                            esc(row.operador) +
+                            '</td><td>' +
+                            esc(row.placa) +
+                            '</td>';
+                        tr.addEventListener('click', function () {
+                            applySelection(row);
+                        });
+                        tr.addEventListener('keydown', function (e) {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                applySelection(row);
+                            }
+                        });
+                        lookupTbody.appendChild(tr);
+                    });
                 }
 
                 function renderRows(rows) {
@@ -712,19 +801,38 @@
 
                 function runLookup(q) {
                     var focus = lookupTargetField;
-                    if (!focus) return;
-                    var url =
-                        window.despachoVehiculosUrl +
-                        '?focus=' +
-                        encodeURIComponent(focus) +
-                        '&search=' +
-                        encodeURIComponent(q);
+                    if (!focus || focus === 'empresa' || focus === 'placa') {
+                        return;
+                    }
+                    var base = window.despachoVehiculosUrl;
+                    if (!base) {
+                        lookupStatus.textContent = 'No está configurada la ruta de consulta de vehículos.';
+                        lookupStatus.className = 'lookup-msg';
+                        lookupTbody.innerHTML = '';
+                        return;
+                    }
+                    var url;
+                    try {
+                        var u = new URL(String(base), window.location.href);
+                        u.searchParams.set('focus', focus);
+                        u.searchParams.set('search', q == null ? '' : String(q));
+                        url = u.toString();
+                    } catch (e) {
+                        lookupStatus.textContent = 'Ruta de consulta inválida. Recargue la página.';
+                        lookupStatus.className = 'lookup-msg';
+                        lookupTbody.innerHTML = '';
+                        return;
+                    }
                     if (lastController) lastController.abort();
                     lastController = new AbortController();
                     lookupStatus.textContent = 'Cargando…';
                     fetch(url, {
                         signal: lastController.signal,
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-Despacho-Lookup-Focus': focus,
+                        },
                         credentials: 'same-origin',
                     })
                         .then(function (r) {
@@ -759,7 +867,11 @@
                     clearTimeout(debounceTimer);
                     debounceTimer = setTimeout(function () {
                         if (!lookupTargetField) return;
-                        runLookup(q);
+                        if (lookupTargetField === 'empresa' || lookupTargetField === 'placa') {
+                            runLocalOperadorCatalog(q);
+                        } else {
+                            runLookup(q);
+                        }
                     }, 280);
                 });
 
@@ -831,16 +943,22 @@
                     var destinoTxt = '';
                     var encontrado = false;
                     try {
-                        var res = await fetch(
-                            urlBase + '?codigo=' + encodeURIComponent(raw),
-                            {
-                                headers: {
-                                    Accept: 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                },
-                                credentials: 'same-origin',
+                        var u;
+                        try {
+                            u = new URL(String(urlBase), window.location.href);
+                            u.searchParams.set('codigo', raw);
+                        } catch (e1) {
+                            alert('Ruta de inventario inválida. Recargue la página (Ctrl+F5).');
+                            return;
+                        }
+                        var res = await fetch(u.toString(), {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-Despacho-Codigo-Lengua': raw,
                             },
-                        );
+                            credentials: 'same-origin',
+                        });
                         var ct = res.headers.get('content-type') || '';
                         if (!ct.includes('application/json')) {
                             throw new Error('Respuesta no JSON');

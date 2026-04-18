@@ -15,7 +15,10 @@ class LenguaDestinoInventarioController extends Controller
      */
     public function __invoke(Request $request): JsonResponse
     {
-        $codigo = substr(trim((string) $request->query('codigo', '')), 0, 80);
+        $codigo = substr(trim((string) $request->get('codigo', '')), 0, 80);
+        if ($codigo === '') {
+            $codigo = substr(trim((string) $request->header('X-Despacho-Codigo-Lengua', '')), 0, 80);
+        }
         if ($codigo === '') {
             return response()->json([
                 'ok' => false,

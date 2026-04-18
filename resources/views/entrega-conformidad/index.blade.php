@@ -134,12 +134,22 @@
                 text-decoration: none;
                 background: linear-gradient(145deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 72%, var(--green-deep)));
             }
-            a.btn-pdf {
+            a.btn-pdf,
+            button.btn-pdf {
                 font-size: 1.35rem;
                 line-height: 1;
                 padding: 0.28rem 0.5rem;
                 text-transform: none;
                 letter-spacing: normal;
+            }
+            button.btn-pdf {
+                appearance: none;
+            }
+            .acciones-despacho {
+                display: inline-flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.35rem;
             }
             .btn-pdf:hover {
                 filter: brightness(1.06);
@@ -167,6 +177,81 @@
             }
             .pagination-wrap .page-now {
                 color: color-mix(in srgb, var(--text) 75%, transparent);
+            }
+            /* Manifiesto PNG (off-screen clone para html2canvas) */
+            #manifiesto-png-staging {
+                position: fixed;
+                left: -12000px;
+                top: 0;
+                width: 820px;
+                z-index: 0;
+                pointer-events: none;
+                overflow: hidden;
+            }
+            #manifiesto-png-staging .captura-root {
+                box-sizing: border-box;
+                width: 820px;
+                padding: 1.25rem 1.5rem 1.5rem;
+                background: #fff;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 11pt;
+                color: #111;
+            }
+            #manifiesto-png-staging .meta {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 0.75rem 1.5rem;
+                margin-bottom: 1rem;
+            }
+            #manifiesto-png-staging .meta dl {
+                margin: 0;
+            }
+            #manifiesto-png-staging .meta dt {
+                font-weight: 700;
+                display: inline;
+            }
+            #manifiesto-png-staging .meta dd {
+                display: inline;
+                margin: 0;
+            }
+            #manifiesto-png-staging .meta-right {
+                text-align: right;
+            }
+            #manifiesto-png-staging table.manifest {
+                width: 100%;
+                border-collapse: collapse;
+                border: 1px solid #000;
+            }
+            #manifiesto-png-staging table.manifest th,
+            #manifiesto-png-staging table.manifest td {
+                border: 1px solid #000;
+                padding: 0.4rem 0.5rem;
+                vertical-align: top;
+            }
+            #manifiesto-png-staging table.manifest thead th {
+                background: #1a5c40;
+                color: #fff;
+                font-weight: 700;
+                text-align: center;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            #manifiesto-png-staging table.manifest tbody tr:nth-child(even) {
+                background: #f0f0f0;
+            }
+            #manifiesto-png-staging table.manifest tbody tr:nth-child(odd) {
+                background: #fff;
+            }
+            #manifiesto-png-staging .col-destino {
+                width: 22%;
+                text-align: center;
+                font-weight: 700;
+            }
+            #manifiesto-png-staging .col-direccion {
+                text-align: left;
+                font-weight: 400;
             }
         </style>
     </head>
@@ -219,16 +304,28 @@
                                     <td>{{ $d->user?->name ?? '—' }}</td>
                                     <td>
                                         @if ((int) ($d->lenguas_count ?? 0) > 0)
-                                            <a
-                                                class="btn-pdf"
-                                                href="{{ route('entrega.conformidad.pdf', $d) }}"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                aria-label="Generar documento PDF de despacho"
-                                                title="Generar documento PDF"
-                                            >
-                                                📄
-                                            </a>
+                                            <span class="acciones-despacho">
+                                                <a
+                                                    class="btn-pdf"
+                                                    href="{{ route('entrega.conformidad.pdf', $d) }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label="Generar documento PDF de despacho"
+                                                    title="Generar documento PDF"
+                                                >
+                                                    📄
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    class="btn-pdf js-manifest-png"
+                                                    data-json-url="{{ route('entrega.conformidad.destinos_manifest_json', $d) }}"
+                                                    data-despacho-id="{{ $d->id }}"
+                                                    aria-label="Descargar manifiesto de destinos como imagen PNG"
+                                                    title="Descargar manifiesto de destinos (PNG)"
+                                                >
+                                                    🔑
+                                                </button>
+                                            </span>
                                         @else
                                             <span class="btn-pdf is-disabled" aria-disabled="true">Sin lenguas</span>
                                         @endif
@@ -255,5 +352,208 @@
                 @endif
             @endif
         </section>
+
+        <div id="manifiesto-png-staging" aria-hidden="true"></div>
+
+        @if (! $despachos->isEmpty())
+            <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" crossorigin="anonymous"></script>
+            <script>
+                (function () {
+                    const staging = document.getElementById('manifiesto-png-staging');
+                    if (!staging || typeof fetch !== 'function') {
+                        return;
+                    }
+
+                    let busy = false;
+
+                    function dash(s) {
+                        return s !== null && s !== undefined && String(s).trim() !== '' ? String(s) : '—';
+                    }
+
+                    function buildManifiestoDom(d) {
+                        const root = document.createElement('div');
+                        root.className = 'captura-root';
+
+                        const meta = document.createElement('div');
+                        meta.className = 'meta';
+
+                        const dl = document.createElement('dl');
+                        const row1 = document.createElement('div');
+                        const dt1 = document.createElement('dt');
+                        dt1.textContent = 'Conductor:';
+                        const dd1 = document.createElement('dd');
+                        dd1.textContent = dash(d.despacho.conductor);
+                        row1.appendChild(dt1);
+                        row1.appendChild(dd1);
+                        const row2 = document.createElement('div');
+                        const dt2 = document.createElement('dt');
+                        dt2.textContent = 'Vehículo:';
+                        const dd2 = document.createElement('dd');
+                        dd2.textContent = dash(d.despacho.placa);
+                        row2.appendChild(dt2);
+                        row2.appendChild(dd2);
+                        dl.appendChild(row1);
+                        dl.appendChild(row2);
+
+                        const right = document.createElement('div');
+                        right.className = 'meta-right';
+                        const strong = document.createElement('strong');
+                        strong.textContent = 'N° Destinos:';
+                        right.appendChild(strong);
+                        right.appendChild(document.createTextNode(' ' + String(d.num_destinos)));
+
+                        meta.appendChild(dl);
+                        meta.appendChild(right);
+
+                        const table = document.createElement('table');
+                        table.className = 'manifest';
+                        table.setAttribute('role', 'table');
+
+                        const thead = document.createElement('thead');
+                        const hr = document.createElement('tr');
+                        ['Destino', 'Dirección'].forEach(function (label) {
+                            const th = document.createElement('th');
+                            th.setAttribute('scope', 'col');
+                            th.textContent = label;
+                            hr.appendChild(th);
+                        });
+                        thead.appendChild(hr);
+
+                        const tbody = document.createElement('tbody');
+                        const filas = Array.isArray(d.filas) ? d.filas : [];
+                        if (filas.length === 0) {
+                            const tr = document.createElement('tr');
+                            const td1 = document.createElement('td');
+                            td1.className = 'col-destino';
+                            td1.textContent = '—';
+                            const td2 = document.createElement('td');
+                            td2.className = 'col-direccion';
+                            td2.textContent = '—';
+                            tr.appendChild(td1);
+                            tr.appendChild(td2);
+                            tbody.appendChild(tr);
+                        } else {
+                            filas.forEach(function (fila) {
+                                const tr = document.createElement('tr');
+                                const td1 = document.createElement('td');
+                                td1.className = 'col-destino';
+                                td1.textContent = dash(fila.codigo);
+                                const td2 = document.createElement('td');
+                                td2.className = 'col-direccion';
+                                td2.textContent =
+                                    fila.direccion !== null &&
+                                    fila.direccion !== undefined &&
+                                    String(fila.direccion).trim() !== ''
+                                        ? String(fila.direccion)
+                                        : '—';
+                                tr.appendChild(td1);
+                                tr.appendChild(td2);
+                                tbody.appendChild(tr);
+                            });
+                        }
+
+                        table.appendChild(thead);
+                        table.appendChild(tbody);
+
+                        root.appendChild(meta);
+                        root.appendChild(table);
+                        return root;
+                    }
+
+                    function descargarPng(url, despachoId) {
+                        if (busy || typeof html2canvas !== 'function') {
+                            if (typeof html2canvas !== 'function') {
+                                alert('No se pudo cargar la librería para generar la imagen. Compruebe su conexión.');
+                            }
+                            return;
+                        }
+                        busy = true;
+                        document.querySelectorAll('.js-manifest-png').forEach(function (b) {
+                            b.disabled = true;
+                        });
+
+                        fetch(url, {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        })
+                            .then(function (res) {
+                                if (!res.ok) {
+                                    throw new Error('HTTP ' + res.status);
+                                }
+                                return res.json();
+                            })
+                            .then(function (data) {
+                                while (staging.firstChild) {
+                                    staging.removeChild(staging.firstChild);
+                                }
+                                const root = buildManifiestoDom(data);
+                                staging.appendChild(root);
+                                return html2canvas(root, {
+                                    scale: 2,
+                                    backgroundColor: '#ffffff',
+                                    logging: false,
+                                    useCORS: true,
+                                });
+                            })
+                            .then(function (canvas) {
+                                return new Promise(function (resolve, reject) {
+                                    canvas.toBlob(
+                                        function (blob) {
+                                            while (staging.firstChild) {
+                                                staging.removeChild(staging.firstChild);
+                                            }
+                                            if (!blob) {
+                                                reject(new Error('blob'));
+                                                return;
+                                            }
+                                            const a = document.createElement('a');
+                                            a.href = URL.createObjectURL(blob);
+                                            a.download = 'destinos-despacho-' + despachoId + '.png';
+                                            a.rel = 'noopener';
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
+                                            URL.revokeObjectURL(a.href);
+                                            resolve();
+                                        },
+                                        'image/png',
+                                        0.95,
+                                    );
+                                });
+                            })
+                            .catch(function () {
+                                while (staging.firstChild) {
+                                    staging.removeChild(staging.firstChild);
+                                }
+                                alert('No se pudo generar el manifiesto. Intente de nuevo o recargue la página.');
+                            })
+                            .finally(function () {
+                                busy = false;
+                                document.querySelectorAll('.js-manifest-png').forEach(function (b) {
+                                    b.disabled = false;
+                                });
+                            });
+                    }
+
+                    document.addEventListener('click', function (ev) {
+                        const btn = ev.target.closest('.js-manifest-png');
+                        if (!btn) {
+                            return;
+                        }
+                        const url = btn.getAttribute('data-json-url');
+                        const id = btn.getAttribute('data-despacho-id');
+                        if (!url || !id) {
+                            return;
+                        }
+                        ev.preventDefault();
+                        descargarPng(url, id);
+                    });
+                })();
+            </script>
+        @endif
     </body>
 </html>
