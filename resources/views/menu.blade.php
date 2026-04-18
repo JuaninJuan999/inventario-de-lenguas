@@ -160,19 +160,18 @@
                 <a class="module-card" href="{{ route('inventario.lenguas') }}">
                     <h3>Inventario de Lenguas</h3>
                     <p>
-                        Réplica local del ingreso de <strong>lenguas</strong> con trazabilidad corporativa, consultas
-                        filtradas e indicadores de vigencia operativa para el control de existencias a planta.
+                    Muestra el total de <strong>Lenguas</strong> disponibles en el inventario.
                     </p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('ingresos.lenguas') }}">
                     <h3>Ingresos de Lenguas</h3>
-                    <p>Listado de <strong>ingresos</strong> desde trazabilidad (insensibilización y datos asociados).</p>
+                    <p>Registra el <strong>Ingreso</strong> de lenguas al inventario y actualiza el stock disponible.</p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('despacho.lenguas') }}">
                     <h3>Despacho de Lenguas</h3>
-                    <p>Salida, pedidos y distribución de <strong>lenguas</strong>.</p>
+                    <p>Gestiona el despacho de <strong>Lenguas</strong> asegurando el control del stock en inventario.</p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('desposte.lenguas') }}">
@@ -183,17 +182,14 @@
                 <a class="module-card" href="{{ route('historia.despacho.lenguas') }}">
                     <h3>Historial de despacho de lenguas</h3>
                     <p>
-                        Consulta de despachos y de movimientos a <strong>Planta de Desposte</strong>: fecha, tipo,
-                        empresa, conductor, placa, cantidad y usuario, con detalle por <strong>id de producto</strong>,
-                        propietario y destino.
+                        Consulta de despachos y de movimientos a <strong>Planta de Desposte</strong>
                     </p>
                     <span class="arrow">Abrir →</span>
                 </a>
                 <a class="module-card" href="{{ route('entrega.conformidad') }}">
                     <h3>Entrega de Conformidad</h3>
                     <p>
-                        PDF de conformidad por cada <strong>despacho</strong> finalizado: resumen, nota legal y detalle
-                        de lenguas (código, beneficio, destino).
+                    Gestiona la generación e impresión de la guía de <strong>despacho de lenguas</strong>, asegurando el soporte del proceso.
                     </p>
                     <span class="arrow">Abrir →</span>
                 </a>

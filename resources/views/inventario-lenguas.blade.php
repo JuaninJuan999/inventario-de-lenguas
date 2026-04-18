@@ -287,16 +287,9 @@
         <header class="page-bar">
             <div>
                 <h1>Inventario de Lenguas</h1>
-                <p class="sub">
-                    <strong>Propósito:</strong> disponer de una réplica institucional del <strong>registro de ingresos de
-                    lenguas</strong> a planta, alineada a la trazabilidad corporativa y a los mismos criterios de faena
-                    que el módulo de ingresos (turno y fecha de plan). <strong>Alcance:</strong> las consultas y filtros
-                    operan sobre la base local; la sincronización con SIRT usa el mismo rango <strong>fecha desde / hasta
-                    (ref. turno)</strong> cuando ambas están indicadas (como en Ingresos); si están vacías, solo se
-                    consulta el día de operación actual. <strong>Presentación:</strong> hasta 2.000
-                    registros, con indicadores de vigencia operativa (fecha de vencimiento y proximidad respecto del
-                    día de registro).
-                </p>
+                <p>
+                    Muestra el total de <strong>Lenguas</strong> disponibles en el inventario.
+                    </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
         </header>
