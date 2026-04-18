@@ -194,11 +194,6 @@ class InventarioLenguasController extends Controller
         $validator->after(function ($v) use ($fechaDesdeTrim, $fechaHastaTrim): void {
             $d1Present = $fechaDesdeTrim !== '';
             $d2Present = $fechaHastaTrim !== '';
-            if ($d1Present xor $d2Present) {
-                $v->errors()->add('fecha_hasta', 'Indique ambas fechas de referencia de turno o déjelas vacías.');
-
-                return;
-            }
             if ($d1Present && $d2Present && $fechaDesdeTrim > $fechaHastaTrim) {
                 $v->errors()->add('fecha_hasta', 'La fecha hasta debe ser mayor o igual que la fecha desde.');
             }

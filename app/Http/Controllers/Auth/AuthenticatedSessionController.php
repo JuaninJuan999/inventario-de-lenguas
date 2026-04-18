@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
@@ -20,7 +23,16 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        $credentials['username'] = Str::lower(trim($credentials['username']));
+        $usernameNorm = $credentials['username'];
+        $cuenta = User::query()->where('username', $usernameNorm)->first();
+        if ($cuenta !== null && ! $cuenta->is_active && Hash::check($credentials['password'], $cuenta->password)) {
+            throw ValidationException::withMessages([
+                'username' => 'Su cuenta está inactiva. Contacte al administrador.',
+            ]);
+        }
+
+        if (! Auth::attempt(array_merge($credentials, ['is_active' => true]), $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'username' => __('auth.failed'),
             ]);

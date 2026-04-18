@@ -243,7 +243,7 @@
                     muestran identificador de producto, fecha y hora de insensibilización, titular del producto,
                     destino logístico asociado y peso registrado. Los filtros permiten acotar por periodo de faena,
                     identificador y nombre de titular; al abrir el módulo se prioriza la jornada en curso y la
-                    consulta devuelve hasta mil registros por búsqueda.
+                    consulta devuelve hasta {{ max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000))) }} registros por búsqueda.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -331,14 +331,28 @@
                     >Limpiar</a>
                     <a class="btn-clear" href="{{ route('ingresos.lenguas') }}">Volver a hoy</a>
                 </div>
+                <p class="muted" style="margin: 0.85rem 0 0; font-size: 0.82rem">
+                    Si indica solo una fecha de turno, se usa ese mismo día como rango (desde y hasta). Puede buscar solo por
+                    id de producto o solo por propietario sin fechas; si además indica fechas, el rango se cruza con la
+                    referencia de turno en trazabilidad.
+                </p>
             </form>
 
             @if ($errors->any() && empty($error))
                 <p class="alert" role="alert">Revise los filtros indicados.</p>
             @endif
 
+            @php
+                $limiteConsultaIngresos = (int) ($consulta_insensibilizacion_limit ?? max(
+                    100,
+                    min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000)),
+                ));
+            @endphp
             @if (empty($error) && ! $errors->any() && count($rows) === 0)
-                <p class="muted">No hay filas para los filtros indicados (máx. 1000 por consulta).</p>
+                <p class="muted">
+                    No hay filas para los filtros indicados (coincidentes según turno y criterios:
+                    {{ (int) ($total_coincidentes ?? 0) }}; tope de presentación {{ $limiteConsultaIngresos }} por consulta).
+                </p>
             @elseif (empty($error) && ! $errors->any())
                 @php
                     $fmtHoraIngresos = static function ($v) {
@@ -356,7 +370,18 @@
                         return $v !== null && $v !== '' ? (string) $v : '—';
                     };
                 @endphp
-                <p class="muted" style="margin: 0 0 0.75rem">{{ count($rows) }} registro(s).</p>
+                @php
+                    $totalRefTurno = (int) ($total_coincidentes ?? 0);
+                    $nMostrados = count($rows);
+                @endphp
+                <p class="muted" style="margin: 0 0 0.75rem">
+                    Total coincidente con referencia a turno (y filtros aplicados): <strong>{{ $totalRefTurno }}</strong>.
+                    @if ($totalRefTurno > $nMostrados)
+                        Se muestran <strong>{{ $nMostrados }}</strong> filas (tope {{ $limiteConsultaIngresos }} por consulta, las más recientes).
+                    @else
+                        Se listan <strong>{{ $nMostrados }}</strong> fila(s).
+                    @endif
+                </p>
                 <div class="table-wrap">
                     <table class="data">
                         <colgroup>

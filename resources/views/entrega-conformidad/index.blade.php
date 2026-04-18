@@ -285,7 +285,7 @@
                         <thead>
                             <tr>
                                 <th>Fecha despacho</th>
-                                <th class="col-empresa">Empresa</th>
+                                <th class="col-empresa">Operador Logistico</th>
                                 <th>Conductor</th>
                                 <th>Placa</th>
                                 <th>Lenguas</th>

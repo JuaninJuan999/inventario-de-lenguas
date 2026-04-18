@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureCanManageUsers
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $user = $request->user();
+        if ($user === null || ! $user->canManageUsers()) {
+            return redirect()
+                ->route('menu')
+                ->with('module_denied', 'No tiene permiso para gestionar usuarios.');
+        }
+
+        return $next($request);
+    }
+}

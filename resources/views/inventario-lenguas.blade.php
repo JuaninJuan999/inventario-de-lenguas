@@ -476,27 +476,32 @@
                     syncInFlight = true;
                     setLine1('Ejecutando actualización de la réplica local…');
                     target.querySelector('.alert--err.js-ajax-error')?.remove();
+                    const filterForm = document.getElementById('inv-filters');
+                    const syncUrl = new URL(importUrl, window.location.href);
+                    const filterNames = [
+                        'fecha_desde',
+                        'fecha_hasta',
+                        'id_producto',
+                        'propietario',
+                        'vida_util',
+                    ];
+                    filterNames.forEach(function (name) {
+                        const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
+                        syncUrl.searchParams.set(name, el ? el.value : '');
+                    });
                     const body = new FormData();
                     body.append('_token', csrfToken());
-                    const filterForm = document.getElementById('inv-filters');
-                    if (filterForm) {
-                        [
-                            'fecha_desde',
-                            'fecha_hasta',
-                            'id_producto',
-                            'propietario',
-                            'vida_util',
-                        ].forEach(function (name) {
-                            const el = filterForm.querySelector('[name="' + name + '"]');
-                            body.append(name, el ? el.value : '');
-                        });
-                    }
+                    filterNames.forEach(function (name) {
+                        const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
+                        body.append(name, el ? el.value : '');
+                    });
                     try {
-                        const res = await fetch(importUrl, {
+                        const res = await fetch(syncUrl.toString(), {
                             method: 'POST',
                             headers: {
                                 Accept: 'application/json',
                                 'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrfToken(),
                             },
                             body,
                             credentials: 'same-origin',

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\AuthorizeModuleAccess;
+use App\Http\Middleware\EnsureCanManageUsers;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ForceRootUrlFromRequest;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo('/menu');
         $middleware->web(append: [
             ForceRootUrlFromRequest::class,
+            EnsureUserIsActive::class,
+        ]);
+        $middleware->alias([
+            'can.manage.users' => EnsureCanManageUsers::class,
+            'module' => AuthorizeModuleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -114,6 +114,16 @@
                 font-size: 0.8rem;
                 margin-top: 0.35rem;
             }
+            .flash-info {
+                margin: 0 0 1rem;
+                padding: 0.65rem 0.75rem;
+                border-radius: 0.5rem;
+                font-size: 0.82rem;
+                line-height: 1.45;
+                color: #ffe4e4;
+                border: 1px solid color-mix(in srgb, #ffb4b4 45%, transparent);
+                background: color-mix(in srgb, #5c1a1a 45%, rgba(0, 0, 0, 0.35));
+            }
             button[type="submit"] {
                 width: 100%;
                 cursor: pointer;
@@ -141,6 +151,10 @@
         @include('partials.logo-institucional')
         <div class="card">
             <h1>Iniciar sesión</h1>
+
+            @if (session('account_inactive'))
+                <p class="flash-info" role="alert">{{ session('account_inactive') }}</p>
+            @endif
 
             <form method="POST" action="{{ route('login') }}" novalidate>
                 @csrf

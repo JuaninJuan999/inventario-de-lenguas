@@ -19,6 +19,7 @@ class SuperAdminSeeder extends Seeder
                 'username' => 'juan.carreno',
                 'password' => 'SIRT123',
                 'role' => 'super_admin',
+                'is_active' => true,
                 'email_verified_at' => now(),
             ],
         );

@@ -186,7 +186,7 @@ SQL;
 
     /**
      * @param  array{id_producto: string, propietario: string}  $filters
-     * @return array{rows: array<int, object>, exception: Throwable|null}
+     * @return array{rows: array<int, object>, exception: Throwable|null, total_coincidentes: int}
      */
     public function consultar(
         string $connection,
@@ -305,7 +305,18 @@ LEFT JOIN LATERAL (
 ORDER BY i.id DESC
 SQL;
 
+        $countSql = <<<SQL
+SELECT COUNT(*)::bigint AS c
+FROM trazabilidad_proceso.insensibilizacion ins
+WHERE {$turnoExists}{$cteExtraWhere}
+SQL;
+
+        $countBindings = array_merge($existBindings, $cteExtraBindings);
+
         try {
+            $countRow = DB::connection($connection)->selectOne($countSql, $countBindings);
+            $totalCoincidentes = (int) ($countRow->c ?? 0);
+
             $rows = DB::connection($connection)->select($sql, array_merge(
                 $existBindings,
                 $cteExtraBindings,
@@ -315,11 +326,15 @@ SQL;
                 ],
             ));
 
-            return ['rows' => $rows, 'exception' => null];
+            return [
+                'rows' => $rows,
+                'exception' => null,
+                'total_coincidentes' => $totalCoincidentes,
+            ];
         } catch (Throwable $e) {
             report($e);
 
-            return ['rows' => [], 'exception' => $e];
+            return ['rows' => [], 'exception' => $e, 'total_coincidentes' => 0];
         }
     }
 }

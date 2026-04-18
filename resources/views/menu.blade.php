@@ -131,6 +131,16 @@
                 font-weight: 600;
                 color: var(--brand-green);
             }
+            .alert-menu {
+                margin: 0 0 1rem;
+                padding: 0.75rem 1rem;
+                border-radius: 0.65rem;
+                font-size: 0.88rem;
+                font-weight: 600;
+                border: 1px solid color-mix(in srgb, #ffb4b4 55%, transparent);
+                background: color-mix(in srgb, #5c1a1a 55%, rgba(0, 0, 0, 0.35));
+                color: #ffe4e4;
+            }
         </style>
     </head>
     <body>
@@ -151,53 +161,81 @@
 
         <section class="modules" aria-labelledby="modules-heading">
             <h2 id="modules-heading">Módulos</h2>
+            @if (session('module_denied'))
+                <p class="alert-menu" role="alert">{{ session('module_denied') }}</p>
+            @endif
             <div class="module-grid">
-                <a class="module-card" href="{{ route('dashboard') }}">
-                    <h3>Dashboard</h3>
-                    <p>Panel principal: resumen, indicadores y accesos rápidos del inventario.</p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('inventario.lenguas') }}">
-                    <h3>Inventario de Lenguas</h3>
-                    <p>
-                    Muestra el total de <strong>Lenguas</strong> disponibles en el inventario.
-                    </p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('ingresos.lenguas') }}">
-                    <h3>Ingresos de Lenguas</h3>
-                    <p>Registra el <strong>Ingreso</strong> de lenguas al inventario y actualiza el stock disponible.</p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('despacho.lenguas') }}">
-                    <h3>Despacho de Lenguas</h3>
-                    <p>Gestiona el despacho de <strong>Lenguas</strong> asegurando el control del stock en inventario.</p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('desposte.lenguas') }}">
-                    <h3>Lenguas Desposte</h3>
-                    <p>Lenguas que pasan al proceso de la <strong>Planta de Desposte</strong>.</p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('historia.despacho.lenguas') }}">
-                    <h3>Historial de despacho de lenguas</h3>
-                    <p>
-                        Consulta de despachos y de movimientos a <strong>Planta de Desposte</strong>
-                    </p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('entrega.conformidad') }}">
-                    <h3>Entrega de Conformidad</h3>
-                    <p>
-                    Gestiona la generación e impresión de la guía de <strong>despacho de lenguas</strong>, asegurando el soporte del proceso.
-                    </p>
-                    <span class="arrow">Abrir →</span>
-                </a>
-                <a class="module-card" href="{{ route('decomisos.lenguas') }}">
-                    <h3>Decomisos de Lenguas</h3>
-                    <p>Registro de <strong>lenguas</strong> decomisadas o retiradas.</p>
-                    <span class="arrow">Abrir →</span>
-                </a>
+                @if (auth()->user()->canAccessModule('dashboard'))
+                    <a class="module-card" href="{{ route('dashboard') }}">
+                        <h3>Dashboard</h3>
+                        <p>Panel principal: resumen, indicadores y accesos rápidos del inventario.</p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canManageUsers())
+                    <a class="module-card" href="{{ route('gestion.usuarios.index') }}">
+                        <h3>Gestión de usuarios</h3>
+                        <p>
+                            Lista de usuarios, alta en página aparte, roles y correo compartido entre cuentas si aplica.
+                        </p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('inventario'))
+                    <a class="module-card" href="{{ route('inventario.lenguas') }}">
+                        <h3>Inventario de Lenguas</h3>
+                        <p>
+                            Muestra el total de <strong>Lenguas</strong> disponibles en el inventario.
+                        </p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('ingresos'))
+                    <a class="module-card" href="{{ route('ingresos.lenguas') }}">
+                        <h3>Ingresos de Lenguas</h3>
+                        <p>Registra el <strong>Ingreso</strong> de lenguas al inventario y actualiza el stock disponible.</p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('despacho'))
+                    <a class="module-card" href="{{ route('despacho.lenguas') }}">
+                        <h3>Despacho de Lenguas</h3>
+                        <p>Gestiona el despacho de <strong>Lenguas</strong> asegurando el control del stock en inventario.</p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('desposte'))
+                    <a class="module-card" href="{{ route('desposte.lenguas') }}">
+                        <h3>Lenguas Desposte</h3>
+                        <p>Lenguas que pasan al proceso de la <strong>Planta de Desposte</strong>.</p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('historial'))
+                    <a class="module-card" href="{{ route('historia.despacho.lenguas') }}">
+                        <h3>Historial de despacho de lenguas</h3>
+                        <p>
+                            Consulta de despachos y de movimientos a <strong>Planta de Desposte</strong>
+                        </p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('entrega'))
+                    <a class="module-card" href="{{ route('entrega.conformidad') }}">
+                        <h3>Entrega de Conformidad</h3>
+                        <p>
+                            Gestiona la generación e impresión de la guía de <strong>despacho de lenguas</strong>, asegurando el soporte del proceso.
+                        </p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
+                @if (auth()->user()->canAccessModule('decomisos'))
+                    <a class="module-card" href="{{ route('decomisos.lenguas') }}">
+                        <h3>Decomisos de Lenguas</h3>
+                        <p>Registro de <strong>lenguas</strong> decomisadas o retiradas.</p>
+                        <span class="arrow">Abrir →</span>
+                    </a>
+                @endif
             </div>
         </section>
     </body>

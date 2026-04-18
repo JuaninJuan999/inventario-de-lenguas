@@ -28,7 +28,11 @@ class IngresosLenguasController extends Controller
     public function index(Request $request): View
     {
         $hoy = $this->consultaSirt->fechaHoyOperacion();
-        $formularioEnviado = $request->filled('_enviado');
+        $formularioEnviado = $request->filled('_enviado')
+            || $request->filled('fecha_desde')
+            || $request->filled('fecha_hasta')
+            || $request->filled('id_producto')
+            || $request->filled('propietario');
         $primeraCarga = ! $formularioEnviado;
 
         $fechaDesdeRaw = (string) $request->input('fecha_desde', '');
@@ -36,12 +40,21 @@ class IngresosLenguasController extends Controller
         $fechaDesdeTrim = trim($fechaDesdeRaw);
         $fechaHastaTrim = trim($fechaHastaRaw);
 
+        if (! $primeraCarga) {
+            if ($fechaDesdeTrim !== '' && $fechaHastaTrim === '') {
+                $fechaHastaTrim = $fechaDesdeTrim;
+            }
+            if ($fechaHastaTrim !== '' && $fechaDesdeTrim === '') {
+                $fechaDesdeTrim = $fechaHastaTrim;
+            }
+        }
+
         if ($primeraCarga) {
             $fechaDesdeDisplay = '';
             $fechaHastaDisplay = '';
         } else {
-            $fechaDesdeDisplay = $fechaDesdeRaw;
-            $fechaHastaDisplay = $fechaHastaRaw;
+            $fechaDesdeDisplay = $fechaDesdeTrim;
+            $fechaHastaDisplay = $fechaHastaTrim;
         }
 
         $filters = [
@@ -79,11 +92,6 @@ class IngresosLenguasController extends Controller
             }
             $d1Present = $fechaDesdeTrim !== '';
             $d2Present = $fechaHastaTrim !== '';
-            if ($d1Present xor $d2Present) {
-                $v->errors()->add('fecha_hasta', 'Indique ambas fechas de turno o déjelas vacías.');
-
-                return;
-            }
             if ($d1Present && $d2Present && $fechaDesdeTrim > $fechaHastaTrim) {
                 $v->errors()->add('fecha_hasta', 'La fecha hasta debe ser mayor o igual que la fecha desde.');
             }
@@ -130,6 +138,11 @@ class IngresosLenguasController extends Controller
 
         return view('ingresos-lenguas', array_merge($baseView, [
             'rows' => $result['rows'],
+            'total_coincidentes' => (int) ($result['total_coincidentes'] ?? 0),
+            'consulta_insensibilizacion_limit' => max(
+                100,
+                min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000)),
+            ),
             'error' => null,
         ]));
     }
