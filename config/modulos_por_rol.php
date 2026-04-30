@@ -1,9 +1,12 @@
 <?php
 
 /**
- * Matriz de acceso: cada rol → claves de módulo permitidas (alineado a rutas / menú).
+ * Matriz por rol → claves de módulo (middleware `module:*` y pivot `role_modulo`).
  *
- * Claves: dashboard, gestion_usuarios, inventario, ingresos, despacho, desposte,
+ * El menú principal lee textos y rutas desde las tablas locales `modulos` y `role_modulo`
+ * (sembradas desde esta lista). Tras editar roles aquí: ejecute `php artisan modulos:sync-matriz`.
+ *
+ * Claves: dashboard, gestion_usuarios, inventario, cambios_destinos, ingresos, despacho, desposte,
  *          historial, entrega, decomisos
  */
 return [
@@ -12,6 +15,7 @@ return [
             'dashboard',
             'gestion_usuarios',
             'inventario',
+            'cambios_destinos',
             'ingresos',
             'despacho',
             'desposte',
@@ -22,6 +26,7 @@ return [
         'admin' => [
             'dashboard',
             'inventario',
+            'cambios_destinos',
             'ingresos',
             'despacho',
             'desposte',
@@ -32,12 +37,14 @@ return [
         'gerencia' => [
             'dashboard',
             'inventario',
+            'cambios_destinos',
             'ingresos',
             'historial',
             'decomisos',
         ],
         'operador' => [
             'inventario',
+            'cambios_destinos',
             'despacho',
             'desposte',
             'historial',
@@ -45,6 +52,7 @@ return [
         'auxiliar' => [
             'dashboard',
             'inventario',
+            'cambios_destinos',
             'historial',
             'entrega',
             'decomisos',
@@ -53,6 +61,7 @@ return [
         'user' => [
             'dashboard',
             'inventario',
+            'cambios_destinos',
             'historial',
             'entrega',
             'decomisos',

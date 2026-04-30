@@ -74,6 +74,134 @@
                 font-size: 0.85rem;
                 color: color-mix(in srgb, var(--text) 68%, transparent);
             }
+            .filtros-form {
+                margin: 0 0 1.15rem;
+                padding: 1rem 1rem 1.05rem;
+                border-radius: 0.75rem;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 28%, rgba(0, 0, 0, 0.45));
+                background: rgba(0, 0, 0, 0.22);
+            }
+            .filtros-form__title {
+                margin: 0 0 0.65rem;
+                font-size: 0.72rem;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: color-mix(in srgb, var(--brand-green) 85%, var(--text));
+            }
+            .filtros-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+                gap: 0.65rem 1rem;
+                align-items: end;
+            }
+            .filtros-field label {
+                display: block;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                margin-bottom: 0.28rem;
+                opacity: 0.92;
+            }
+            .filtros-field input[type='date'],
+            .filtros-field select {
+                width: 100%;
+                padding: 0.42rem 0.45rem;
+                font-size: 0.82rem;
+                font-family: inherit;
+                color: var(--text);
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 35%, rgba(0, 0, 0, 0.55));
+                background: rgba(4, 14, 11, 0.92);
+            }
+            /*
+               Chromium a menudo pinta el bitmap nativo ENCIMA del background del pseudo-elemento.
+               Ocultamos el indicador nativo y dibujamos un calendario blanco encima del input (::after del wrapper).
+            */
+            .filtros-field .date-input-shell {
+                position: relative;
+                display: block;
+                width: 100%;
+            }
+            .filtros-field .date-input-shell input[type='date'] {
+                padding-right: 2.35rem;
+            }
+            .filtros-field .date-input-shell input[type='date']::-webkit-calendar-picker-indicator {
+                opacity: 0;
+                cursor: pointer;
+                width: 2.35rem;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                position: absolute;
+                right: 0;
+                top: 0;
+            }
+            .filtros-field .date-input-shell input[type='date']::-moz-calendar-picker-indicator {
+                opacity: 0;
+                cursor: pointer;
+                width: 2.35rem;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .filtros-field .date-input-shell::after {
+                content: '';
+                position: absolute;
+                right: 0.42rem;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 1.2rem;
+                height: 1.2rem;
+                z-index: 2;
+                pointer-events: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
+            }
+            .filtros-field select {
+                cursor: pointer;
+            }
+            .filtros-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem 0.65rem;
+                align-items: center;
+                margin-top: 0.85rem;
+            }
+            .btn-filtrar {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 1rem;
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #04261c;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 50%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 72%, #1a5c40));
+            }
+            .btn-filtrar:hover {
+                filter: brightness(1.06);
+            }
+            .link-limpiar {
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: var(--brand-rose);
+                text-decoration: none;
+                padding: 0.38rem 0.65rem;
+                border-radius: 9999px;
+                border: 1px solid color-mix(in srgb, var(--brand-rose) 38%, transparent);
+            }
+            .link-limpiar:hover {
+                text-decoration: underline;
+            }
             .table-wrap {
                 overflow-x: auto;
                 border-radius: 0.65rem;
@@ -287,15 +415,65 @@
         </header>
 
         <section class="sheet">
+            <form class="filtros-form" method="get" action="{{ route('historia.despacho.lenguas') }}" aria-labelledby="filtros-historial-heading">
+                <h2 id="filtros-historial-heading" class="filtros-form__title">Filtros del historial</h2>
+                <div class="filtros-grid">
+                    <div class="filtros-field">
+                        <label for="filtro-desde">Desde</label>
+                        <span class="date-input-shell">
+                            <input id="filtro-desde" type="date" name="desde" value="{{ $filtros['desde'] ?? '' }}" autocomplete="off" />
+                        </span>
+                    </div>
+                    <div class="filtros-field">
+                        <label for="filtro-hasta">Hasta</label>
+                        <span class="date-input-shell">
+                            <input id="filtro-hasta" type="date" name="hasta" value="{{ $filtros['hasta'] ?? '' }}" autocomplete="off" />
+                        </span>
+                    </div>
+                    <div class="filtros-field">
+                        <label for="filtro-tipo">Tipo de movimiento</label>
+                        <select id="filtro-tipo" name="tipo">
+                            <option value="" @selected(($filtros['tipo'] ?? '') === '')>Todos</option>
+                            <option value="despacho" @selected(($filtros['tipo'] ?? '') === 'despacho')>Despacho</option>
+                            <option value="desposte" @selected(($filtros['tipo'] ?? '') === 'desposte')>Planta de Desposte</option>
+                        </select>
+                    </div>
+                    <div class="filtros-field">
+                        <label for="filtro-operador">Operador logístico</label>
+                        <select id="filtro-operador" name="operador">
+                            <option value="" @selected(($filtros['operador'] ?? '') === '')>Todos</option>
+                            @foreach ($operadoresLista as $op)
+                                <option value="{{ $op }}" @selected(($filtros['operador'] ?? '') === $op)>{{ $op }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="filtros-actions">
+                    <button type="submit" class="btn-filtrar">Aplicar filtros</button>
+                    @if ($filtrosActivos ?? false)
+                        <a class="link-limpiar" href="{{ route('historia.despacho.lenguas') }}">Quitar filtros</a>
+                    @endif
+                </div>
+                @if (($filtros['operador'] ?? '') !== '')
+                    <p class="muted" style="margin: 0.65rem 0 0; font-size: 0.78rem">
+                        Con operador seleccionado solo se listan <strong>despachos</strong> (los movimientos a Planta de Desposte no tienen operador asignado).
+                    </p>
+                @endif
+            </form>
+
             @if ($movimientos->isEmpty())
                 <p class="muted">
-                    Aún no hay movimientos en el historial. Aparecen al usar <strong>Terminar despacho</strong> en
-                    despacho de lenguas o <strong>Registrar movimiento a Planta de Desposte</strong> en Lenguas
-                    Desposte.
+                    @if ($filtrosActivos ?? false)
+                        No hay movimientos que coincidan con los filtros indicados. Pruebe ampliar fechas o cambiar tipo / operador.
+                    @else
+                        Aún no hay movimientos en el historial. Aparecen al usar <strong>Terminar despacho</strong> en
+                        despacho de lenguas o <strong>Registrar movimiento a Planta de Desposte</strong> en Lenguas
+                        Desposte.
+                    @endif
                 </p>
             @else
                 <p class="muted">
-                    Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s) en total. Página
+                    Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s){{ ($filtrosActivos ?? false) ? ' con los filtros aplicados' : ' en total' }}. Página
                     {{ $movimientos->currentPage() }} de {{ $movimientos->lastPage() }}.
                 </p>
                 <div class="table-wrap">

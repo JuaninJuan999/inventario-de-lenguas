@@ -10,7 +10,9 @@ use App\Http\Controllers\Despacho\VehiculoAsignadoLookupController;
 use App\Http\Controllers\Desposte\DesposteFinalizarInventarioController;
 use App\Http\Controllers\EntregaConformidadController;
 use App\Http\Controllers\Ingresos\IngresosLenguasController;
+use App\Http\Controllers\Inventario\CambiosDestinosController;
 use App\Http\Controllers\Inventario\InventarioLenguasController;
+use App\Http\Controllers\MenuController;
 use App\Http\Controllers\Usuarios\GestionUsuariosController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,7 +30,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware('auth')->group(function () {
-    Route::view('/menu', 'menu')->name('menu');
+    Route::get('/menu', MenuController::class)->name('menu');
 
     Route::middleware('can.manage.users')->group(function () {
         Route::get('/gestion-de-usuarios/crear', [GestionUsuariosController::class, 'create'])->name('gestion.usuarios.create');
@@ -50,6 +52,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventario-de-lenguas', [InventarioLenguasController::class, 'index'])->name('inventario.lenguas');
         Route::post('/inventario-de-lenguas/importar-hoy', [InventarioLenguasController::class, 'importarDesdeHoy'])
             ->name('inventario.lenguas.importar_hoy');
+    });
+
+    Route::middleware('module:cambios_destinos')->group(function () {
+        Route::get('/cambios-de-destinos', [CambiosDestinosController::class, 'index'])->name('cambios.destinos');
+        Route::patch('/cambios-de-destinos/{ingreso}', [CambiosDestinosController::class, 'update'])->name('cambios.destinos.update');
     });
 
     Route::middleware('module:ingresos')->group(function () {

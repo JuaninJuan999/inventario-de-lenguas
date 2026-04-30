@@ -6,24 +6,79 @@ use App\Http\Controllers\Controller;
 use App\Models\Despacho;
 use App\Models\Desposte;
 use App\Models\IngresoLenguaLocal;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class HistoriaDespachoLenguasController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $despachos = Despacho::query()
-            ->with('user')
-            ->withCount('ingresos as lenguas_count')
-            ->get();
+        $operadoresLista = Despacho::query()
+            ->whereNotNull('empresa')
+            ->where('empresa', '!=', '')
+            ->distinct()
+            ->orderBy('empresa')
+            ->pluck('empresa')
+            ->all();
 
-        $despostes = Desposte::query()
+        $tipoRaw = $request->query('tipo', '');
+        $tipo = is_string($tipoRaw) && in_array($tipoRaw, ['despacho', 'desposte'], true)
+            ? $tipoRaw
+            : '';
+
+        $operadorRaw = $request->query('operador', '');
+        $operador = '';
+        if (is_string($operadorRaw) && $operadorRaw !== '' && in_array($operadorRaw, $operadoresLista, true)) {
+            $operador = $operadorRaw;
+        }
+
+        $desde = self::parseFechaFiltro($request->query('desde'));
+        $hasta = self::parseFechaFiltro($request->query('hasta'));
+        if ($desde !== null && $hasta !== null && $desde > $hasta) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+
+        $operadorFiltro = $operador !== '' ? $operador : null;
+
+        $despachoQuery = Despacho::query()
             ->with('user')
-            ->withCount('ingresos as lenguas_count')
-            ->get();
+            ->withCount('ingresos as lenguas_count');
+
+        if ($desde !== null) {
+            $despachoQuery->whereDate('realizado_at', '>=', $desde);
+        }
+        if ($hasta !== null) {
+            $despachoQuery->whereDate('realizado_at', '<=', $hasta);
+        }
+        if ($operadorFiltro !== null) {
+            $despachoQuery->where('empresa', $operadorFiltro);
+        }
+
+        $desposteQuery = Desposte::query()
+            ->with('user')
+            ->withCount('ingresos as lenguas_count');
+
+        if ($desde !== null) {
+            $desposteQuery->whereDate('realizado_at', '>=', $desde);
+        }
+        if ($hasta !== null) {
+            $desposteQuery->whereDate('realizado_at', '<=', $hasta);
+        }
+
+        $incluirDespacho = $tipo === '' || $tipo === 'despacho';
+        $incluirDesposte = ($tipo === '' || $tipo === 'desposte') && $operadorFiltro === null;
+
+        $despachos = $incluirDespacho
+            ? $despachoQuery->get()
+            : collect();
+
+        $despostes = $incluirDesposte
+            ? $desposteQuery->get()
+            : collect();
 
         $filas = Collection::make();
 
@@ -81,9 +136,35 @@ class HistoriaDespachoLenguasController extends Controller
         );
         $movimientos->withQueryString();
 
+        $filtrosActivos = $desde !== null
+            || $hasta !== null
+            || $tipo !== ''
+            || $operadorFiltro !== null;
+
         return view('historia-despacho-lenguas', [
             'movimientos' => $movimientos,
+            'operadoresLista' => $operadoresLista,
+            'filtrosActivos' => $filtrosActivos,
+            'filtros' => [
+                'desde' => $desde,
+                'hasta' => $hasta,
+                'tipo' => $tipo,
+                'operador' => $operador,
+            ],
         ]);
+    }
+
+    private static function parseFechaFiltro(mixed $valor): ?string
+    {
+        if (! is_string($valor) || trim($valor) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($valor)->format('Y-m-d');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function detalle(Despacho $despacho): JsonResponse

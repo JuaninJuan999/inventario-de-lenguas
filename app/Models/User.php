@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 #[Fillable(['name', 'username', 'email', 'password', 'role', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
@@ -40,7 +41,26 @@ class User extends Authenticatable
     }
 
     /**
-     * @param  string  $module  Clave en config/modulos_por_rol.php (roles.*)
+     * Tarjeta del menú (incluye módulos que solo aplican con {@see self::canManageUsers()}).
+     */
+    public function canSeeMenuModule(Modulo $modulo): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if ($modulo->requires_manage_users) {
+            return $this->canManageUsers();
+        }
+
+        return $this->canAccessModule($modulo->clave);
+    }
+
+    /**
+     * Permiso para rutas con middleware `module:*`. Primero intenta la matriz en base local
+     * (`role_modulo` + `modulos`); si no hay datos aún, usa config/modulos_por_rol.php.
+     *
+     * @param  string  $module  Clave del módulo (p. ej. inventario, ingresos).
      */
     public function canAccessModule(string $module): bool
     {
@@ -48,6 +68,29 @@ class User extends Authenticatable
             return false;
         }
 
+        if (! Schema::hasTable('role_modulo') || ! Schema::hasTable('modulos')) {
+            return $this->canAccessModuleFromConfig($module);
+        }
+
+        $role = $this->role ?? '';
+
+        $hayMatrizParaRol = RoleModulo::query()->where('role', $role)->exists();
+
+        if (! $hayMatrizParaRol) {
+            return $this->canAccessModuleFromConfig($module);
+        }
+
+        return RoleModulo::query()
+            ->where('role', $role)
+            ->whereHas('modulo', static function ($q) use ($module): void {
+                $q->where('clave', $module)->where('activo', true);
+            })
+            ->exists();
+    }
+
+    /** @param  string  $module  Clave en config/modulos_por_rol.php (roles.*) */
+    private function canAccessModuleFromConfig(string $module): bool
+    {
         $role = $this->role ?? '';
         /** @var list<string>|null $modules */
         $modules = config('modulos_por_rol.roles.'.$role);

@@ -302,7 +302,11 @@
             data-sync-interval="{{ (int) $inventarioSyncIntervalSeconds }}"
         >
             <div class="toolbar">
-                <p id="inv-tabla">Réplica local — visor (máx. 2.000 registros)</p>
+                <p id="inv-tabla">
+                    Réplica local · conexión {{ config('database.default') }} · base
+                    {{ config('database.connections.'.config('database.default').'.database', '—') }} · tabla
+                    ingreso_lenguas_locales · máx. 2.000 registros visibles
+                </p>
                 <div class="sync-status" id="inv-sync-status" aria-live="polite">
                     <p id="inv-sync-line1">Actualizando la réplica conforme al origen corporativo…</p>
                     <p id="inv-sync-line2">
