@@ -121,5 +121,6 @@ return [
         ['placa' => 'SOZ305', 'operador' => 'TRANSCARNES'],
         ['placa' => 'TTU547', 'operador' => 'TRANSCARNES'],
         ['placa' => 'SOZ238', 'operador' => 'TRANSCARNES'],
+        ['placa' => 'USB 866', 'operador' => 'OTROS'],
     ],
 ];
