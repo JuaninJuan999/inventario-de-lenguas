@@ -363,7 +363,7 @@
 
                 <div class="footer-actions">
                     <button type="button" class="btn-3d btn-3d--finish" id="btn-terminar">
-                        Registrar movimiento a Planta de Desposte
+                        Registrar Movimiento
                     </button>
                 </div>
             </form>
@@ -383,6 +383,24 @@
                 var codes = new Set();
                 var agregarEnCurso = false;
                 var finalizarEnCurso = false;
+
+                /** Campo código siempre editable; foco estable tras Enter/async en móvil (evita disabled + focus). */
+                function scheduleFocusCodigo() {
+                    if (!inputCodigo) {
+                        return;
+                    }
+                    inputCodigo.disabled = false;
+                    inputCodigo.removeAttribute('disabled');
+                    window.setTimeout(function () {
+                        try {
+                            inputCodigo.focus({ preventScroll: true });
+                        } catch (eIgn) {
+                            try {
+                                inputCodigo.focus();
+                            } catch (e2) {}
+                        }
+                    }, 10);
+                }
 
                 function pad(n) {
                     return String(n).padStart(2, '0');
@@ -421,16 +439,16 @@
                     var raw = (inputCodigo.value || '').trim();
                     if (!raw) {
                         alert('Ingrese el código o id de producto.');
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     }
                     var urlBase = window.desposteLenguaDestinoUrl || '';
                     if (!urlBase) {
                         alert('No está configurada la ruta de consulta de inventario.');
+                        scheduleFocusCodigo();
                         return;
                     }
                     agregarEnCurso = true;
-                    inputCodigo.disabled = true;
                     var idNorm = raw;
                     var propietarioTxt = '';
                     var destinoTxt = '';
@@ -442,6 +460,7 @@
                             u.searchParams.set('codigo', raw);
                         } catch (e1) {
                             alert('Ruta de inventario inválida. Recargue la página (Ctrl+F5).');
+                            scheduleFocusCodigo();
                             return;
                         }
                         var res = await fetch(u.toString(), {
@@ -459,7 +478,7 @@
                         var json = await res.json();
                         if (!json.ok) {
                             alert(json.message || 'No se pudo validar el código.');
-                            inputCodigo.focus();
+                            scheduleFocusCodigo();
                             return;
                         }
                         idNorm = (json.id_producto || raw).trim();
@@ -474,21 +493,20 @@
                                 : '';
                     } catch (err) {
                         alert('No se pudo consultar el inventario local. Revise la sesión o la red.');
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     } finally {
-                        inputCodigo.disabled = false;
                         agregarEnCurso = false;
                     }
 
                     if (!idNorm) {
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     }
                     if (codes.has(idNorm.toLowerCase())) {
                         alert('Ese id de producto ya está en la lista.');
                         inputCodigo.value = '';
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     }
                     codes.add(idNorm.toLowerCase());
@@ -547,7 +565,7 @@
                         }
                         tr.remove();
                         actualizarTotal();
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                     });
 
                     tdId.appendChild(hiddenCod);
@@ -563,7 +581,7 @@
                     tr.appendChild(tdQuitar);
                     tbody.appendChild(tr);
                     inputCodigo.value = '';
-                    inputCodigo.focus();
+                    scheduleFocusCodigo();
                     actualizarTotal();
                 }
 
@@ -585,6 +603,7 @@
                     var n = tbody.querySelectorAll('tr').length;
                     if (n === 0) {
                         alert('No hay lenguas en la lista.');
+                        scheduleFocusCodigo();
                         return;
                     }
                     if (
@@ -594,16 +613,19 @@
                                 ' lengua(s)?\n\nSe darán de baja del inventario local los registros cuyo id de producto coincida con el id normalizado mostrado en la tabla.',
                         )
                     ) {
+                        scheduleFocusCodigo();
                         return;
                     }
                     var urlFin = window.desposteFinalizarInventarioUrl || '';
                     if (!urlFin || !formDesposte) {
                         alert('No está configurada la ruta para finalizar.');
+                        scheduleFocusCodigo();
                         return;
                     }
                     var tokenEl = formDesposte.querySelector('[name="_token"]');
                     if (!tokenEl || !tokenEl.value) {
                         alert('Falta el token de seguridad; recargue la página.');
+                        scheduleFocusCodigo();
                         return;
                     }
                     var fd = new FormData();
@@ -643,22 +665,24 @@
                                 }
                             }
                             alert(errMsg);
+                            scheduleFocusCodigo();
                             return;
                         }
                         alert(json.message || 'Movimiento registrado.');
                         tbody.innerHTML = '';
                         codes.clear();
                         actualizarTotal();
-                        if (inputCodigo) {
-                            inputCodigo.focus();
-                        }
+                        scheduleFocusCodigo();
                     } catch (err) {
                         alert('Error de red o del servidor al actualizar el inventario.');
+                        scheduleFocusCodigo();
                     } finally {
                         btnTerminar.disabled = false;
                         finalizarEnCurso = false;
                     }
                 }
+
+                scheduleFocusCodigo();
             })();
         </script>
     </body>

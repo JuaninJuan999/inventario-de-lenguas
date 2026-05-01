@@ -29,7 +29,8 @@
                     radial-gradient(ellipse 130% 100% at 0% -15%, rgba(124, 232, 173, 0.22), transparent 52%),
                     radial-gradient(ellipse 110% 90% at 100% 15%, rgba(249, 223, 248, 0.18), transparent 48%);
                 color: var(--text);
-                padding: 1rem 1.25rem 2rem;
+                padding: max(0.75rem, env(safe-area-inset-top)) max(0.85rem, env(safe-area-inset-right))
+                    max(1.25rem, env(safe-area-inset-bottom)) max(0.85rem, env(safe-area-inset-left));
             }
             .page-bar {
                 max-width: 56rem;
@@ -39,6 +40,12 @@
                 align-items: center;
                 justify-content: space-between;
                 gap: 0.75rem;
+            }
+            .page-bar__actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                justify-content: flex-end;
             }
             .page-bar h1 {
                 margin: 0;
@@ -237,6 +244,13 @@
             .dispatch-table-wrap {
                 overflow-x: auto;
                 max-width: 100%;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-x: contain;
+            }
+            .dispatch-table-wrap:focus-visible {
+                outline: 2px solid color-mix(in srgb, var(--brand-green) 85%, transparent);
+                outline-offset: 3px;
+                border-radius: 0.35rem;
             }
             .dispatch-table th,
             .dispatch-table td {
@@ -285,6 +299,55 @@
             }
             .dispatch-table tbody tr:nth-child(even) {
                 background: rgba(0, 0, 0, 0.18);
+            }
+            .row-checklist-alistado > td {
+                background: linear-gradient(
+                    180deg,
+                    color-mix(in srgb, var(--brand-green) 38%, transparent),
+                    color-mix(in srgb, var(--brand-green) 14%, transparent)
+                ) !important;
+                box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--brand-green) 85%, #04261c);
+            }
+            .row-checklist-alistado .dispatch-cell--codigo {
+                text-decoration: underline;
+                text-underline-offset: 3px;
+            }
+            .row-checklist-sin-inv > td {
+                opacity: 0.82;
+            }
+            .estado-chip {
+                display: inline-block;
+                margin-left: 0.35rem;
+                padding: 0.08rem 0.35rem;
+                border-radius: 4px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                vertical-align: middle;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 35%, transparent);
+                background: rgba(0, 0, 0, 0.35);
+                color: color-mix(in srgb, var(--text) 88%, transparent);
+            }
+            .estado-chip--pendiente {
+                border-color: color-mix(in srgb, var(--brand-rose) 55%, transparent);
+                color: var(--brand-rose);
+            }
+            .estado-chip--sin-inv {
+                border-color: color-mix(in srgb, #ff6b6b 65%, transparent);
+                color: #ffb4b4;
+            }
+            .estado-chip--ok {
+                border-color: color-mix(in srgb, var(--brand-green) 65%, transparent);
+                color: #04261c;
+                background: color-mix(in srgb, var(--brand-green) 42%, transparent);
+            }
+            .btn-3d.is-static-readonly {
+                cursor: default;
+                opacity: 0.92;
+            }
+            .btn-3d.is-static-readonly:active {
+                transform: none;
             }
             .dispatch-table th.col-quitar,
             .dispatch-table td.col-quitar {
@@ -347,7 +410,7 @@
             .lookup-dialog {
                 width: 100%;
                 max-width: 42rem;
-                max-height: min(85vh, 36rem);
+                max-height: min(92dvh, 36rem);
                 display: flex;
                 flex-direction: column;
                 border-radius: 1rem;
@@ -442,12 +505,148 @@
                 background: color-mix(in srgb, var(--brand-rose) 18%, transparent);
             }
             @media (max-width: 640px) {
+                .page-bar {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 0.65rem;
+                }
+                .page-bar h1 {
+                    font-size: 1.05rem;
+                    line-height: 1.25;
+                }
+                .page-bar .page-bar__actions {
+                    justify-content: stretch;
+                }
+                .page-bar .link-menu {
+                    flex: 1 1 calc(50% - 0.25rem);
+                    justify-content: center;
+                    min-height: 44px;
+                    display: inline-flex;
+                    align-items: center;
+                    text-align: center;
+                    padding: 0.55rem 0.85rem;
+                    box-sizing: border-box;
+                }
+                .sheet {
+                    padding: 1rem 0.85rem 1.35rem;
+                    border-radius: 1rem;
+                }
                 .label-fixed {
                     width: 100%;
                 }
                 .row-field {
                     flex-direction: column;
                     align-items: stretch;
+                    gap: 0.45rem;
+                    margin-bottom: 0.85rem;
+                }
+                .btn-3d.label-fixed {
+                    width: 100%;
+                    min-height: 46px;
+                    justify-content: center;
+                    white-space: normal;
+                    text-align: center;
+                    line-height: 1.25;
+                    padding: 0.55rem 0.75rem;
+                }
+                .row-field input[type='text'],
+                .field-card input[type='text'].field-card__input {
+                    font-size: 16px;
+                    min-height: 46px;
+                    padding: 0.55rem 0.7rem;
+                }
+                .table-head-row {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 0.5rem;
+                }
+                .total-display {
+                    flex-wrap: wrap;
+                    justify-content: flex-start;
+                }
+                .footer-actions {
+                    justify-content: stretch;
+                }
+                .btn-3d--finish {
+                    width: 100%;
+                    justify-content: center;
+                    min-height: 50px;
+                    margin-top: 0.35rem;
+                }
+                .lookup-backdrop {
+                    padding: max(0.75rem, env(safe-area-inset-top)) max(0.65rem, env(safe-area-inset-right))
+                        max(0.85rem, env(safe-area-inset-bottom)) max(0.65rem, env(safe-area-inset-left));
+                    align-items: flex-end;
+                }
+                .lookup-dialog {
+                    max-height: min(92dvh, 100%);
+                    border-bottom-left-radius: 0;
+                    border-bottom-right-radius: 0;
+                }
+                .btn-retirar-codigo {
+                    width: 46px;
+                    height: 46px;
+                    font-size: 1.5rem;
+                }
+            }
+            /* Tabla detalle: en móvil se desliza horizontalmente (dedos / barra inferior). */
+            @media (max-width: 560px) {
+                .dispatch-table-wrap {
+                    overflow-x: auto;
+                    overflow-y: visible;
+                    margin-left: -0.25rem;
+                    margin-right: -0.25rem;
+                    padding-left: 0.25rem;
+                    padding-right: 0.25rem;
+                    padding-bottom: 0.35rem;
+                    touch-action: pan-x pan-y;
+                    scrollbar-width: thin;
+                }
+                .dispatch-table-wrap::-webkit-scrollbar {
+                    height: 6px;
+                }
+                .dispatch-table-wrap::-webkit-scrollbar-thumb {
+                    background: color-mix(in srgb, var(--brand-green) 55%, transparent);
+                    border-radius: 999px;
+                }
+                .dispatch-table {
+                    width: max-content;
+                    min-width: 720px;
+                    max-width: none;
+                    font-size: 0.8rem;
+                }
+                .dispatch-table th,
+                .dispatch-table td {
+                    padding: 0.45rem 0.55rem;
+                }
+                .dispatch-table th:nth-child(2),
+                .dispatch-table td:nth-child(2) {
+                    min-width: 9rem;
+                    max-width: 12rem;
+                }
+                .dispatch-table th:nth-child(3),
+                .dispatch-table td:nth-child(3) {
+                    min-width: 16rem;
+                    max-width: 24rem;
+                }
+                .dispatch-table th:nth-child(4),
+                .dispatch-table td:nth-child(4) {
+                    min-width: 8.5rem;
+                    white-space: nowrap;
+                }
+                .dispatch-table th.col-quitar,
+                .dispatch-table td.col-quitar {
+                    width: auto;
+                    min-width: 3.75rem;
+                }
+                .dispatch-table th.col-codigo,
+                .dispatch-table td.col-codigo {
+                    white-space: nowrap;
+                }
+                .dispatch-cell.dispatch-cell--codigo {
+                    white-space: nowrap;
+                    word-break: normal;
+                    overflow-wrap: normal;
                 }
             }
         </style>
@@ -455,8 +654,15 @@
     <body>
         @include('partials.logo-institucional')
         <div class="page-bar">
-            <h1>Despacho de Lenguas</h1>
-            <a class="link-menu" href="{{ route('menu') }}">← Volver al menú</a>
+            <h1>Despacho de Lenguas @if (! empty($checklistMode)) — checklist @endif</h1>
+            <div class="page-bar__actions">
+                @if (! empty($checklistMode))
+                    <a class="link-menu" href="{{ route('despacho.lenguas') }}">← Placas pendientes</a>
+                @else
+                    <a class="link-menu" href="{{ route('despacho.lenguas') }}">Lista checklist</a>
+                @endif
+                <a class="link-menu" href="{{ route('menu') }}">← Volver al menú</a>
+            </div>
         </div>
 
         <div class="sheet">
@@ -472,7 +678,8 @@
                         name="empresa"
                         id="empresa"
                         autocomplete="organization"
-                        placeholder="Código operador (listado COLBEEF)"
+                        placeholder="{{ ! empty($checklistMode) ? 'Elija del listado o escriba el operador' : 'Código operador (listado COLBEEF)' }}"
+                        value="{{ old('empresa', $vehiculoEmpresaChecklist ?? '') }}"
                     >
                 </div>
 
@@ -480,21 +687,45 @@
                     <button type="button" class="btn-3d label-fixed" data-open-lookup="placa" aria-haspopup="dialog">
                         Placa vehículo
                     </button>
-                    <input type="text" name="placa" id="placa" autocomplete="off" placeholder="Placa asignada al operador">
+                    <input
+                        type="text"
+                        name="placa"
+                        id="placa"
+                        autocomplete="off"
+                        placeholder="{{ ! empty($checklistMode) ? 'Elija del listado o escriba la placa' : 'Placa asignada al operador' }}"
+                        value="{{ old('placa', $vehiculoPlacaChecklist ?? '') }}"
+                    >
                 </div>
                 <div class="row-field">
                     <button type="button" class="btn-3d label-fixed" data-open-lookup="conductor" aria-haspopup="dialog">
                         Conductor
                     </button>
-                    <input type="text" name="conductor" id="conductor" autocomplete="name" placeholder="">
+                    <input
+                        type="text"
+                        name="conductor"
+                        id="conductor"
+                        autocomplete="name"
+                        placeholder="{{ ! empty($checklistMode) ? 'Elija del listado o escriba el conductor' : '' }}"
+                        value="{{ old('conductor', $vehiculoConductorChecklist ?? '') }}"
+                    >
                 </div>
 
                 <div class="field-card">
                     <h2 class="field-card__title">Código de lengua</h2>
                     <p class="field-card__text">
-                        Escanee o escriba el código y pulse <strong>Enter</strong>. Si agregó uno por error, use la
-                        <strong class="hint-quitar">×</strong> roja en la tabla para retirarlo de este despacho (sigue en
-                        inventario hasta que pulse <strong>Terminar despacho</strong> con la lista definitiva).
+                        @if (! empty($checklistMode))
+                            Escanee o escriba el código y pulse <strong>Enter</strong>. Las filas del listado Colbeef
+                            pasan a <strong>verde (alistado)</strong> al leer un código que coincida y tenga inventario
+                            local. Si necesita <strong>añadir</strong> una lengua que no estaba en la lista, al pulsar
+                            <strong>Enter</strong> se agregará igual (inventario local). Use
+                            <strong class="hint-quitar">×</strong> para desmarcar. Antes de
+                            <strong>Terminar despacho</strong> elija usted <strong>operador, placa y conductor</strong> con
+                            los botones o a mano.
+                        @else
+                            Escanee o escriba el código y pulse <strong>Enter</strong>. Si agregó uno por error, use la
+                            <strong class="hint-quitar">×</strong> roja en la tabla para retirarlo de este despacho (sigue en
+                            inventario hasta que pulse <strong>Terminar despacho</strong> con la lista definitiva).
+                        @endif
                     </p>
                     <input
                         class="field-card__input"
@@ -506,15 +737,34 @@
                 </div>
 
                 <div class="field-card table-block">
+                    @if (! empty($checklistMode) && ($checklistSinInventarioCount ?? 0) > 0)
+                        <p class="field-card__text" style="margin-top: 0">
+                            Hay <strong>{{ (int) $checklistSinInventarioCount }}</strong> código(s) en Colbeef sin fila disponible en inventario local:
+                            no podrá cerrar el despacho hasta incorporarlos al inventario o corregir la asignación.
+                        </p>
+                    @endif
                     <div class="table-head-row">
                         <h2 class="field-card__title">Detalle del despacho</h2>
                         <div class="total-display">
-                            <span class="total-label">Total lenguas</span>
-                            <span class="total-num" id="total-lenguas" aria-live="polite">0</span>
+                            @if (! empty($checklistMode))
+                                <span class="total-label">Validadas</span>
+                                <span class="total-num" id="total-validadas-checklist" aria-live="polite">0</span>
+                                <span class="total-label">de</span>
+                                <span class="total-num" id="total-requeridas-checklist">{{ (int) ($checklistTotalConInventario ?? 0) }}</span>
+                                <span class="total-label">con inventario</span>
+                            @else
+                                <span class="total-label">Total lenguas</span>
+                                <span class="total-num" id="total-lenguas" aria-live="polite">0</span>
+                            @endif
                         </div>
                     </div>
 
-                    <div class="dispatch-table-wrap">
+                    <div
+                        class="dispatch-table-wrap"
+                        role="region"
+                        aria-label="Detalle del despacho: deslice horizontalmente para ver todas las columnas"
+                        tabindex="0"
+                    >
                         <table class="dispatch-table" aria-label="Lenguas en despacho">
                             <thead>
                                 <tr>
@@ -522,16 +772,98 @@
                                     <th scope="col">Propietario</th>
                                     <th scope="col">Destino</th>
                                     <th scope="col">Fecha despacho</th>
-                                    <th scope="col" class="col-quitar">Quitar</th>
+                                    <th scope="col" class="col-quitar">
+                                        @if (! empty($checklistMode))
+                                            Desmarcar
+                                        @else
+                                            Quitar
+                                        @endif
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-despacho"></tbody>
+                            <tbody id="tbody-despacho">
+                                @if (! empty($checklistMode))
+                                    @foreach ($checklistLines ?? [] as $line)
+                                        <tr
+                                            data-checklist-row="1"
+                                            data-en-inv="{{ $line['en_inventario'] ? '1' : '0' }}"
+                                            data-alistado="0"
+                                            data-canonical="{{ $line['canonical_id_producto'] }}"
+                                            data-match-keys="{{ htmlspecialchars(json_encode($line['match_keys'], JSON_THROW_ON_ERROR), ENT_QUOTES | ENT_HTML5, 'UTF-8') }}"
+                                            @class([
+                                                'row-checklist-pendiente' => $line['en_inventario'],
+                                                'row-checklist-sin-inv' => ! $line['en_inventario'],
+                                            ])
+                                        >
+                                            <td class="col-codigo" data-label="Código">
+                                                <input
+                                                    type="hidden"
+                                                    name="codigos[]"
+                                                    class="inp-codigo-despacho"
+                                                    value="{{ $line['canonical_id_producto'] }}"
+                                                    disabled
+                                                >
+                                                <div class="dispatch-cell dispatch-cell--codigo">{{ $line['id_producto_colbeef'] }}</div>
+                                            </td>
+                                            <td data-label="Propietario">
+                                                @if (! $line['en_inventario'])
+                                                    <div class="dispatch-cell dispatch-cell--empty">—</div>
+                                                @elseif (trim((string) ($line['propietario'] ?? '')) !== '')
+                                                    <div class="dispatch-cell">{{ $line['propietario'] }}</div>
+                                                @else
+                                                    <div class="dispatch-cell dispatch-cell--empty">Sin propietario en inventario</div>
+                                                @endif
+                                            </td>
+                                            <td data-label="Destino">
+                                                @if (! $line['en_inventario'])
+                                                    <div class="dispatch-cell dispatch-cell--empty">Sin inventario local</div>
+                                                @elseif (trim((string) ($line['destino'] ?? '')) !== '')
+                                                    <div class="dispatch-cell">{{ $line['destino'] }}</div>
+                                                @else
+                                                    <div class="dispatch-cell dispatch-cell--empty">Sin destino registrado</div>
+                                                @endif
+                                            </td>
+                                            <td data-label="Estado">
+                                                <div class="dispatch-cell">
+                                                    <span class="fecha-despacho-cel">—</span>
+                                                    @if (! $line['en_inventario'])
+                                                        <span class="estado-chip estado-chip--sin-inv">Sin inventario</span>
+                                                    @else
+                                                        <span class="estado-chip estado-chip--pendiente row-estado-chip">Pendiente</span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td class="col-quitar">
+                                                @if ($line['en_inventario'])
+                                                    <button
+                                                        type="button"
+                                                        class="btn-retirar-codigo"
+                                                        aria-label="Desmarcar código {{ $line['id_producto_colbeef'] }}"
+                                                        title="Desmarcar validación física"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                @else
+                                                    <span class="dispatch-cell dispatch-cell--empty">—</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                            </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="footer-actions">
-                    <button type="button" class="btn-3d btn-3d--finish" id="btn-terminar">Terminar despacho</button>
+                    <button
+                        type="button"
+                        class="btn-3d btn-3d--finish"
+                        id="btn-terminar"
+                        @if (! empty($checklistMode)) disabled @endif
+                    >
+                        Terminar despacho
+                    </button>
                 </div>
             </form>
         </div>
@@ -574,6 +906,9 @@
             window.despachoLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino', [], false));
             window.despachoFinalizarInventarioUrl = @json(route('despacho.finalizar.inventario', [], false));
             window.despachoOperadorPlacaFilas = @json($operadorPlacaFilas ?? []);
+            window.despachoSeleccionUrl = @json(route('despacho.lenguas'));
+            window.despachoCodigoBarrasSuffixDigitos = {{ (int) config('despacho.codigo_barras_suffix_digitos', 4) }};
+            window.despachoChecklistVehicleId = @json($checklistVehicleId ?? null);
         </script>
         <script>
             (function () {
@@ -893,14 +1228,150 @@
         </script>
         <script>
             (function () {
+                function despachoNormalizarUnicodeHyphens(s) {
+                    return String(s || '')
+                        .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFF0D]/g, '-')
+                        .trim();
+                }
+
+                function despachoNormalizarIdProducto(leido) {
+                    var s = despachoNormalizarUnicodeHyphens(String(leido || ''));
+                    if (!s) {
+                        return '';
+                    }
+                    var digitos = Number(window.despachoCodigoBarrasSuffixDigitos || 4);
+                    if (!digitos || digitos < 1) {
+                        return s;
+                    }
+                    var parts = s.split('-');
+                    if (parts.length < 3) {
+                        return s;
+                    }
+                    var last = parts[parts.length - 1];
+                    if (last.length === digitos && /^\d+$/.test(last)) {
+                        parts.pop();
+                        return parts.join('-');
+                    }
+                    return s;
+                }
+
+                function scannerVariantSet(leido) {
+                    var out = new Set();
+                    var t = despachoNormalizarUnicodeHyphens(String(leido || ''));
+                    if (t) {
+                        out.add(t);
+                    }
+                    var norm = despachoNormalizarIdProducto(t);
+                    if (norm && norm !== t) {
+                        out.add(norm);
+                    }
+                    var compact = t.replace(/[\s\-\/_.]+/g, '');
+                    if (compact) {
+                        out.add(compact);
+                    }
+                    var digits = t.replace(/\D/g, '');
+                    if (digits.length >= 3) {
+                        out.add(digits);
+                    }
+                    return out;
+                }
+
+                function variantSetsIntersect(va, vb) {
+                    for (var v of va) {
+                        if (vb.has(v)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                /** Coincide lectura con checklist aunque Colbeef e inventario usen formato distinto (compacto, sufijo, etc.). */
+                function rowMatchesScan(leido, keysArr) {
+                    var L = despachoNormalizarUnicodeHyphens(String(leido || ''));
+                    if (!L) {
+                        return false;
+                    }
+                    var V = scannerVariantSet(L);
+                    var base = Array.isArray(keysArr) ? keysArr : [];
+                    if (!base.length) {
+                        return false;
+                    }
+                    for (var i = 0; i < base.length; i++) {
+                        var k = despachoNormalizarUnicodeHyphens(String(base[i] == null ? '' : base[i]));
+                        if (!k) {
+                            continue;
+                        }
+                        if (V.has(k)) {
+                            return true;
+                        }
+                        var nk = despachoNormalizarIdProducto(k);
+                        if (nk && V.has(nk)) {
+                            return true;
+                        }
+                        var K = scannerVariantSet(k);
+                        if (variantSetsIntersect(V, K)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                function checklistMergeRowMatchKeys(tr) {
+                    var keys = [];
+                    try {
+                        var parsed = JSON.parse(tr.getAttribute('data-match-keys') || '[]');
+                        if (Array.isArray(parsed)) {
+                            keys = parsed.slice();
+                        }
+                    } catch (eIgn) {
+                        keys = [];
+                    }
+                    var canonical = despachoNormalizarUnicodeHyphens(tr.getAttribute('data-canonical') || '');
+                    if (canonical && keys.indexOf(canonical) === -1) {
+                        keys.push(canonical);
+                    }
+                    var cell = tr.querySelector('.dispatch-cell--codigo');
+                    var vis = cell ? despachoNormalizarUnicodeHyphens(String(cell.textContent || '')) : '';
+                    if (vis && keys.indexOf(vis) === -1) {
+                        keys.push(vis);
+                    }
+                    return keys;
+                }
+
+                var checklistVidRaw = window.despachoChecklistVehicleId;
+                var esChecklist =
+                    checklistVidRaw != null &&
+                    checklistVidRaw !== '' &&
+                    !Number.isNaN(Number(checklistVidRaw)) &&
+                    Number(checklistVidRaw) > 0;
+
                 var formDespacho = document.getElementById('form-despacho');
                 var inputCodigo = document.getElementById('codigo-lengua');
                 var tbody = document.getElementById('tbody-despacho');
                 var totalEl = document.getElementById('total-lenguas');
+                var totalValidadasEl = document.getElementById('total-validadas-checklist');
                 var btnTerminar = document.getElementById('btn-terminar');
                 var codes = new Set();
                 var agregarEnCurso = false;
                 var finalizarEnCurso = false;
+
+                /** Campo código siempre editable; foco estable tras Enter/async en móvil (evita disabled + focus). */
+                function scheduleFocusCodigo() {
+                    if (!inputCodigo) {
+                        return;
+                    }
+                    inputCodigo.disabled = false;
+                    inputCodigo.removeAttribute('disabled');
+                    window.setTimeout(function () {
+                        try {
+                            inputCodigo.focus({ preventScroll: true });
+                        } catch (eIgn) {
+                            try {
+                                inputCodigo.focus();
+                            } catch (e2) {}
+                        }
+                    }, 10);
+                }
 
                 function hoyTexto() {
                     var d = new Date();
@@ -911,7 +1382,222 @@
                 }
 
                 function actualizarTotal() {
-                    totalEl.textContent = String(tbody.querySelectorAll('tr').length);
+                    if (totalEl) {
+                        totalEl.textContent = String(tbody.querySelectorAll('tr').length);
+                    }
+                }
+
+                function checklistMarcarTotal() {
+                    if (!totalValidadasEl || !tbody) {
+                        return;
+                    }
+                    var n = tbody.querySelectorAll(
+                        'tr[data-checklist-row="1"][data-en-inv="1"][data-alistado="1"]',
+                    ).length;
+                    totalValidadasEl.textContent = String(n);
+                }
+
+                function checklistActualizarBotonTerminar() {
+                    if (!btnTerminar || !esChecklist || !tbody) {
+                        return;
+                    }
+                    var sinInv = tbody.querySelectorAll('tr[data-checklist-row="1"][data-en-inv="0"]').length > 0;
+                    var pend =
+                        tbody.querySelectorAll('tr[data-checklist-row="1"][data-en-inv="1"][data-alistado="0"]').length >
+                        0;
+                    btnTerminar.disabled = sinInv || pend || finalizarEnCurso;
+                    btnTerminar.title = sinInv
+                        ? 'Hay códigos sin inventario local en este checklist.'
+                        : pend
+                          ? 'Debe escanear y validar todas las lenguas con inventario antes de cerrar.'
+                          : '';
+                }
+
+                function checklistActualizarCelda(tr, tdIndex, text, emptyLabel, forceEmptyClass) {
+                    var tds = tr.querySelectorAll('td');
+                    var td = tds[tdIndex];
+                    if (!td) {
+                        return;
+                    }
+                    var div = td.querySelector('.dispatch-cell');
+                    if (!div) {
+                        return;
+                    }
+                    var v = text != null ? String(text).trim() : '';
+                    var empty = forceEmptyClass || !v;
+                    div.textContent = empty ? emptyLabel : v;
+                    div.className = 'dispatch-cell' + (empty ? ' dispatch-cell--empty' : '');
+                }
+
+                function checklistLimpiarFila(tr) {
+                    tr.setAttribute('data-alistado', '0');
+                    tr.classList.remove('row-checklist-alistado');
+                    tr.classList.add('row-checklist-pendiente');
+                    var hid = tr.querySelector('input.inp-codigo-despacho');
+                    if (hid && hid.value) {
+                        codes.delete(String(hid.value).trim().toLowerCase());
+                    }
+                    if (hid) {
+                        hid.disabled = true;
+                    }
+                    var fechaSpan = tr.querySelector('.fecha-despacho-cel');
+                    if (fechaSpan) {
+                        fechaSpan.textContent = '—';
+                    }
+                    var chip = tr.querySelector('.row-estado-chip');
+                    if (chip) {
+                        chip.textContent = 'Pendiente';
+                        chip.className = 'estado-chip estado-chip--pendiente row-estado-chip';
+                    }
+                    checklistMarcarTotal();
+                    checklistActualizarBotonTerminar();
+                    scheduleFocusCodigo();
+                }
+
+                async function checklistOnScanEnter() {
+                    if (agregarEnCurso || !tbody) {
+                        return;
+                    }
+                    var raw = (inputCodigo.value || '').trim();
+                    if (!raw) {
+                        alert('Ingrese el código de la lengua.');
+                        scheduleFocusCodigo();
+                        return;
+                    }
+                    var candidatos = [];
+                    tbody.querySelectorAll('tr[data-checklist-row="1"][data-en-inv="1"][data-alistado="0"]').forEach(
+                        function (tr) {
+                            var keys = checklistMergeRowMatchKeys(tr);
+                            if (rowMatchesScan(raw, keys)) {
+                                candidatos.push(tr);
+                            }
+                        },
+                    );
+                    if (candidatos.length === 0) {
+                        var coincideConAlgunaFilaChecklist = false;
+                        tbody.querySelectorAll('tr[data-checklist-row="1"]').forEach(function (trR) {
+                            if (rowMatchesScan(raw, checklistMergeRowMatchKeys(trR))) {
+                                coincideConAlgunaFilaChecklist = true;
+                            }
+                        });
+                        if (coincideConAlgunaFilaChecklist) {
+                            alert(
+                                'Ese código ya está en el checklist (pendiente de leer o ya alistado). Use “Desmarcar” en la fila si debe volver a validarla, o revise el código leído.',
+                            );
+                            scheduleFocusCodigo();
+                            return;
+                        }
+                        await agregarFila();
+                        scheduleFocusCodigo();
+                        return;
+                    }
+                    if (candidatos.length > 1) {
+                        alert(
+                            'Hay más de una fila coincidente en el checklist (duplicados). Revise los datos en Colbeef.',
+                        );
+                        scheduleFocusCodigo();
+                        return;
+                    }
+                    var tr = candidatos[0];
+                    var canonicalEsperado = (tr.getAttribute('data-canonical') || '').trim();
+                    var urlBase = window.despachoLenguaDestinoUrl || '';
+                    if (!urlBase) {
+                        alert('No está configurada la ruta de consulta de inventario.');
+                        scheduleFocusCodigo();
+                        return;
+                    }
+                    agregarEnCurso = true;
+                    try {
+                        var u = new URL(String(urlBase), window.location.href);
+                        u.searchParams.set('codigo', raw);
+                        var res = await fetch(u.toString(), {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-Despacho-Codigo-Lengua': raw,
+                            },
+                            credentials: 'same-origin',
+                        });
+                        var ct = res.headers.get('content-type') || '';
+                        if (!ct.includes('application/json')) {
+                            throw new Error('Respuesta no JSON');
+                        }
+                        var json = await res.json();
+                        if (!json.ok) {
+                            alert(json.message || 'No se pudo validar el código en inventario.');
+                            return;
+                        }
+                        if (!json.encontrado) {
+                            alert('El código no tiene una fila disponible en inventario local (sin despachar).');
+                            return;
+                        }
+                        var invId = String(json.id_producto || '').trim();
+                        var keysFila = checklistMergeRowMatchKeys(tr);
+                        if (
+                            !invId ||
+                            (invId !== canonicalEsperado && !rowMatchesScan(invId, keysFila))
+                        ) {
+                            alert(
+                                'El inventario local no coincide con la fila esperada del checklist (' +
+                                    canonicalEsperado +
+                                    ').',
+                            );
+                            return;
+                        }
+                        tr.setAttribute('data-alistado', '1');
+                        tr.classList.remove('row-checklist-pendiente');
+                        tr.classList.add('row-checklist-alistado');
+                        var hid = tr.querySelector('input.inp-codigo-despacho');
+                        if (hid) {
+                            hid.disabled = false;
+                            hid.value = invId;
+                        }
+                        var fechaSpan = tr.querySelector('.fecha-despacho-cel');
+                        if (fechaSpan) {
+                            fechaSpan.textContent = hoyTexto();
+                        }
+                        var chip = tr.querySelector('.row-estado-chip');
+                        if (chip) {
+                            chip.textContent = 'Alistado';
+                            chip.className = 'estado-chip estado-chip--ok row-estado-chip';
+                        }
+                        var propTxt =
+                            json.propietario != null && String(json.propietario).trim() !== ''
+                                ? String(json.propietario).trim()
+                                : '';
+                        var destTxt =
+                            json.destino != null && String(json.destino).trim() !== ''
+                                ? String(json.destino).trim()
+                                : '';
+                        checklistActualizarCelda(tr, 1, propTxt, 'Sin propietario en inventario', !propTxt);
+                        checklistActualizarCelda(tr, 2, destTxt, 'Sin destino registrado', !destTxt);
+                        codes.add(invId.toLowerCase());
+                        inputCodigo.value = '';
+                        checklistMarcarTotal();
+                        checklistActualizarBotonTerminar();
+                    } catch (err) {
+                        alert('No se pudo consultar el inventario local. Revise la sesión o la red.');
+                    } finally {
+                        agregarEnCurso = false;
+                        scheduleFocusCodigo();
+                    }
+                }
+
+                function checklistBindFilas() {
+                    if (!tbody) {
+                        return;
+                    }
+                    tbody.querySelectorAll('tr[data-checklist-row="1"]').forEach(function (tr) {
+                        var btn = tr.querySelector('.btn-retirar-codigo');
+                        if (!btn) {
+                            return;
+                        }
+                        btn.addEventListener('click', function () {
+                            checklistLimpiarFila(tr);
+                        });
+                    });
+                    checklistMarcarTotal();
+                    checklistActualizarBotonTerminar();
                 }
 
                 function dispatchCell(text, emptyLabel) {
@@ -928,16 +1614,16 @@
                     var raw = (inputCodigo.value || '').trim();
                     if (!raw) {
                         alert('Ingrese el código de la lengua.');
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     }
                     var urlBase = window.despachoLenguaDestinoUrl || '';
                     if (!urlBase) {
                         alert('No está configurada la ruta de consulta de inventario.');
+                        scheduleFocusCodigo();
                         return;
                     }
                     agregarEnCurso = true;
-                    inputCodigo.disabled = true;
                     var idNorm = raw;
                     var propietarioTxt = '';
                     var destinoTxt = '';
@@ -966,7 +1652,6 @@
                         var json = await res.json();
                         if (!json.ok) {
                             alert(json.message || 'No se pudo validar el código.');
-                            inputCodigo.focus();
                             return;
                         }
                         idNorm = (json.id_producto || raw).trim();
@@ -981,21 +1666,19 @@
                                 : '';
                     } catch (err) {
                         alert('No se pudo consultar el inventario local. Revise la sesión o la red.');
-                        inputCodigo.focus();
                         return;
                     } finally {
-                        inputCodigo.disabled = false;
                         agregarEnCurso = false;
+                        scheduleFocusCodigo();
                     }
 
                     if (!idNorm) {
-                        inputCodigo.focus();
                         return;
                     }
                     if (codes.has(idNorm.toLowerCase())) {
                         alert('Ese id de producto ya está en la lista.');
                         inputCodigo.value = '';
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                         return;
                     }
                     codes.add(idNorm.toLowerCase());
@@ -1003,9 +1686,13 @@
                     var tr = document.createElement('tr');
                     var td1 = document.createElement('td');
                     td1.className = 'col-codigo';
+                    td1.setAttribute('data-label', 'Código');
                     var td2 = document.createElement('td');
+                    td2.setAttribute('data-label', 'Propietario');
                     var td3 = document.createElement('td');
+                    td3.setAttribute('data-label', 'Destino');
                     var td4 = document.createElement('td');
+                    td4.setAttribute('data-label', 'Fecha despacho');
                     var hiddenCod = document.createElement('input');
                     hiddenCod.type = 'hidden';
                     hiddenCod.name = 'codigos[]';
@@ -1042,7 +1729,7 @@
                         }
                         tr.remove();
                         actualizarTotal();
-                        inputCodigo.focus();
+                        scheduleFocusCodigo();
                     });
                     td5.appendChild(btnRetirar);
                     td1.appendChild(hiddenCod);
@@ -1057,16 +1744,25 @@
                     tr.appendChild(td5);
                     tbody.appendChild(tr);
                     inputCodigo.value = '';
-                    inputCodigo.focus();
                     actualizarTotal();
                 }
 
-                inputCodigo.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void agregarFila();
-                    }
-                });
+                if (esChecklist) {
+                    checklistBindFilas();
+                    inputCodigo.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void checklistOnScanEnter();
+                        }
+                    });
+                } else {
+                    inputCodigo.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void agregarFila();
+                        }
+                    });
+                }
 
                 btnTerminar.addEventListener('click', function () {
                     void terminarDespacho();
@@ -1076,18 +1772,48 @@
                     if (finalizarEnCurso) {
                         return;
                     }
-                    var n = tbody.querySelectorAll('tr').length;
-                    if (n === 0) {
-                        alert('No hay lenguas en el despacho.');
+                    function valCampoForm(id) {
+                        var el = document.getElementById(id);
+                        return el ? String(el.value || '').trim() : '';
+                    }
+                    var nCodigos = esChecklist
+                        ? tbody.querySelectorAll('input.inp-codigo-despacho:not([disabled])').length
+                        : tbody.querySelectorAll('tr').length;
+                    if (nCodigos === 0) {
+                        alert(esChecklist ? 'No hay códigos validados para despachar.' : 'No hay lenguas en el despacho.');
                         return;
                     }
-                    if (
-                        !confirm(
-                            '¿Confirma terminar el despacho con ' +
-                                n +
-                                ' lengua(s)?\n\nSe darán de baja del inventario local los registros cuyo id de producto coincida con cada código de la lista.',
-                        )
-                    ) {
+                    if (esChecklist && tbody) {
+                        var sinInvMsg = tbody.querySelectorAll('tr[data-checklist-row="1"][data-en-inv="0"]').length > 0;
+                        var pendMsg =
+                            tbody.querySelectorAll('tr[data-checklist-row="1"][data-en-inv="1"][data-alistado="0"]')
+                                .length > 0;
+                        if (sinInvMsg) {
+                            alert(
+                                'No puede cerrar el despacho: hay productos sin inventario local en este checklist.',
+                            );
+                            return;
+                        }
+                        if (pendMsg) {
+                            alert('Debe escanear todas las lenguas pendientes antes de terminar el despacho.');
+                            return;
+                        }
+                        if (!valCampoForm('empresa') || !valCampoForm('placa') || !valCampoForm('conductor')) {
+                            alert(
+                                'Indique operador logístico, placa y conductor (con el botón de listado o escribiendo) antes de terminar el despacho.',
+                            );
+                            return;
+                        }
+                    }
+                    var msgConfirm =
+                        '¿Confirma terminar el despacho con ' +
+                        nCodigos +
+                        ' lengua(s)?\n\nSe darán de baja del inventario local los registros cuyo id de producto coincida con cada código de la lista.';
+                    if (esChecklist) {
+                        msgConfirm +=
+                            '\n\nEl servidor exige incluir al menos todos los códigos del checklist Colbeef de este vehículo; puede haber códigos adicionales.';
+                    }
+                    if (!confirm(msgConfirm)) {
                         return;
                     }
                     var urlFin = window.despachoFinalizarInventarioUrl || '';
@@ -1100,20 +1826,26 @@
                         alert('Falta el token de seguridad; recargue la página.');
                         return;
                     }
-                    function valCampo(id) {
-                        var el = document.getElementById(id);
-                        return el ? String(el.value || '').trim() : '';
-                    }
                     var fd = new FormData();
                     fd.append('_token', tokenEl.value);
                     tbody.querySelectorAll('input.inp-codigo-despacho').forEach(function (inp) {
+                        if (inp.disabled) {
+                            return;
+                        }
                         fd.append('codigos[]', (inp.value || '').trim());
                     });
-                    fd.append('empresa', valCampo('empresa'));
-                    fd.append('conductor', valCampo('conductor'));
-                    fd.append('placa', valCampo('placa'));
+                    fd.append('empresa', valCampoForm('empresa'));
+                    fd.append('conductor', valCampoForm('conductor'));
+                    fd.append('placa', valCampoForm('placa'));
+                    if (esChecklist) {
+                        fd.append('id_vehiculo_asignado', String(Number(checklistVidRaw)));
+                    }
                     finalizarEnCurso = true;
-                    btnTerminar.disabled = true;
+                    if (esChecklist) {
+                        checklistActualizarBotonTerminar();
+                    } else if (btnTerminar) {
+                        btnTerminar.disabled = true;
+                    }
                     try {
                         var res = await fetch(urlFin, {
                             method: 'POST',
@@ -1147,20 +1879,26 @@
                             return;
                         }
                         alert(json.message || 'Despacho finalizado.');
+                        if (json.redirect_url) {
+                            window.location.href = json.redirect_url;
+                            return;
+                        }
                         tbody.innerHTML = '';
                         codes.clear();
                         actualizarTotal();
                         document.getElementById('empresa').value = '';
                         document.getElementById('placa').value = '';
                         document.getElementById('conductor').value = '';
-                        if (inputCodigo) {
-                            inputCodigo.focus();
-                        }
+                        scheduleFocusCodigo();
                     } catch (err) {
                         alert('Error de red o del servidor al actualizar el inventario.');
                     } finally {
-                        btnTerminar.disabled = false;
                         finalizarEnCurso = false;
+                        if (esChecklist) {
+                            checklistActualizarBotonTerminar();
+                        } else if (btnTerminar) {
+                            btnTerminar.disabled = false;
+                        }
                     }
                 }
             })();

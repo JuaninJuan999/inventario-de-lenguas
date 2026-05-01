@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Decomisos\InspeccionSirtController;
 use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
 use App\Http\Controllers\Despacho\DespachoLenguasController;
+use App\Http\Controllers\Despacho\DespachoSeleccionPlacasController;
 use App\Http\Controllers\Despacho\HistoriaDespachoLenguasController;
 use App\Http\Controllers\Despacho\LenguaDestinoInventarioController;
 use App\Http\Controllers\Despacho\VehiculoAsignadoLookupController;
@@ -64,7 +65,11 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('module:despacho')->group(function () {
-        Route::get('/despacho-de-lenguas', DespachoLenguasController::class)->name('despacho.lenguas');
+        Route::get('/despacho-de-lenguas', DespachoSeleccionPlacasController::class)->name('despacho.lenguas');
+        Route::get('/despacho-de-lenguas/manual', DespachoLenguasController::class)->name('despacho.lenguas.manual');
+        Route::get('/despacho-de-lenguas/checklist/{id_vehiculo_asignado}', [DespachoLenguasController::class, 'checklist'])
+            ->whereNumber('id_vehiculo_asignado')
+            ->name('despacho.lenguas.checklist');
         Route::get('/despacho-de-lenguas/vehiculos-asignados', VehiculoAsignadoLookupController::class)
             ->name('despacho.lookup.vehiculos');
         Route::get('/despacho-de-lenguas/lengua-destino-inventario', LenguaDestinoInventarioController::class)

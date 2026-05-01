@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Despacho;
 
 use App\Http\Controllers\Controller;
-use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
+use App\Support\DespachoInventarioMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -26,14 +26,10 @@ class LenguaDestinoInventarioController extends Controller
             ], 422);
         }
 
-        $idProducto = DespachoCodigoBarras::normalizarIdProducto($codigo);
-
-        $row = IngresoLenguaLocal::query()
-            ->sinDespachar()
-            ->where('id_producto', $idProducto)
-            ->orderByDesc('imported_at')
-            ->orderByDesc('id')
-            ->first();
+        $row = DespachoInventarioMatch::findAvailableRow($codigo);
+        $idProducto = $row !== null
+            ? (string) $row->id_producto
+            : DespachoCodigoBarras::normalizarIdProducto($codigo);
 
         return response()->json([
             'ok' => true,

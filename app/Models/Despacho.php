@@ -10,6 +10,7 @@ class Despacho extends Model
 {
     protected $fillable = [
         'user_id',
+        'id_vehiculo_asignado',
         'empresa',
         'conductor',
         'placa',
