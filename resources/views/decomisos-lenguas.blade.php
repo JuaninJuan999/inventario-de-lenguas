@@ -165,6 +165,23 @@
             .filter-field--date input[type="date"] {
                 width: auto;
                 min-width: 10.75rem;
+                color: #ffffff;
+                background: rgba(255, 255, 255, 0.12);
+                border: 1px solid color-mix(in srgb, #ffffff 55%, var(--brand-green));
+                color-scheme: dark;
+            }
+            .filter-field--date input[type="date"]::-webkit-calendar-picker-indicator {
+                cursor: pointer;
+                opacity: 1;
+                filter: invert(1) brightness(1.15);
+            }
+            .filter-field--date input[type="date"]::-webkit-datetime-edit,
+            .filter-field--date input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+            .filter-field--date input[type="date"]::-webkit-datetime-edit-text,
+            .filter-field--date input[type="date"]::-webkit-datetime-edit-month-field,
+            .filter-field--date input[type="date"]::-webkit-datetime-edit-day-field,
+            .filter-field--date input[type="date"]::-webkit-datetime-edit-year-field {
+                color: #ffffff;
             }
             .filter-actions {
                 display: flex;
@@ -236,6 +253,65 @@
             .btn-clear:hover {
                 background: color-mix(in srgb, var(--brand-rose) 12%, transparent);
             }
+            .manual-box {
+                margin-bottom: 1.25rem;
+                padding: 1rem 1.1rem 1.15rem;
+                border-radius: 0.85rem;
+                border: 1px solid color-mix(in srgb, var(--brand-rose) 28%, transparent);
+                background: color-mix(in srgb, var(--brand-rose) 6%, rgba(0, 0, 0, 0.28));
+            }
+            .manual-box h2 {
+                margin: 0 0 0.85rem;
+                font-size: 0.78rem;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: color-mix(in srgb, var(--brand-rose) 92%, #fff);
+            }
+            .manual-grid {
+                display: grid;
+                grid-template-columns: minmax(8rem, 1.1fr) minmax(9rem, 1.2fr) minmax(9rem, 1.2fr) auto;
+                gap: 0.75rem 0.85rem;
+                align-items: end;
+            }
+            .manual-grid .filter-field select {
+                width: 100%;
+                padding: 0.5rem 0.65rem;
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, #1a3d2e);
+                background: rgba(0, 0, 0, 0.35);
+                color: var(--text);
+                font-size: 0.9rem;
+                font-family: inherit;
+            }
+            .manual-grid .filter-field select:focus {
+                outline: 2px solid var(--brand-green);
+                outline-offset: 1px;
+            }
+            .badge-origen {
+                display: inline-block;
+                margin-left: 0.35rem;
+                padding: 0.12rem 0.45rem;
+                border-radius: 9999px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                vertical-align: middle;
+            }
+            .badge-origen--manual {
+                color: #04261c;
+                background: color-mix(in srgb, var(--brand-rose) 75%, #fff);
+            }
+            .badge-origen--sirt {
+                color: #04261c;
+                background: color-mix(in srgb, var(--brand-green) 70%, #fff);
+            }
+            @media (max-width: 860px) {
+                .manual-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
         </style>
     </head>
     <body>
@@ -243,13 +319,6 @@
         <header class="page-bar">
             <div>
                 <h1>Decomisos de Lenguas</h1>
-                <p class="sub">
-                    Listado desde <strong>SIRT</strong>. Sin búsqueda libre, el listado usa por defecto la
-                    <strong>fecha de registro de hoy</strong> (puede cambiar desde/hasta). Si escribe en
-                    <strong>búsqueda libre</strong> (p. ej. id de producto), la consulta ignora las fechas y busca en
-                    todo el historial disponible (hasta 500 filas, las más recientes). Tras cada consulta exitosa,
-                    los id listados se sincronizan con el inventario local (misma baja que al despachar).
-                </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
         </header>
@@ -258,6 +327,10 @@
             <p id="tabla-decomisos" class="meta">
                 Columnas: id producto · fecha registro · hora registro · dictamen · enfermedad
             </p>
+
+            @if (session('decomiso_manual_ok'))
+                <p class="alert alert--ok" role="status">{{ session('decomiso_manual_ok') }}</p>
+            @endif
 
             @if (! empty($error))
                 <p class="alert" role="alert">{{ $error }}</p>
@@ -271,6 +344,58 @@
                     lengua(s) cuyo id de producto aparece en esta consulta de decomisos SIRT.
                 </p>
             @endif
+
+            <div class="manual-box">
+                <h2>Decomiso manual</h2>
+                <form method="post" action="{{ route('decomisos.lenguas.manual') }}" aria-label="Registrar decomiso manual">
+                    @csrf
+                    <div class="manual-grid">
+                        <div class="filter-field">
+                            <label for="m-id-producto">Id producto</label>
+                            <input
+                                id="m-id-producto"
+                                type="text"
+                                name="id_producto"
+                                value="{{ old('id_producto') }}"
+                                maxlength="80"
+                                required
+                                placeholder="Código en inventario…"
+                                autocomplete="off"
+                            />
+                            @error('id_producto')
+                                <p class="err">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="filter-field">
+                            <label for="m-dictamen">Nombre dictamen</label>
+                            <select id="m-dictamen" name="nombre_dictamen" required>
+                                <option value="">Seleccione…</option>
+                                @foreach ($opcionesDictamen ?? [] as $opt)
+                                    <option value="{{ $opt }}" @selected(old('nombre_dictamen') === $opt)>{{ $opt }}</option>
+                                @endforeach
+                            </select>
+                            @error('nombre_dictamen')
+                                <p class="err">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="filter-field">
+                            <label for="m-enfermedad">Nombre enfermedad</label>
+                            <select id="m-enfermedad" name="nombre_enfermedad">
+                                <option value="">— Sin enfermedad —</option>
+                                @foreach ($opcionesEnfermedad ?? [] as $opt)
+                                    <option value="{{ $opt }}" @selected(old('nombre_enfermedad') === $opt)>{{ $opt }}</option>
+                                @endforeach
+                            </select>
+                            @error('nombre_enfermedad')
+                                <p class="err">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn-apply" type="submit">Registrar y retirar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
             <form class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
                 <div class="filters-row">
@@ -320,13 +445,13 @@
                 </div>
             </form>
 
-            @if ($errors->any() && empty($error))
+            @if (empty($error) && ($errors->has('q') || $errors->has('fecha_desde') || $errors->has('fecha_hasta')))
                 <p class="alert" role="alert">Revise los filtros marcados abajo.</p>
             @endif
 
-            @if (empty($error) && count($rows) === 0)
+            @if (count($rows) === 0)
                 <p class="muted">No hay filas para los filtros indicados (máx. 500 por consulta).</p>
-            @elseif (empty($error))
+            @else
                 <p class="muted" style="margin: 0 0 0.75rem">{{ count($rows) }} registro(s).</p>
                 <div class="table-wrap">
                     <table class="data">
@@ -337,6 +462,7 @@
                                 <th>Hora registro</th>
                                 <th>Nombre dictamen</th>
                                 <th>Nombre enfermedad</th>
+                                <th>Origen</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -356,6 +482,8 @@
                                     } else {
                                         $fechaTxt = $fecha !== null && $fecha !== '' ? (string) $fecha : '—';
                                     }
+                                    $origen = strtolower((string) ($r['origen'] ?? 'sirt'));
+                                    $esManual = $origen === 'manual';
                                 @endphp
                                 <tr>
                                     <td>{{ $idProd !== '' ? $idProd : '—' }}</td>
@@ -363,6 +491,11 @@
                                     <td>{{ $horaTxt }}</td>
                                     <td>{{ $r['nombre_dictamen'] ?? '—' }}</td>
                                     <td>{{ $r['nombre_enfermedad'] ?? '—' }}</td>
+                                    <td>
+                                        <span class="badge-origen {{ $esManual ? 'badge-origen--manual' : 'badge-origen--sirt' }}">
+                                            {{ $esManual ? 'Manual' : 'SIRT' }}
+                                        </span>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

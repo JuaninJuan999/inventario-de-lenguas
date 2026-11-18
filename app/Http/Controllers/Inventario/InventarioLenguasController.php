@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Inventario;
 use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Services\IngresosLenguas\IngresosLenguasConsultaSirt;
+use App\Support\PesoFormatter;
+use App\Support\SimpleXlsxWriter;
 use App\Support\VencimientoLengua;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as ValidatorInstance;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class InventarioLenguasController extends Controller
@@ -50,6 +53,54 @@ class InventarioLenguasController extends Controller
             'listadoEmptyHint' => $payload['listadoEmptyHint'],
             'inventarioSyncIntervalSeconds' => $interval,
             'hoyOperacion' => $this->consultaSirt->fechaHoyOperacion(),
+        ]);
+    }
+
+    public function exportExcel(Request $request): StreamedResponse|RedirectResponse
+    {
+        $payload = $this->inventarioListadoPayload($request);
+
+        if ($payload['validator']->fails()) {
+            return redirect()
+                ->route('inventario.lenguas', $request->query())
+                ->withErrors($payload['validator']);
+        }
+
+        $headers = [
+            'Id producto',
+            'Fecha registro',
+            'Hora registro',
+            'Propietario',
+            'Destino',
+            'Peso',
+            'Ref. turno',
+            'Fecha de vencimiento',
+            'Vida útil',
+        ];
+
+        $excelRows = [];
+        foreach ($payload['rows'] as $row) {
+            /** @var IngresoLenguaLocal $row */
+            $excelRows[] = [
+                (string) $row->id_producto,
+                $row->fecha_registro?->format('Y-m-d') ?? '',
+                $row->hora_registro !== null ? (string) $row->hora_registro : '',
+                $row->propietario !== null ? (string) $row->propietario : '',
+                $row->destino !== null ? (string) $row->destino : '',
+                PesoFormatter::mostrar($row->peso),
+                $row->fecha_turno_referencia?->format('Y-m-d') ?? '',
+                VencimientoLengua::fechaVencimientoTexto($row->fecha_registro),
+                VencimientoLengua::diasHastaVencimientoTexto($row->fecha_registro),
+            ];
+        }
+
+        $binary = SimpleXlsxWriter::build($headers, $excelRows, 'Inventario');
+        $filename = 'inventario-lenguas-'.Carbon::now()->format('Ymd-His').'.xlsx';
+
+        return response()->streamDownload(static function () use ($binary): void {
+            echo $binary;
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

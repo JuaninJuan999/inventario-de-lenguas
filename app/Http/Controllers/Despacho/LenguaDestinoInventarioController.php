@@ -31,6 +31,16 @@ class LenguaDestinoInventarioController extends Controller
             ? (string) $row->id_producto
             : DespachoCodigoBarras::normalizarIdProducto($codigo);
 
+        $decomiso = null;
+        if ($row === null) {
+            $decomiso = DespachoInventarioMatch::infoDecomiso($codigo);
+            if ($decomiso !== null && ! empty($decomiso['id_producto'])) {
+                $idProducto = (string) $decomiso['id_producto'];
+            }
+        }
+
+        $decomisado = $decomiso !== null && ($decomiso['decomisado'] ?? false);
+
         return response()->json([
             'ok' => true,
             'codigo_leido' => $codigo,
@@ -38,6 +48,12 @@ class LenguaDestinoInventarioController extends Controller
             'propietario' => $row?->propietario,
             'destino' => $row?->destino,
             'encontrado' => $row !== null,
+            'decomisado' => $decomisado,
+            'decomiso' => $decomisado ? [
+                'nombre_dictamen' => $decomiso['nombre_dictamen'] ?? null,
+                'nombre_enfermedad' => $decomiso['nombre_enfermedad'] ?? null,
+                'origen' => $decomiso['origen'] ?? null,
+            ] : null,
         ]);
     }
 }

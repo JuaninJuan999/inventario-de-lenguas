@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:inventario')->group(function () {
         Route::get('/inventario-de-lenguas', [InventarioLenguasController::class, 'index'])->name('inventario.lenguas');
+        Route::get('/inventario-de-lenguas/excel', [InventarioLenguasController::class, 'exportExcel'])
+            ->name('inventario.lenguas.excel');
         Route::post('/inventario-de-lenguas/importar-hoy', [InventarioLenguasController::class, 'importarDesdeHoy'])
             ->name('inventario.lenguas.importar_hoy');
     });
@@ -105,5 +107,6 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:decomisos')->group(function () {
         Route::get('/decomisos-de-lenguas', [InspeccionSirtController::class, 'index'])->name('decomisos.lenguas');
+        Route::post('/decomisos-de-lenguas/manual', [InspeccionSirtController::class, 'storeManual'])->name('decomisos.lenguas.manual');
     });
 });

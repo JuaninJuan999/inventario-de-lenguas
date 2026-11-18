@@ -342,6 +342,34 @@
                 color: #04261c;
                 background: color-mix(in srgb, var(--brand-green) 42%, transparent);
             }
+            .estado-chip--decomisado {
+                border-color: color-mix(in srgb, #ff3b3b 75%, transparent);
+                color: #fff0f0;
+                background: color-mix(in srgb, #8b1010 72%, transparent);
+            }
+            .row-decomisado > td {
+                background: linear-gradient(
+                    180deg,
+                    color-mix(in srgb, #ff4d4d 42%, transparent),
+                    color-mix(in srgb, #7a1010 55%, rgba(0, 0, 0, 0.35))
+                ) !important;
+                box-shadow: inset 0 -2px 0 color-mix(in srgb, #ff6b6b 90%, #3a0000);
+                color: #ffe8e8;
+            }
+            .row-decomisado .dispatch-cell--codigo {
+                font-weight: 800;
+                color: #fff;
+                text-decoration: none;
+            }
+            .row-decomisado .dispatch-cell--empty,
+            .row-decomisado .dispatch-cell {
+                color: #ffe4e4;
+            }
+            .row-decomisado .btn-retirar-codigo {
+                border-color: color-mix(in srgb, #fff 55%, #ff6b6b);
+                color: #fff;
+                background: color-mix(in srgb, #5c1010 70%, transparent);
+            }
             .btn-3d.is-static-readonly {
                 cursor: default;
                 opacity: 0.92;
@@ -1474,13 +1502,38 @@
                         },
                     );
                     if (candidatos.length === 0) {
-                        var coincideConAlgunaFilaChecklist = false;
+                        var filasChecklistCoincidentes = [];
                         tbody.querySelectorAll('tr[data-checklist-row="1"]').forEach(function (trR) {
                             if (rowMatchesScan(raw, checklistMergeRowMatchKeys(trR))) {
-                                coincideConAlgunaFilaChecklist = true;
+                                filasChecklistCoincidentes.push(trR);
                             }
                         });
-                        if (coincideConAlgunaFilaChecklist) {
+                        if (filasChecklistCoincidentes.length > 0) {
+                            agregarEnCurso = true;
+                            try {
+                                var jsonChk = await consultarInventarioCodigo(raw);
+                                if (jsonChk && jsonChk.ok && jsonChk.decomisado) {
+                                    var trDec =
+                                        filasChecklistCoincidentes.find(function (t) {
+                                            return t.getAttribute('data-decomisado') !== '1';
+                                        }) || filasChecklistCoincidentes[0];
+                                    aplicarEstiloDecomisoFila(trDec, jsonChk);
+                                    trDec.classList.remove('row-checklist-pendiente', 'row-checklist-alistado');
+                                    trDec.setAttribute('data-alistado', '0');
+                                    trDec.setAttribute('data-en-inv', '0');
+                                    alert(
+                                        'Atención: el código ya está decomisado. La fila se marcó en rojo y no se incluirá en el despacho.',
+                                    );
+                                    inputCodigo.value = '';
+                                    checklistMarcarTotal();
+                                    checklistActualizarBotonTerminar();
+                                    return;
+                                }
+                            } catch (errDec) {
+                                /* sigue con el aviso genérico */
+                            } finally {
+                                agregarEnCurso = false;
+                            }
                             alert(
                                 'Ese código ya está en el checklist (pendiente de leer o ya alistado). Use “Desmarcar” en la fila si debe volver a validarla, o revise el código leído.',
                             );
@@ -1500,31 +1553,29 @@
                     }
                     var tr = candidatos[0];
                     var canonicalEsperado = (tr.getAttribute('data-canonical') || '').trim();
-                    var urlBase = window.despachoLenguaDestinoUrl || '';
-                    if (!urlBase) {
+                    if (!window.despachoLenguaDestinoUrl) {
                         alert('No está configurada la ruta de consulta de inventario.');
                         scheduleFocusCodigo();
                         return;
                     }
                     agregarEnCurso = true;
                     try {
-                        var u = new URL(String(urlBase), window.location.href);
-                        u.searchParams.set('codigo', raw);
-                        var res = await fetch(u.toString(), {
-                            headers: {
-                                Accept: 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-Despacho-Codigo-Lengua': raw,
-                            },
-                            credentials: 'same-origin',
-                        });
-                        var ct = res.headers.get('content-type') || '';
-                        if (!ct.includes('application/json')) {
-                            throw new Error('Respuesta no JSON');
-                        }
-                        var json = await res.json();
+                        var json = await consultarInventarioCodigo(raw);
                         if (!json.ok) {
                             alert(json.message || 'No se pudo validar el código en inventario.');
+                            return;
+                        }
+                        if (json.decomisado) {
+                            aplicarEstiloDecomisoFila(tr, json);
+                            tr.classList.remove('row-checklist-pendiente', 'row-checklist-alistado');
+                            tr.setAttribute('data-alistado', '0');
+                            tr.setAttribute('data-en-inv', '0');
+                            alert(
+                                'Atención: el código ya está decomisado. La fila se marcó en rojo y no se incluirá en el despacho.',
+                            );
+                            inputCodigo.value = '';
+                            checklistMarcarTotal();
+                            checklistActualizarBotonTerminar();
                             return;
                         }
                         if (!json.encontrado) {
@@ -1545,11 +1596,13 @@
                             return;
                         }
                         tr.setAttribute('data-alistado', '1');
-                        tr.classList.remove('row-checklist-pendiente');
+                        tr.classList.remove('row-checklist-pendiente', 'row-decomisado');
                         tr.classList.add('row-checklist-alistado');
+                        tr.setAttribute('data-decomisado', '0');
                         var hid = tr.querySelector('input.inp-codigo-despacho');
                         if (hid) {
                             hid.disabled = false;
+                            hid.name = 'codigos[]';
                             hid.value = invId;
                         }
                         var fechaSpan = tr.querySelector('.fecha-despacho-cel');
@@ -1607,6 +1660,86 @@
                     return d;
                 }
 
+                function textoMotivoDecomiso(json) {
+                    var d = json && json.decomiso ? json.decomiso : null;
+                    var partes = [];
+                    if (d && d.nombre_dictamen) {
+                        partes.push(String(d.nombre_dictamen).trim());
+                    }
+                    if (d && d.nombre_enfermedad) {
+                        partes.push(String(d.nombre_enfermedad).trim());
+                    }
+                    if (partes.length) {
+                        return 'DECOMISADO — ' + partes.join(' · ');
+                    }
+                    return 'DECOMISADO — este código ya fue retirado por decomiso';
+                }
+
+                function aplicarEstiloDecomisoFila(tr, json) {
+                    if (!tr) {
+                        return;
+                    }
+                    tr.classList.add('row-decomisado');
+                    tr.setAttribute('data-decomisado', '1');
+                    var hid = tr.querySelector('input.inp-codigo-despacho');
+                    if (hid) {
+                        hid.disabled = true;
+                        hid.removeAttribute('name');
+                    }
+                    var motivo = textoMotivoDecomiso(json);
+                    var propTd = tr.children[1];
+                    var destTd = tr.children[2];
+                    if (propTd) {
+                        var propCell = propTd.querySelector('.dispatch-cell');
+                        if (propCell) {
+                            propCell.className = 'dispatch-cell';
+                            propCell.textContent = 'Código decomisado';
+                        }
+                    }
+                    if (destTd) {
+                        var destCell = destTd.querySelector('.dispatch-cell');
+                        if (destCell) {
+                            destCell.className = 'dispatch-cell';
+                            destCell.textContent = motivo;
+                        }
+                    }
+                    var chip = tr.querySelector('.row-estado-chip') || tr.querySelector('.estado-chip');
+                    if (chip) {
+                        chip.textContent = 'Decomisado';
+                        chip.className = 'estado-chip estado-chip--decomisado row-estado-chip';
+                    } else {
+                        var codCell = tr.querySelector('.dispatch-cell--codigo');
+                        if (codCell && !codCell.querySelector('.estado-chip--decomisado')) {
+                            var badge = document.createElement('span');
+                            badge.className = 'estado-chip estado-chip--decomisado';
+                            badge.textContent = 'Decomisado';
+                            codCell.appendChild(badge);
+                        }
+                    }
+                }
+
+                async function consultarInventarioCodigo(raw) {
+                    var urlBase = window.despachoLenguaDestinoUrl || '';
+                    if (!urlBase) {
+                        throw new Error('sin-ruta');
+                    }
+                    var u = new URL(String(urlBase), window.location.href);
+                    u.searchParams.set('codigo', raw);
+                    var res = await fetch(u.toString(), {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-Despacho-Codigo-Lengua': raw,
+                        },
+                        credentials: 'same-origin',
+                    });
+                    var ct = res.headers.get('content-type') || '';
+                    if (!ct.includes('application/json')) {
+                        throw new Error('Respuesta no JSON');
+                    }
+                    return await res.json();
+                }
+
                 async function agregarFila() {
                     if (agregarEnCurso) {
                         return;
@@ -1617,8 +1750,7 @@
                         scheduleFocusCodigo();
                         return;
                     }
-                    var urlBase = window.despachoLenguaDestinoUrl || '';
-                    if (!urlBase) {
+                    if (!window.despachoLenguaDestinoUrl) {
                         alert('No está configurada la ruta de consulta de inventario.');
                         scheduleFocusCodigo();
                         return;
@@ -1628,34 +1760,28 @@
                     var propietarioTxt = '';
                     var destinoTxt = '';
                     var encontrado = false;
+                    var esDecomisado = false;
+                    var jsonLookup = null;
                     try {
-                        var u;
+                        var json;
                         try {
-                            u = new URL(String(urlBase), window.location.href);
-                            u.searchParams.set('codigo', raw);
+                            json = await consultarInventarioCodigo(raw);
                         } catch (e1) {
-                            alert('Ruta de inventario inválida. Recargue la página (Ctrl+F5).');
+                            if (String(e1 && e1.message) === 'sin-ruta') {
+                                alert('No está configurada la ruta de consulta de inventario.');
+                            } else {
+                                alert('Ruta de inventario inválida o respuesta no válida. Recargue la página (Ctrl+F5).');
+                            }
                             return;
                         }
-                        var res = await fetch(u.toString(), {
-                            headers: {
-                                Accept: 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-Despacho-Codigo-Lengua': raw,
-                            },
-                            credentials: 'same-origin',
-                        });
-                        var ct = res.headers.get('content-type') || '';
-                        if (!ct.includes('application/json')) {
-                            throw new Error('Respuesta no JSON');
-                        }
-                        var json = await res.json();
+                        jsonLookup = json;
                         if (!json.ok) {
                             alert(json.message || 'No se pudo validar el código.');
                             return;
                         }
                         idNorm = (json.id_producto || raw).trim();
                         encontrado = !!json.encontrado;
+                        esDecomisado = !!json.decomisado;
                         propietarioTxt =
                             json.propietario != null && String(json.propietario).trim() !== ''
                                 ? String(json.propietario).trim()
@@ -1743,6 +1869,14 @@
                     tr.appendChild(td4);
                     tr.appendChild(td5);
                     tbody.appendChild(tr);
+                    if (esDecomisado) {
+                        aplicarEstiloDecomisoFila(tr, jsonLookup);
+                        alert(
+                            'Atención: el código ' +
+                                idNorm +
+                                ' ya está decomisado. La fila se marcó en rojo y no se incluirá en el despacho.',
+                        );
+                    }
                     inputCodigo.value = '';
                     actualizarTotal();
                 }
@@ -1778,9 +1912,18 @@
                     }
                     var nCodigos = esChecklist
                         ? tbody.querySelectorAll('input.inp-codigo-despacho:not([disabled])').length
-                        : tbody.querySelectorAll('tr').length;
+                        : tbody.querySelectorAll('tr:not([data-decomisado="1"])').length;
+                    var nDecomisados = tbody
+                        ? tbody.querySelectorAll('tr[data-decomisado="1"]').length
+                        : 0;
                     if (nCodigos === 0) {
-                        alert(esChecklist ? 'No hay códigos validados para despachar.' : 'No hay lenguas en el despacho.');
+                        alert(
+                            nDecomisados > 0
+                                ? 'Solo hay códigos decomisados en la lista; no se puede despachar.'
+                                : esChecklist
+                                  ? 'No hay códigos validados para despachar.'
+                                  : 'No hay lenguas en el despacho.',
+                        );
                         return;
                     }
                     if (esChecklist && tbody) {

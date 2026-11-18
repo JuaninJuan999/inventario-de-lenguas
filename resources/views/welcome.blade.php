@@ -242,5 +242,6 @@
                 </div>
             </div>
         </div>
+        @include('partials.credito-desarrollador')
     </body>
 </html>

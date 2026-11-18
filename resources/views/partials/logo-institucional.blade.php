@@ -37,3 +37,4 @@
         />
     </picture>
 </div>
+@include('partials.credito-desarrollador')

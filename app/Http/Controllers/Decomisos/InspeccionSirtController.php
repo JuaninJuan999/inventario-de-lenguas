@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Decomisos;
 
 use App\Http\Controllers\Controller;
+use App\Models\DecomisoManual;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -33,7 +35,9 @@ class InspeccionSirtController extends Controller
         $idParte = (int) config('decomisos.id_parte_producto');
         $idDictamen = (int) config('decomisos.id_dictamen');
 
-        $hoy = Carbon::now()->toDateString();
+        $ahora = Carbon::now();
+        $inicioMes = $ahora->copy()->startOfMonth()->toDateString();
+        $finMes = $ahora->copy()->endOfMonth()->toDateString();
 
         $qRaw = substr($request->string('q')->trim()->toString(), 0, 200);
         $tieneBusquedaLibre = str_replace(['%', '_'], '', $qRaw) !== '';
@@ -41,9 +45,11 @@ class InspeccionSirtController extends Controller
         $fechaDesdeIn = $request->filled('fecha_desde') ? (string) $request->input('fecha_desde') : null;
         $fechaHastaIn = $request->filled('fecha_hasta') ? (string) $request->input('fecha_hasta') : null;
 
+        // Sin filtros de fecha ni búsqueda libre: listar decomisos del mes en curso.
+        // El usuario puede cambiar desde/hasta libremente cuando lo necesite.
         if (! $tieneBusquedaLibre && $fechaDesdeIn === null && $fechaHastaIn === null) {
-            $fechaDesdeIn = $hoy;
-            $fechaHastaIn = $hoy;
+            $fechaDesdeIn = $inicioMes;
+            $fechaHastaIn = $finMes;
         }
 
         if ($tieneBusquedaLibre) {
@@ -57,10 +63,14 @@ class InspeccionSirtController extends Controller
             'fecha_hasta' => $fechaHastaIn,
         ];
 
+        $catalogos = $this->catalogosDictamenEnfermedad($idParte);
+
         $baseView = [
             'filters' => $filters,
             'idParteProducto' => $idParte,
             'idDictamen' => $idDictamen,
+            'opcionesDictamen' => $catalogos['dictamenes'],
+            'opcionesEnfermedad' => $catalogos['enfermedades'],
         ];
 
         $validator = Validator::make(
@@ -86,17 +96,19 @@ class InspeccionSirtController extends Controller
 
         if ($validator->fails()) {
             return view('decomisos-lenguas', array_merge($baseView, [
-                'rows' => [],
+                'rows' => $this->filasManualesComoRows($filters),
                 'error' => null,
                 'invRetiradosDecomiso' => 0,
                 'invSyncDecomisoError' => null,
             ]))->withErrors($validator);
         }
 
+        $manualRows = $this->filasManualesComoRows($filters);
+
         if (! $this->sirtLookupEnabled()) {
             return view('decomisos-lenguas', array_merge($baseView, [
-                'rows' => [],
-                'error' => 'Configure la conexión SIRT en .env (POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD).',
+                'rows' => $manualRows,
+                'error' => 'Configure la conexión SIRT en .env (POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD). Los decomisos manuales sí están disponibles.',
                 'invRetiradosDecomiso' => 0,
                 'invSyncDecomisoError' => null,
             ]));
@@ -105,7 +117,7 @@ class InspeccionSirtController extends Controller
         $connection = (string) config('decomisos.sirt_connection');
         if ($connection === '') {
             return view('decomisos-lenguas', array_merge($baseView, [
-                'rows' => [],
+                'rows' => $manualRows,
                 'error' => 'Conexión SIRT no configurada (decomisos.sirt_connection).',
                 'invRetiradosDecomiso' => 0,
                 'invSyncDecomisoError' => null,
@@ -157,19 +169,21 @@ SQL;
         $sql .= ' ORDER BY i.id DESC LIMIT 500';
 
         try {
-            $rows = DB::connection($connection)->select($sql, $bindings);
+            $sirtRows = DB::connection($connection)->select($sql, $bindings);
         } catch (Throwable $e) {
             report($e);
 
             return view('decomisos-lenguas', array_merge($baseView, [
-                'rows' => [],
-                'error' => 'No se pudo consultar SIRT. Revise red/VPN, credenciales y que existan los esquemas sai.*.',
+                'rows' => $manualRows,
+                'error' => 'No se pudo consultar SIRT. Revise red/VPN, credenciales y que existan los esquemas sai.*. Los decomisos manuales sí están disponibles.',
                 'invRetiradosDecomiso' => 0,
                 'invSyncDecomisoError' => null,
             ]));
         }
 
-        $sync = $this->retirarInventarioLocalPorIdsDecomisosSirt($rows);
+        $sync = $this->retirarInventarioLocalPorIdsDecomisosSirt($sirtRows);
+
+        $rows = $this->fusionarRows($manualRows, $sirtRows);
 
         return view('decomisos-lenguas', array_merge($baseView, [
             'rows' => $rows,
@@ -177,6 +191,221 @@ SQL;
             'invRetiradosDecomiso' => $sync['removed'],
             'invSyncDecomisoError' => $sync['error'],
         ]));
+    }
+
+    public function storeManual(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(
+            [
+                'id_producto' => ['required', 'string', 'max:80'],
+                'nombre_dictamen' => ['required', 'string', 'max:255'],
+                'nombre_enfermedad' => ['nullable', 'string', 'max:255'],
+            ],
+            [
+                'id_producto.required' => 'Indique el id de producto a decomisar.',
+                'nombre_dictamen.required' => 'Seleccione el nombre del dictamen.',
+            ],
+        );
+
+        $idProducto = DespachoCodigoBarras::normalizarIdProducto(trim((string) $validated['id_producto']));
+        if ($idProducto === '') {
+            return back()
+                ->withInput()
+                ->withErrors(['id_producto' => 'El id de producto no es válido.']);
+        }
+
+        $nombreDictamen = trim((string) $validated['nombre_dictamen']);
+        $nombreEnfermedad = isset($validated['nombre_enfermedad'])
+            ? trim((string) $validated['nombre_enfermedad'])
+            : '';
+        if ($nombreEnfermedad === '') {
+            $nombreEnfermedad = null;
+        }
+
+        $ingreso = IngresoLenguaLocal::query()
+            ->sinDespachar()
+            ->where('id_producto', $idProducto)
+            ->orderByDesc('imported_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($ingreso === null) {
+            return back()
+                ->withInput()
+                ->withErrors(['id_producto' => 'No hay una lengua disponible en inventario local con ese id de producto.']);
+        }
+
+        try {
+            DB::transaction(function () use ($request, $idProducto, $nombreDictamen, $nombreEnfermedad, $ingreso): void {
+                $ahora = now();
+
+                DecomisoManual::query()->create([
+                    'id_producto' => $idProducto,
+                    'fecha_registro' => $ahora->toDateString(),
+                    'hora_registro' => $ahora->format('H:i:s'),
+                    'nombre_dictamen' => $nombreDictamen,
+                    'nombre_enfermedad' => $nombreEnfermedad,
+                    'ingreso_lengua_local_id' => $ingreso->id,
+                    'user_id' => $request->user()?->id,
+                ]);
+
+                $ingreso->despachado_at = $ahora;
+                $ingreso->despacho_id = null;
+                $ingreso->save();
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->withErrors(['id_producto' => 'No se pudo registrar el decomiso manual ni retirar del inventario.']);
+        }
+
+        return redirect()
+            ->route('decomisos.lenguas')
+            ->with('decomiso_manual_ok', "Decomiso manual registrado y retirado del inventario: {$idProducto}.");
+    }
+
+    /**
+     * @return array{dictamenes: list<string>, enfermedades: list<string>}
+     */
+    private function catalogosDictamenEnfermedad(int $idParte): array
+    {
+        $dictamenes = DecomisoManual::query()
+            ->whereNotNull('nombre_dictamen')
+            ->where('nombre_dictamen', '!=', '')
+            ->distinct()
+            ->orderBy('nombre_dictamen')
+            ->pluck('nombre_dictamen')
+            ->map(static fn ($v): string => trim((string) $v))
+            ->filter()
+            ->values()
+            ->all();
+
+        $enfermedades = DecomisoManual::query()
+            ->whereNotNull('nombre_enfermedad')
+            ->where('nombre_enfermedad', '!=', '')
+            ->distinct()
+            ->orderBy('nombre_enfermedad')
+            ->pluck('nombre_enfermedad')
+            ->map(static fn ($v): string => trim((string) $v))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($this->sirtLookupEnabled()) {
+            $connection = (string) config('decomisos.sirt_connection');
+            if ($connection !== '') {
+                try {
+                    $sirtDictamenes = DB::connection($connection)->select(
+                        <<<'SQL'
+SELECT DISTINCT d.nombre AS nombre
+FROM sai.inspeccion i
+JOIN sai.dictamen d ON i.id_dictamen = d.id
+WHERE i.id_parte_producto = ?
+  AND d.nombre IS NOT NULL
+  AND TRIM(d.nombre) <> ''
+ORDER BY d.nombre
+LIMIT 300
+SQL,
+                        [$idParte],
+                    );
+
+                    foreach ($sirtDictamenes as $row) {
+                        $n = trim((string) (($row->nombre ?? '') ?: ''));
+                        if ($n !== '') {
+                            $dictamenes[] = $n;
+                        }
+                    }
+
+                    $sirtEnfermedades = DB::connection($connection)->select(
+                        <<<'SQL'
+SELECT DISTINCT e.nombre AS nombre
+FROM sai.inspeccion i
+JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
+JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
+WHERE i.id_parte_producto = ?
+  AND e.nombre IS NOT NULL
+  AND TRIM(e.nombre) <> ''
+ORDER BY e.nombre
+LIMIT 500
+SQL,
+                        [$idParte],
+                    );
+
+                    foreach ($sirtEnfermedades as $row) {
+                        $n = trim((string) (($row->nombre ?? '') ?: ''));
+                        if ($n !== '') {
+                            $enfermedades[] = $n;
+                        }
+                    }
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        }
+
+        $dictamenes = collect($dictamenes)->unique(static fn (string $s): string => mb_strtolower($s))->sort()->values()->all();
+        $enfermedades = collect($enfermedades)->unique(static fn (string $s): string => mb_strtolower($s))->sort()->values()->all();
+
+        return [
+            'dictamenes' => $dictamenes,
+            'enfermedades' => $enfermedades,
+        ];
+    }
+
+    /**
+     * @param  array{q: string, fecha_desde: ?string, fecha_hasta: ?string}  $filters
+     * @return list<object>
+     */
+    private function filasManualesComoRows(array $filters): array
+    {
+        $query = DecomisoManual::query()->orderByDesc('id');
+
+        $q = str_replace(['%', '_'], '', $filters['q'] ?? '');
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function ($w) use ($like): void {
+                $w->where('id_producto', 'like', $like)
+                    ->orWhere('nombre_dictamen', 'like', $like)
+                    ->orWhere('nombre_enfermedad', 'like', $like);
+            });
+        } else {
+            if (! empty($filters['fecha_desde'])) {
+                $query->whereDate('fecha_registro', '>=', $filters['fecha_desde']);
+            }
+            if (! empty($filters['fecha_hasta'])) {
+                $query->whereDate('fecha_registro', '<=', $filters['fecha_hasta']);
+            }
+        }
+
+        return $query->limit(500)->get()->map(static function (DecomisoManual $row): object {
+            return (object) [
+                'id_producto' => $row->id_producto,
+                'fecha_registro' => $row->fecha_registro,
+                'hora_registro' => $row->hora_registro,
+                'nombre_dictamen' => $row->nombre_dictamen,
+                'nombre_enfermedad' => $row->nombre_enfermedad,
+                'origen' => 'manual',
+            ];
+        })->all();
+    }
+
+    /**
+     * @param  list<object>  $manualRows
+     * @param  array<int, object>  $sirtRows
+     * @return list<object>
+     */
+    private function fusionarRows(array $manualRows, array $sirtRows): array
+    {
+        $taggedSirt = array_map(static function (object $row): object {
+            $r = (array) $row;
+            $r['origen'] = 'sirt';
+
+            return (object) $r;
+        }, $sirtRows);
+
+        return array_values(array_merge($manualRows, $taggedSirt));
     }
 
     /**

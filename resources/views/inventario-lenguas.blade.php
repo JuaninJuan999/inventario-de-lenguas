@@ -90,22 +90,34 @@
                 color: color-mix(in srgb, var(--brand-rose) 92%, #fff);
             }
             .sync-status {
-                text-align: right;
-                max-width: min(100%, 26rem);
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: baseline;
+                gap: 0.45rem 0.65rem;
+                width: 100%;
+                max-width: 100%;
+                overflow-x: auto;
+                text-align: left;
             }
             .sync-status p {
                 margin: 0;
                 font-size: 0.78rem;
-                line-height: 1.45;
+                line-height: 1.35;
                 color: color-mix(in srgb, var(--text) 72%, transparent);
                 font-weight: 500;
                 text-transform: none;
                 letter-spacing: normal;
+                white-space: nowrap;
             }
             .sync-status p + p {
-                margin-top: 0.25rem;
-                font-size: 0.72rem;
-                color: color-mix(in srgb, var(--text) 58%, transparent);
+                margin-top: 0;
+                font-size: 0.78rem;
+                color: color-mix(in srgb, var(--text) 62%, transparent);
+            }
+            .sync-status p + p::before {
+                content: "·";
+                margin-right: 0.65rem;
+                color: color-mix(in srgb, var(--brand-green) 70%, transparent);
             }
             .alert {
                 margin: 0 0 1rem;
@@ -280,6 +292,26 @@
             .btn-clear:hover {
                 background: color-mix(in srgb, var(--brand-rose) 12%, transparent);
             }
+            .btn-excel {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.5rem 1.15rem;
+                font-size: 0.75rem;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: #04261c;
+                text-decoration: none;
+                border: 1px solid color-mix(in srgb, #9be7a8 55%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, #c8f7d4, color-mix(in srgb, var(--brand-green) 55%, #1f6b48));
+            }
+            .btn-excel:hover {
+                filter: brightness(1.06);
+            }
         </style>
     </head>
     <body>
@@ -297,16 +329,11 @@
         <section
             id="inv-sheet"
             class="sheet"
-            aria-labelledby="inv-tabla"
+            aria-label="Inventario de lenguas"
             data-import-url="{{ route('inventario.lenguas.importar_hoy', [], false) }}"
             data-sync-interval="{{ (int) $inventarioSyncIntervalSeconds }}"
         >
             <div class="toolbar">
-                <p id="inv-tabla">
-                    Réplica local · conexión {{ config('database.default') }} · base
-                    {{ config('database.connections.'.config('database.default').'.database', '—') }} · tabla
-                    ingreso_lenguas_locales · máx. 2.000 registros visibles
-                </p>
                 <div class="sync-status" id="inv-sync-status" aria-live="polite">
                     <p id="inv-sync-line1">Actualizando la réplica conforme al origen corporativo…</p>
                     <p id="inv-sync-line2">
@@ -415,6 +442,12 @@
                 </p>
                 <div class="filter-actions">
                     <button class="btn-apply" type="submit">Aplicar</button>
+                    <button
+                        class="btn-excel"
+                        type="submit"
+                        formaction="{{ route('inventario.lenguas.excel') }}"
+                        formmethod="get"
+                    >Descargar Excel</button>
                     <a class="btn-clear" href="{{ route('inventario.lenguas') }}">Limpiar</a>
                     <a
                         class="btn-clear"

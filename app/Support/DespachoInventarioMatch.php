@@ -2,7 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\DecomisoManual;
 use App\Models\IngresoLenguaLocal;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /** Coincidencias entre código escaneado / Colbeef y filas disponibles del inventario local. */
 final class DespachoInventarioMatch
@@ -62,6 +65,124 @@ final class DespachoInventarioMatch
         }
 
         return null;
+    }
+
+    /**
+     * Indica si el código corresponde a un producto ya decomisado (manual, baja local por SIRT o consulta SIRT).
+     *
+     * @return array{decomisado: bool, id_producto: string, nombre_dictamen: ?string, nombre_enfermedad: ?string, origen: ?string}|null
+     */
+    public static function infoDecomiso(string $codigoLeido): ?array
+    {
+        $keys = self::matchKeysForProductId($codigoLeido);
+        if ($keys === []) {
+            return null;
+        }
+
+        $manual = DecomisoManual::query()
+            ->whereIn('id_producto', $keys)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($manual !== null) {
+            return [
+                'decomisado' => true,
+                'id_producto' => (string) $manual->id_producto,
+                'nombre_dictamen' => $manual->nombre_dictamen !== null && $manual->nombre_dictamen !== ''
+                    ? (string) $manual->nombre_dictamen
+                    : null,
+                'nombre_enfermedad' => $manual->nombre_enfermedad !== null && $manual->nombre_enfermedad !== ''
+                    ? (string) $manual->nombre_enfermedad
+                    : null,
+                'origen' => 'manual',
+            ];
+        }
+
+        $retiradoLocal = IngresoLenguaLocal::query()
+            ->whereIn('id_producto', $keys)
+            ->whereNotNull('despachado_at')
+            ->whereNull('despacho_id')
+            ->whereNull('desposte_id')
+            ->orderByDesc('despachado_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($retiradoLocal !== null) {
+            return [
+                'decomisado' => true,
+                'id_producto' => (string) $retiradoLocal->id_producto,
+                'nombre_dictamen' => null,
+                'nombre_enfermedad' => null,
+                'origen' => 'local',
+            ];
+        }
+
+        $sirt = self::infoDecomisoSirt($keys);
+        if ($sirt !== null) {
+            return $sirt;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return array{decomisado: bool, id_producto: string, nombre_dictamen: ?string, nombre_enfermedad: ?string, origen: ?string}|null
+     */
+    private static function infoDecomisoSirt(array $keys): ?array
+    {
+        $connection = (string) config('decomisos.sirt_connection', '');
+        if ($connection === '') {
+            return null;
+        }
+
+        $idParte = (int) config('decomisos.id_parte_producto', 24);
+        $idDictamen = (int) config('decomisos.id_dictamen', 3);
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($keys), '?'));
+            $bindings = array_merge([$idParte, $idDictamen], $keys);
+            $rows = DB::connection($connection)->select(
+                <<<SQL
+SELECT
+    i.id_producto::text AS id_producto,
+    d.nombre AS nombre_dictamen,
+    e.nombre AS nombre_enfermedad
+FROM sai.inspeccion i
+JOIN sai.dictamen d ON i.id_dictamen = d.id
+LEFT JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
+LEFT JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
+WHERE i.id_parte_producto = ?
+  AND i.id_dictamen = ?
+  AND i.id_producto::text IN ($placeholders)
+ORDER BY i.id DESC
+LIMIT 1
+SQL,
+                $bindings,
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+
+        if ($rows === []) {
+            return null;
+        }
+
+        $row = (array) $rows[0];
+
+        return [
+            'decomisado' => true,
+            'id_producto' => (string) ($row['id_producto'] ?? $keys[0]),
+            'nombre_dictamen' => isset($row['nombre_dictamen']) && $row['nombre_dictamen'] !== ''
+                ? (string) $row['nombre_dictamen']
+                : null,
+            'nombre_enfermedad' => isset($row['nombre_enfermedad']) && $row['nombre_enfermedad'] !== ''
+                ? (string) $row['nombre_enfermedad']
+                : null,
+            'origen' => 'sirt',
+        ];
     }
 
     /**
