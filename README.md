@@ -28,7 +28,7 @@ Sistema web para el **inventario operativo de lenguas**: sincroniza desde SIRT/C
 | Despacho ordenado | Checklist por placa Colbeef + validación en inventario |
 | Alertas de vida útil | Vencen en **4 días** desde fecha de registro · rojo / naranja en listado |
 | Trazabilidad de salidas | Historial, entrega de conformidad (PDF) y manifiestos |
-| Control de acceso | Roles (`super_admin`, `admin`, `gerencia`, `operador`, `auxiliar`) |
+| Control de acceso | Roles (`super`, `admin`, `gerencia`, `logistico`, `auxiliar`, `planillaje`, `calidad`); aliases `super_admin`/`operador`/`user` |
 | Usabilidad (superadmin) | Módulo **Observatorio**: quién entra, a qué módulo y gráficas en el tiempo |
 
 ```text

@@ -41,6 +41,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Puede registrar decomiso manual (no solo visualizar listado / Excel).
+     */
+    public function canRegistrarDecomisoManual(): bool
+    {
+        if (! $this->is_active || ! $this->canAccessModule('decomisos')) {
+            return false;
+        }
+
+        $soloLectura = config('modulos_por_rol.decomisos_solo_lectura', []);
+        if (! is_array($soloLectura)) {
+            return true;
+        }
+
+        return ! in_array((string) ($this->role ?? ''), $soloLectura, true);
+    }
+
+    /**
      * Tarjeta del menú (incluye módulos que solo aplican con {@see self::canManageUsers()}).
      */
     public function canSeeMenuModule(Modulo $modulo): bool

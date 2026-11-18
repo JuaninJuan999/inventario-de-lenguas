@@ -34,10 +34,18 @@ class GestionUsuariosController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $usernameNorm = Str::lower(trim($request->string('username')->toString()));
-        $request->merge(['username' => $usernameNorm]);
-
         $rolesValidos = array_keys(config('modulos_por_rol.asignables', []));
+
+        $name = trim($request->string('name')->toString());
+        $usernameNorm = Str::lower(trim($request->string('username')->toString()));
+        if ($usernameNorm === '') {
+            $usernameNorm = self::usernameDesdeNombre($name);
+        }
+        $usernameNorm = self::asegurarUsernameUnico($usernameNorm);
+        $request->merge([
+            'name' => $name,
+            'username' => $usernameNorm,
+        ]);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -45,7 +53,7 @@ class GestionUsuariosController extends Controller
                 'required',
                 'string',
                 'max:191',
-                'regex:/^[a-zA-Z0-9._-]+$/',
+                'regex:/^[a-z0-9._-]+$/',
                 Rule::unique('users', 'username'),
             ],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
@@ -65,7 +73,51 @@ class GestionUsuariosController extends Controller
 
         return redirect()
             ->route('gestion.usuarios.index')
-            ->with('status', 'Usuario creado correctamente. Podrá iniciar sesión con el nombre de usuario indicado.');
+            ->with(
+                'status',
+                'Usuario creado correctamente. Login: '.$validated['username'].'.'
+            );
+    }
+
+    /** Convierte "Juan Carreño" → "juan.carreno" (login). */
+    public static function usernameDesdeNombre(string $name): string
+    {
+        $ascii = Str::ascii(trim($name));
+        $slug = Str::lower($ascii);
+        $slug = preg_replace('/[^a-z0-9]+/', '.', $slug) ?? '';
+        $slug = trim($slug, '.');
+        $slug = preg_replace('/\.{2,}/', '.', $slug) ?? $slug;
+
+        if ($slug === '') {
+            $slug = 'usuario';
+        }
+
+        return substr($slug, 0, 180);
+    }
+
+    public static function asegurarUsernameUnico(string $base): string
+    {
+        $base = Str::lower(trim($base));
+        $base = preg_replace('/[^a-z0-9._-]/', '', $base) ?? '';
+        $base = trim($base, '.-_');
+        if ($base === '') {
+            $base = 'usuario';
+        }
+        $base = substr($base, 0, 180);
+
+        $candidato = $base;
+        $n = 2;
+        while (User::query()->where('username', $candidato)->exists()) {
+            $sufijo = (string) $n;
+            $candidato = substr($base, 0, max(1, 191 - 1 - strlen($sufijo))).'.'.$sufijo;
+            $n++;
+            if ($n > 9999) {
+                $candidato = $base.'.'.Str::lower(Str::random(4));
+                break;
+            }
+        }
+
+        return $candidato;
     }
 
     public function inactivar(Request $request, User $user): RedirectResponse

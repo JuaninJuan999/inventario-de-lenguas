@@ -13,7 +13,10 @@
         <header class="page-bar">
             <div>
                 <h1>Crear usuario</h1>
-                <p class="sub">Complete los datos y guarde. El nombre de usuario se guarda en minúsculas y es el que se usa para iniciar sesión.</p>
+                <p class="sub">
+                    Complete los datos y guarde. El <strong>nombre de usuario</strong> se propone solo a partir del
+                    nombre completo (puede editarlo). Se guarda en minúsculas y es el login del sistema.
+                </p>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center">
                 <a class="link-menu" href="{{ route('gestion.usuarios.index') }}">← Lista de usuarios</a>
@@ -50,11 +53,15 @@
                             name="username"
                             value="{{ old('username') }}"
                             maxlength="191"
-                            required
                             autocomplete="username"
                             spellcheck="false"
                             autocapitalize="none"
+                            placeholder="Se genera al escribir el nombre…"
+                            data-auto="1"
                         />
+                        <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.78rem">
+                            Ejemplo: Juan Carreño → <code>juan.carreno</code>. Si ya existe, el servidor añade un sufijo.
+                        </p>
                         @error('username')
                             <p class="err">{{ $message }}</p>
                         @enderror
@@ -142,6 +149,43 @@
                 }
                 bindToggle('gu-password', 'gu-toggle-password', false);
                 bindToggle('gu-password-confirmation', 'gu-toggle-password-confirmation', true);
+
+                var nameEl = document.getElementById('gu-name');
+                var userEl = document.getElementById('gu-username');
+                if (!nameEl || !userEl) return;
+
+                var auto = userEl.getAttribute('data-auto') === '1' && !String(userEl.value || '').trim();
+
+                function slugUsername(raw) {
+                    var map = {
+                        á: 'a', à: 'a', ä: 'a', â: 'a', ã: 'a',
+                        é: 'e', è: 'e', ë: 'e', ê: 'e',
+                        í: 'i', ì: 'i', ï: 'i', î: 'i',
+                        ó: 'o', ò: 'o', ö: 'o', ô: 'o', õ: 'o',
+                        ú: 'u', ù: 'u', ü: 'u', û: 'u',
+                        ñ: 'n', ç: 'c',
+                    };
+                    var s = String(raw || '').toLowerCase();
+                    s = s.replace(/[áàäâãéèëêíìïîóòöôõúùüûñç]/g, function (c) {
+                        return map[c] || c;
+                    });
+                    s = s.replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '').replace(/\.{2,}/g, '.');
+                    return s.slice(0, 180);
+                }
+
+                nameEl.addEventListener('input', function () {
+                    if (!auto) return;
+                    userEl.value = slugUsername(nameEl.value);
+                });
+
+                userEl.addEventListener('input', function () {
+                    auto = false;
+                    userEl.setAttribute('data-auto', '0');
+                });
+
+                if (auto && nameEl.value) {
+                    userEl.value = slugUsername(nameEl.value);
+                }
             })();
         </script>
     </body>

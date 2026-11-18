@@ -362,6 +362,9 @@
             @if (session('decomiso_manual_ok'))
                 <p class="alert alert--ok" role="status">{{ session('decomiso_manual_ok') }}</p>
             @endif
+            @if (session('decomiso_manual_error'))
+                <p class="alert alert--err" role="alert">{{ session('decomiso_manual_error') }}</p>
+            @endif
 
             @if (! empty($error))
                 <p class="alert" role="alert">{{ $error }}</p>
@@ -376,6 +379,7 @@
                 </p>
             @endif
 
+            @if (! empty($puedeRegistrarDecomisoManual))
             <div class="manual-box">
                 <h2>Decomiso manual</h2>
                 <form method="post" action="{{ route('decomisos.lenguas.manual') }}" aria-label="Registrar decomiso manual">
@@ -427,6 +431,11 @@
                     </div>
                 </form>
             </div>
+            @else
+                <p class="muted" style="margin: 0 0 1rem">
+                    Su rol tiene acceso de <strong>solo visualización</strong> a decomisos (consulta y Excel). No puede registrar altas manuales.
+                </p>
+            @endif
 
             <form id="filtros-decomisos" class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
                 <div class="filters-row">

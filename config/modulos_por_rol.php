@@ -8,6 +8,8 @@
  *
  * Claves: dashboard, gestion_usuarios, observatorio, inventario, cambios_destinos, ingresos, despacho,
  *          desposte, historial, entrega, decomisos
+ *
+ * Decomisos en solo lectura (ver / Excel, sin alta manual): ver decomisos_solo_lectura.
  */
 return [
     'roles' => [
@@ -43,30 +45,57 @@ return [
             'historial',
             'decomisos',
         ],
-        'operador' => [
+        'logistico' => [
+            'dashboard',
             'inventario',
-            'cambios_destinos',
             'despacho',
             'desposte',
-            'historial',
         ],
         'auxiliar' => [
             'dashboard',
             'inventario',
-            'cambios_destinos',
             'historial',
             'entrega',
             'decomisos',
         ],
-        /** Usuarios creados antes de la matriz: mismo acceso que auxiliar hasta reasignación. */
+        'planillaje' => [
+            'dashboard',
+            'inventario',
+            'decomisos',
+        ],
+        'calidad' => [
+            'dashboard',
+            'inventario',
+            'decomisos',
+        ],
+        /**
+         * Alias de compatibilidad (usuarios antiguos).
+         * operador ≈ logistico; user ≈ auxiliar.
+         */
+        'operador' => [
+            'dashboard',
+            'inventario',
+            'despacho',
+            'desposte',
+        ],
         'user' => [
             'dashboard',
             'inventario',
-            'cambios_destinos',
             'historial',
             'entrega',
             'decomisos',
         ],
+    ],
+
+    /**
+     * Roles con acceso a decomisos pero sin registrar decomiso manual.
+     * (Imagen: «sí, solo visualizar».)
+     */
+    'decomisos_solo_lectura' => [
+        'gerencia',
+        'auxiliar',
+        'planillaje',
+        'user',
     ],
 
     /** Roles que se pueden asignar al crear un usuario (desde gestión). */
@@ -74,7 +103,9 @@ return [
         'super_admin' => 'Super administrador (control total)',
         'admin' => 'Administrador',
         'gerencia' => 'Gerencia',
-        'operador' => 'Operador',
+        'logistico' => 'Logístico',
         'auxiliar' => 'Auxiliar',
+        'planillaje' => 'Planillaje',
+        'calidad' => 'Calidad',
     ],
 ];

@@ -74,6 +74,7 @@ class InspeccionSirtController extends Controller
             'idDictamen' => $idDictamen,
             'opcionesDictamen' => $catalogos['dictamenes'],
             'opcionesEnfermedad' => $catalogos['enfermedades'],
+            'puedeRegistrarDecomisoManual' => (bool) $request->user()?->canRegistrarDecomisoManual(),
         ];
 
         $validator = Validator::make(
@@ -258,6 +259,13 @@ SQL;
 
     public function storeManual(Request $request): RedirectResponse
     {
+        $actor = $request->user();
+        if ($actor === null || ! $actor->canRegistrarDecomisoManual()) {
+            return redirect()
+                ->route('decomisos.lenguas')
+                ->with('decomiso_manual_error', 'Su rol solo puede visualizar decomisos; no puede registrar altas manuales.');
+        }
+
         $validated = $request->validate(
             [
                 'id_producto' => ['required', 'string', 'max:80'],
