@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Despacho;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Despacho\Concerns\ResuelveUsuarioVehiculoDespacho;
+use App\Models\Despacho;
 use App\Models\DespachoOperadorPlaca;
 use App\Services\Despacho\DespachoParteProductoVehiculoConsulta;
 use App\Support\DespachoInventarioMatch;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,12 +51,20 @@ class DespachoLenguasController extends Controller
         $lineas = $bundle['lineas'];
 
         if ($vehiculo === null || $lineas === []) {
+            $tz = (string) config('app.timezone', 'America/Bogota');
+            $diaOp = app(DespachoParteProductoVehiculoConsulta::class)->fechaRegistroReferenciaHoy();
+            $yaCerrado = Despacho::query()
+                ->where('id_vehiculo_asignado', $id_vehiculo_asignado)
+                ->where('realizado_at', '>=', Carbon::parse($diaOp, $tz)->startOfDay())
+                ->exists();
+
+            $msg = $yaCerrado
+                ? 'Ese vehículo ya tiene un despacho cerrado en este turno. Si aún aparece en la lista, recargue la página de placas.'
+                : 'No hay códigos de este vehículo con fila disponible en inventario local: el checklist solo lista lo que aún se puede despachar. Revise importación a inventario, fecha en Colbeef y filtros.';
+
             return redirect()
                 ->route('despacho.lenguas')
-                ->with(
-                    'despacho_flash_error',
-                    'No hay códigos de este vehículo con fila disponible en inventario local: el checklist solo lista lo que aún se puede despachar. Revise importación a inventario, fecha en Colbeef y filtros.'
-                );
+                ->with('despacho_flash_error', $msg);
         }
 
         $checklistLines = [];

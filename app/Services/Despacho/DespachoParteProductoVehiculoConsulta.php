@@ -126,10 +126,25 @@ class DespachoParteProductoVehiculoConsulta
         return $out;
     }
 
-    /** Fecha calendario “hoy” según timezone de la aplicación (Y-m-d). */
-    protected function fechaRegistroReferenciaHoy(): string
+    /**
+     * Fecha de operación para filtrar fecha_registro en Colbeef (Y-m-d).
+     * Antes del corte configurado (p. ej. 05:00) sigue el día calendario anterior.
+     */
+    public function fechaRegistroReferenciaHoy(): string
     {
-        return now()->timezone(config('app.timezone'))->format('Y-m-d');
+        $tz = (string) config('app.timezone', 'America/Bogota');
+        $ahora = now()->timezone($tz);
+        $corteRaw = trim((string) config('despacho.ppv_dia_operacion_corte', '05:00'));
+        if (! preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $corteRaw, $m)) {
+            return $ahora->format('Y-m-d');
+        }
+
+        $corte = $ahora->copy()->setTime((int) $m[1], (int) $m[2], 0);
+        if ($ahora->lt($corte)) {
+            return $ahora->copy()->subDay()->format('Y-m-d');
+        }
+
+        return $ahora->format('Y-m-d');
     }
 
     /** Solo SQL base Colbeef (sin fecha, sin user_name en SQL, sin filtros PHP placas/inventario). */
@@ -342,6 +357,8 @@ SQL;
             'modo_solo_consulta_colbeef' => $this->modoSoloConsultaColbeef(),
             'app_timezone' => (string) config('app.timezone'),
             'fecha_registro_colbeef_como_hoy' => $this->fechaRegistroReferenciaHoy(),
+            'dia_operacion_corte' => (string) config('despacho.ppv_dia_operacion_corte', '05:00'),
+            'calendario_ahora' => now()->timezone((string) config('app.timezone'))->format('Y-m-d H:i'),
             'id_parte_producto' => $this->idParteProducto(),
             'filtra_va_user_name_config' => (bool) config('despacho.filtrar_ppv_por_user_name_vehiculo', false),
             'filtra_va_user_name_aplicado_sql' => $this->debeAplicarFiltroUserNameVehiculo(),

@@ -103,12 +103,18 @@ return [
     | DESPACHO_PPV_SOLO_FECHA_HOY=false lista placas/líneas históricas pendientes.
     | La fecha “hoy” usa la zona horaria de config/app.php (timezone).
     |
+    | Antes de DESPACHO_PPV_DIA_OPERACION_CORTE (HH:MM, p. ej. 05:00) el día
+    | operativo sigue siendo el calendario anterior, para no vaciar el listado
+    | a medianoche mientras aún hay alistamientos del turno previo.
+    |
     */
 
     'ppv_filtrar_fecha_registro_hoy' => filter_var(
         env('DESPACHO_PPV_SOLO_FECHA_HOY', true),
         FILTER_VALIDATE_BOOLEAN
     ),
+
+    'ppv_dia_operacion_corte' => env('DESPACHO_PPV_DIA_OPERACION_CORTE', '05:00'),
 
     /*
     |--------------------------------------------------------------------------

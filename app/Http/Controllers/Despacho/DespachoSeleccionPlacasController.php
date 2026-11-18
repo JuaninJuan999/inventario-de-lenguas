@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Despacho\Concerns\ResuelveUsuarioVehiculoDespacho;
 use App\Models\Despacho;
 use App\Services\Despacho\DespachoParteProductoVehiculoConsulta;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Throwable;
@@ -46,7 +47,8 @@ class DespachoSeleccionPlacasController extends Controller
     }
 
     /**
-     * Oculta en el listado los vehículos cuyo checklist ya se cerró hoy (despacho registrado localmente).
+     * Oculta vehículos cuyo checklist ya se cerró en el día operativo actual
+     * (desde las 00:00 de esa fecha hasta ahora), aunque el cierre sea después de medianoche.
      *
      * @param  list<object>  $placas
      * @return list<object>
@@ -57,10 +59,14 @@ class DespachoSeleccionPlacasController extends Controller
             return $placas;
         }
 
-        $hoy = now()->timezone((string) config('app.timezone'))->toDateString();
+        $tz = (string) config('app.timezone', 'America/Bogota');
+        $consulta = app(DespachoParteProductoVehiculoConsulta::class);
+        $diaOperacion = $consulta->fechaRegistroReferenciaHoy();
+        $inicioOperacion = Carbon::parse($diaOperacion, $tz)->startOfDay();
+
         $cerradosIds = Despacho::query()
             ->whereNotNull('id_vehiculo_asignado')
-            ->whereDate('realizado_at', $hoy)
+            ->where('realizado_at', '>=', $inicioOperacion)
             ->pluck('id_vehiculo_asignado')
             ->map(static fn ($id): int => (int) $id)
             ->unique()
