@@ -135,6 +135,7 @@ class InventarioLenguasController extends Controller
             'vida_util',
             'todos',
             'por_vencer',
+            'vencidas',
         ]);
         if ($request->boolean('todos')) {
             $queryFiltros['todos'] = 1;
@@ -143,9 +144,15 @@ class InventarioLenguasController extends Controller
         }
         if ($request->boolean('por_vencer')) {
             $queryFiltros['por_vencer'] = 1;
-            unset($queryFiltros['fecha_desde'], $queryFiltros['fecha_hasta'], $queryFiltros['todos']);
+            unset($queryFiltros['fecha_desde'], $queryFiltros['fecha_hasta'], $queryFiltros['todos'], $queryFiltros['vencidas']);
         } else {
             unset($queryFiltros['por_vencer']);
+        }
+        if ($request->boolean('vencidas')) {
+            $queryFiltros['vencidas'] = 1;
+            unset($queryFiltros['fecha_desde'], $queryFiltros['fecha_hasta'], $queryFiltros['todos'], $queryFiltros['por_vencer']);
+        } else {
+            unset($queryFiltros['vencidas']);
         }
 
         if ($outcome['success']) {
@@ -177,18 +184,24 @@ class InventarioLenguasController extends Controller
     private function inventarioListadoPayload(Request $request): array
     {
         $porVencer = $request->boolean('por_vencer');
+        $vencidas = $request->boolean('vencidas');
+        // Un solo modo de alerta a la vez.
+        if ($vencidas) {
+            $porVencer = false;
+        }
+
         $fechas = $this->normalizarFechasTurnoInventario($request);
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
 
-        // Por vencer: stock completo (sin acotar ref. turno), mismo criterio que el KPI del dashboard.
-        if ($porVencer) {
+        // Alertas de vida útil: stock completo (sin acotar ref. turno), mismo criterio que el KPI.
+        if ($porVencer || $vencidas) {
             $fechaDesdeTrim = '';
             $fechaHastaTrim = '';
         }
 
         // Por defecto: día de operación (alinea listado con la sync SIRT del día).
-        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '' && ! $request->boolean('todos') && ! $porVencer) {
+        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '' && ! $request->boolean('todos') && ! $porVencer && ! $vencidas) {
             $hoy = $this->consultaSirt->fechaHoyOperacion();
             $fechaDesdeTrim = $hoy;
             $fechaHastaTrim = $hoy;
@@ -201,6 +214,7 @@ class InventarioLenguasController extends Controller
             'propietario' => substr($request->string('propietario')->trim()->toString(), 0, 200),
             'vida_util' => substr($request->string('vida_util')->trim()->toString(), 0, 32),
             'por_vencer' => $porVencer,
+            'vencidas' => $vencidas,
         ];
 
         $filtrosActivos = $fechaDesdeTrim !== ''
@@ -208,7 +222,8 @@ class InventarioLenguasController extends Controller
             || $filters['id_producto'] !== ''
             || $filters['propietario'] !== ''
             || $filters['vida_util'] !== ''
-            || $porVencer;
+            || $porVencer
+            || $vencidas;
 
         $validator = $this->buildInventarioValidator($fechaDesdeTrim, $fechaHastaTrim, $filters);
 
@@ -229,6 +244,7 @@ class InventarioLenguasController extends Controller
             $filters['propietario'],
             $filters['vida_util'],
             $porVencer,
+            $vencidas,
         );
 
         $listadoEmptyHint = 'global';
@@ -310,6 +326,7 @@ class InventarioLenguasController extends Controller
         string $propietario,
         string $vidaUtilTrim,
         bool $porVencer = false,
+        bool $vencidas = false,
     ): Collection {
         $op = $this->likeOperator();
         $patId = '%'.$idProducto.'%';
@@ -335,7 +352,12 @@ class InventarioLenguasController extends Controller
                 $q->whereNotNull('fecha_registro')
                     ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd]);
             })
-            ->when($vidaUtilTrim !== '' && ! $porVencer, function ($q) use ($castDiasTexto, $hoyYmd, $vidaUtilTrim, $op): void {
+            ->when($vencidas, function ($q) use ($diasExpr, $hoyYmd): void {
+                // Ya superaron la fecha de vencimiento (< 0 días).
+                $q->whereNotNull('fecha_registro')
+                    ->whereRaw("({$diasExpr}) < 0", [$hoyYmd]);
+            })
+            ->when($vidaUtilTrim !== '' && ! $porVencer && ! $vencidas, function ($q) use ($castDiasTexto, $hoyYmd, $vidaUtilTrim, $op): void {
                 $needle = '%'.addcslashes($vidaUtilTrim, '%_\\').'%';
                 if ($op === 'ilike') {
                     $q->whereRaw("({$castDiasTexto}) ilike ?", [$hoyYmd, $needle]);
@@ -388,7 +410,13 @@ class InventarioLenguasController extends Controller
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
 
-        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '' && ! $request->boolean('todos')) {
+        if (
+            $fechaDesdeTrim === ''
+            && $fechaHastaTrim === ''
+            && ! $request->boolean('todos')
+            && ! $request->boolean('por_vencer')
+            && ! $request->boolean('vencidas')
+        ) {
             $hoy = $this->consultaSirt->fechaHoyOperacion();
             $fechaDesdeTrim = $hoy;
             $fechaHastaTrim = $hoy;

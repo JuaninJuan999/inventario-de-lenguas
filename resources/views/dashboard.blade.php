@@ -522,13 +522,13 @@
                         <p class="cta">Revisar stock →</p>
                     </div>
                 </a>
-                <a class="panel kpi" href="{{ route('inventario.lenguas', ['todos' => 1]) }}">
+                <a class="panel kpi" href="{{ route('inventario.lenguas', ['vencidas' => 1]) }}">
                     <div class="ring js-ring" data-target="{{ min(100, $pDanger) }}" style="--ring: var(--danger)"><span class="js-ring-label">0%</span></div>
                     <div>
                         <p class="num js-count" data-target="{{ (int) $vencidas }}">0</p>
                         <p class="label">Vencidas</p>
                         <p class="hint">Ya superaron la fecha de vencimiento en stock.</p>
-                        <p class="cta">Ver inventario →</p>
+                        <p class="cta">Ver vencidas →</p>
                     </div>
                 </a>
                 <a class="panel kpi" href="{{ route('entrega.conformidad') }}">

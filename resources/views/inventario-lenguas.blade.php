@@ -370,6 +370,7 @@
             @php
                 $viendoTodos = request()->boolean('todos');
                 $viendoPorVencer = request()->boolean('por_vencer');
+                $viendoVencidas = request()->boolean('vencidas');
             @endphp
             <form
                 id="inv-filters"
@@ -379,12 +380,16 @@
                 aria-label="Criterios de consulta del inventario de lenguas"
                 @if ($viendoTodos) data-ver-todos="1" @endif
                 @if ($viendoPorVencer) data-por-vencer="1" @endif
+                @if ($viendoVencidas) data-vencidas="1" @endif
             >
-                @if ($viendoTodos && ! $viendoPorVencer)
+                @if ($viendoTodos && ! $viendoPorVencer && ! $viendoVencidas)
                     <input type="hidden" name="todos" value="1" id="inv-todos-flag" />
                 @endif
                 @if ($viendoPorVencer)
                     <input type="hidden" name="por_vencer" value="1" id="inv-por-vencer-flag" />
+                @endif
+                @if ($viendoVencidas)
+                    <input type="hidden" name="vencidas" value="1" id="inv-vencidas-flag" />
                 @endif
                 <div class="filters-grid filters-grid--single-row">
                     <div class="filter-field filter-field--date">
@@ -472,20 +477,26 @@
                     >Excel</button>
                     <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Volver al día de operación">Limpiar</a>
                     <a
-                        class="btn-clear {{ ! $viendoTodos && ! $viendoPorVencer && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
+                        class="btn-clear {{ ! $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
                     >Solo hoy (ref. turno)</a>
                     <a
-                        class="btn-clear {{ $viendoTodos && ! request()->boolean('por_vencer') ? 'is-active' : '' }}"
+                        class="btn-clear {{ $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', ['todos' => 1]) }}"
-                        aria-current="{{ $viendoTodos && ! request()->boolean('por_vencer') ? 'page' : 'false' }}"
+                        aria-current="{{ $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas ? 'page' : 'false' }}"
                     >Ver todos</a>
                     <a
-                        class="btn-clear {{ request()->boolean('por_vencer') ? 'is-active' : '' }}"
+                        class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', ['por_vencer' => 1]) }}"
                         title="Lenguas que vencen hoy o mañana (vida útil 4 días desde fecha de registro)"
-                        aria-current="{{ request()->boolean('por_vencer') ? 'page' : 'false' }}"
+                        aria-current="{{ $viendoPorVencer ? 'page' : 'false' }}"
                     >Por vencer</a>
+                    <a
+                        class="btn-clear {{ $viendoVencidas ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', ['vencidas' => 1]) }}"
+                        title="Lenguas que ya superaron la fecha de vencimiento en stock"
+                        aria-current="{{ $viendoVencidas ? 'page' : 'false' }}"
+                    >Vencidas</a>
                 </div>
             </form>
 
@@ -566,11 +577,12 @@
                         'vida_util',
                         'todos',
                         'por_vencer',
+                        'vencidas',
                     ];
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
                         if (!el || el.value === '') {
-                            if (name === 'todos' || name === 'por_vencer') {
+                            if (name === 'todos' || name === 'por_vencer' || name === 'vencidas') {
                                 return;
                             }
                             syncUrl.searchParams.set(name, '');
@@ -578,7 +590,7 @@
                         }
                         syncUrl.searchParams.set(name, el.value);
                     });
-                    // Conservar ?todos=1 / ?por_vencer=1 de la URL aunque el form se haya alterado
+                    // Conservar flags de URL aunque el form se haya alterado
                     const pageTodos =
                         filterForm && filterForm.getAttribute('data-ver-todos') === '1'
                             ? '1'
@@ -587,9 +599,18 @@
                         filterForm && filterForm.getAttribute('data-por-vencer') === '1'
                             ? '1'
                             : new URLSearchParams(window.location.search).get('por_vencer');
-                    if (pagePorVencer === '1') {
+                    const pageVencidas =
+                        filterForm && filterForm.getAttribute('data-vencidas') === '1'
+                            ? '1'
+                            : new URLSearchParams(window.location.search).get('vencidas');
+                    if (pageVencidas === '1') {
+                        syncUrl.searchParams.set('vencidas', '1');
+                        syncUrl.searchParams.delete('todos');
+                        syncUrl.searchParams.delete('por_vencer');
+                    } else if (pagePorVencer === '1') {
                         syncUrl.searchParams.set('por_vencer', '1');
                         syncUrl.searchParams.delete('todos');
+                        syncUrl.searchParams.delete('vencidas');
                     } else if (pageTodos === '1') {
                         syncUrl.searchParams.set('todos', '1');
                     }
@@ -597,14 +618,24 @@
                     body.append('_token', csrfToken());
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
+                        if (name === 'vencidas') {
+                            if (pageVencidas === '1' || (el && el.value === '1')) {
+                                body.append('vencidas', '1');
+                            }
+                            return;
+                        }
                         if (name === 'por_vencer') {
-                            if (pagePorVencer === '1' || (el && el.value === '1')) {
+                            if (pageVencidas !== '1' && (pagePorVencer === '1' || (el && el.value === '1'))) {
                                 body.append('por_vencer', '1');
                             }
                             return;
                         }
                         if (name === 'todos') {
-                            if (pagePorVencer !== '1' && (pageTodos === '1' || (el && el.value === '1'))) {
+                            if (
+                                pageVencidas !== '1' &&
+                                pagePorVencer !== '1' &&
+                                (pageTodos === '1' || (el && el.value === '1'))
+                            ) {
                                 body.append('todos', '1');
                             }
                             return;
