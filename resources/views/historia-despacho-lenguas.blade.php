@@ -365,6 +365,20 @@
                 letter-spacing: 0.03em;
                 font-size: 0.62rem;
             }
+            .hist-dialog__body .chip-adicional {
+                display: inline-block;
+                margin-left: 0.4rem;
+                padding: 0.1rem 0.4rem;
+                border-radius: 9999px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                background: color-mix(in srgb, var(--brand-rose) 22%, transparent);
+                color: #ffe9fc;
+                vertical-align: middle;
+                white-space: nowrap;
+            }
             .hist-dialog__body .hist-detalle-table th:first-child,
             .hist-dialog__body .hist-detalle-table td:first-child {
                 width: 0.01%;
@@ -637,7 +651,18 @@
                                     var tr = document.createElement('tr');
                                     ['id_producto', 'propietario', 'destino'].forEach(function (key) {
                                         var td = document.createElement('td');
-                                        td.textContent = celdaMostrar(row[key]);
+                                        var txt = celdaMostrar(row[key]);
+                                        if (key === 'propietario' && row.es_adicional) {
+                                            td.textContent = '';
+                                            td.appendChild(document.createTextNode(txt));
+                                            td.appendChild(document.createTextNode(' '));
+                                            var chip = document.createElement('span');
+                                            chip.className = 'chip-adicional';
+                                            chip.textContent = 'Adicional';
+                                            td.appendChild(chip);
+                                        } else {
+                                            td.textContent = txt;
+                                        }
                                         tr.appendChild(td);
                                     });
                                     tbody.appendChild(tr);

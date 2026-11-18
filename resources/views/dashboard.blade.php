@@ -504,7 +504,7 @@
 
         <div class="dash" id="dash-root">
             <div class="kpi-grid">
-                <a class="panel kpi" href="{{ route('inventario.lenguas', ['todos' => 1]) }}">
+                <a class="panel kpi" href="{{ route('inventario.lenguas') }}">
                     <div class="ring js-ring" data-target="{{ $inventarioTotal > 0 ? 100 : 0 }}" style="--ring: var(--brand-green)"><span class="js-ring-label">0</span></div>
                     <div>
                         <p class="num js-count" data-target="{{ (int) $inventarioTotal }}">0</p>

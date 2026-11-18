@@ -186,7 +186,7 @@ SQL,
     }
 
     /**
-     * @return array{en_inventario: bool, canonical_id_producto: string, propietario: ?string, destino: ?string, match_keys: list<string>}
+     * @return array{en_inventario: bool, canonical_id_producto: string, propietario: ?string, destino: ?string, es_adicional: bool, match_keys: list<string>}
      */
     public static function resumenParaChecklist(string $idProductoColbeef): array
     {
@@ -204,6 +204,7 @@ SQL,
             'canonical_id_producto' => $canonical,
             'propietario' => $inv?->propietario,
             'destino' => $inv?->destino,
+            'es_adicional' => (bool) ($inv?->es_adicional ?? false),
             'match_keys' => $keys,
         ];
     }

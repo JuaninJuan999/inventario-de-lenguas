@@ -31,10 +31,6 @@
                 <p class="alert alert--err" role="alert">Revise los datos del formulario.</p>
             @endif
 
-            <p class="muted">
-                Letras, números, punto, guion y guion bajo en el usuario. La contraseña debe tener al menos 8 caracteres.
-            </p>
-
             <form class="form-panel" method="post" action="{{ route('gestion.usuarios.store') }}" novalidate>
                 @csrf
                 <div class="form-grid">
@@ -59,9 +55,6 @@
                             placeholder="Se genera al escribir el nombre…"
                             data-auto="1"
                         />
-                        <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.78rem">
-                            Ejemplo: Juan Carreño → <code>juan.carreno</code>. Si ya existe, el servidor añade un sufijo.
-                        </p>
                         @error('username')
                             <p class="err">{{ $message }}</p>
                         @enderror
@@ -87,7 +80,7 @@
                     <div class="field field--full">
                         <label for="gu-password">Contraseña</label>
                         <div class="password-wrap">
-                            <input id="gu-password" type="password" name="password" required autocomplete="new-password" />
+                            <input id="gu-password" type="password" name="password" required autocomplete="new-password" aria-describedby="gu-password-tips" />
                             <button
                                 type="button"
                                 class="toggle-password"
@@ -98,6 +91,16 @@
                             >
                                 Ver
                             </button>
+                        </div>
+                        <div id="gu-password-tips" class="pwd-tips" hidden>
+                            <p class="pwd-tips__title">Recomendaciones para una contraseña segura</p>
+                            <ul class="pwd-tips__list" aria-live="polite">
+                                <li data-rule="len">Al menos 8 caracteres</li>
+                                <li data-rule="lower">Una letra minúscula</li>
+                                <li data-rule="upper">Una letra mayúscula</li>
+                                <li data-rule="num">Un número</li>
+                                <li data-rule="sym">Un símbolo (!@#$…)</li>
+                            </ul>
                         </div>
                         @error('password')
                             <p class="err">{{ $message }}</p>
@@ -149,6 +152,40 @@
                 }
                 bindToggle('gu-password', 'gu-toggle-password', false);
                 bindToggle('gu-password-confirmation', 'gu-toggle-password-confirmation', true);
+
+                var pwdEl = document.getElementById('gu-password');
+                var tipsEl = document.getElementById('gu-password-tips');
+                if (pwdEl && tipsEl) {
+                    function refreshPwdTips() {
+                        var v = String(pwdEl.value || '');
+                        tipsEl.hidden = v.length === 0 && document.activeElement !== pwdEl;
+                        var checks = {
+                            len: v.length >= 8,
+                            lower: /[a-z]/.test(v),
+                            upper: /[A-Z]/.test(v),
+                            num: /[0-9]/.test(v),
+                            sym: /[^A-Za-z0-9]/.test(v),
+                        };
+                        tipsEl.querySelectorAll('[data-rule]').forEach(function (li) {
+                            var ok = !!checks[li.getAttribute('data-rule')];
+                            li.classList.toggle('is-ok', ok);
+                        });
+                    }
+                    pwdEl.addEventListener('focus', function () {
+                        tipsEl.hidden = false;
+                        refreshPwdTips();
+                    });
+                    pwdEl.addEventListener('blur', function () {
+                        if (!String(pwdEl.value || '').length) {
+                            tipsEl.hidden = true;
+                        }
+                    });
+                    pwdEl.addEventListener('input', refreshPwdTips);
+                    if (String(pwdEl.value || '').length) {
+                        tipsEl.hidden = false;
+                        refreshPwdTips();
+                    }
+                }
 
                 var nameEl = document.getElementById('gu-name');
                 var userEl = document.getElementById('gu-username');

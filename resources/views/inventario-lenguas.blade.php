@@ -195,11 +195,6 @@
                 font-size: 0.85rem;
                 color: color-mix(in srgb, var(--text) 65%, transparent);
             }
-            .hint-fechar-turno {
-                margin: 0.15rem 0 0.65rem;
-                font-size: 0.76rem;
-                line-height: 1.4;
-            }
             .filters {
                 margin-bottom: 1.25rem;
                 padding-bottom: 1.25rem;
@@ -223,6 +218,68 @@
                 flex: 0 0 10.75rem;
                 min-width: 10.25rem;
             }
+            .filters-advanced {
+                margin-top: 0.55rem;
+                width: fit-content;
+                max-width: 100%;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 22%, transparent);
+                border-radius: 0.45rem;
+                padding: 0.15rem 0.55rem;
+                background: color-mix(in srgb, var(--brand-green) 5%, rgba(0, 0, 0, 0.18));
+            }
+            .filters-advanced[open] {
+                width: 100%;
+                padding-bottom: 0.55rem;
+            }
+            .filters-advanced > summary {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                cursor: pointer;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+                opacity: 0.88;
+                padding: 0.2rem 0;
+                list-style: none;
+                user-select: none;
+            }
+            .filters-advanced > summary::-webkit-details-marker {
+                display: none;
+            }
+            .filters-advanced > summary::after {
+                content: "";
+                width: 0.45rem;
+                height: 0.45rem;
+                border-right: 1.5px solid currentColor;
+                border-bottom: 1.5px solid currentColor;
+                transform: rotate(45deg);
+                margin-top: -0.15rem;
+                opacity: 0.85;
+                flex-shrink: 0;
+                transition: transform 0.15s ease;
+            }
+            .filters-advanced[open] > summary {
+                margin-bottom: 0.4rem;
+            }
+            .filters-advanced[open] > summary::after {
+                transform: rotate(225deg);
+                margin-top: 0.1rem;
+            }
+            .chip-adicional {
+                display: inline-block;
+                margin-left: 0.35rem;
+                padding: 0.1rem 0.4rem;
+                border-radius: 9999px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                background: color-mix(in srgb, var(--brand-rose) 22%, transparent);
+                color: #ffe9fc;
+                vertical-align: middle;
+            }
             .filter-field label {
                 display: block;
                 font-size: 0.68rem;
@@ -232,7 +289,8 @@
                 color: color-mix(in srgb, var(--brand-rose) 90%, #fff);
                 margin-bottom: 0.35rem;
             }
-            .filter-field input {
+            .filter-field input,
+            .filter-field select {
                 width: 100%;
                 padding: 0.5rem 0.65rem;
                 border-radius: 6px;
@@ -242,7 +300,15 @@
                 font-size: 0.9rem;
                 font-family: inherit;
             }
-            .filter-field input:focus {
+            .filter-field select {
+                cursor: pointer;
+            }
+            .filter-field select option {
+                background: #0a1612;
+                color: var(--text);
+            }
+            .filter-field input:focus,
+            .filter-field select:focus {
                 outline: 2px solid var(--brand-green);
                 outline-offset: 1px;
             }
@@ -384,9 +450,16 @@
             </div>
 
             @php
-                $viendoTodos = request()->boolean('todos');
-                $viendoPorVencer = request()->boolean('por_vencer');
-                $viendoVencidas = request()->boolean('vencidas');
+                $viendoPorVencer = ! empty($filters['por_vencer']);
+                $viendoVencidas = ! empty($filters['vencidas']);
+                $viendoDisponible = ! $viendoPorVencer && ! $viendoVencidas;
+                $tieneFechasAvanzadas = ($filters['fecha_desde'] ?? '') !== '' || ($filters['fecha_hasta'] ?? '') !== '';
+                $chipQueryBase = array_filter([
+                    'id_producto' => $filters['id_producto'] ?? '',
+                    'propietario' => $filters['propietario'] ?? '',
+                    'destino' => $filters['destino'] ?? '',
+                    'adicionales' => $filters['adicionales'] ?? '',
+                ], static fn ($v) => $v !== null && $v !== '');
             @endphp
             <form
                 id="inv-filters"
@@ -394,13 +467,9 @@
                 method="get"
                 action="{{ route('inventario.lenguas') }}"
                 aria-label="Criterios de consulta del inventario de lenguas"
-                @if ($viendoTodos) data-ver-todos="1" @endif
                 @if ($viendoPorVencer) data-por-vencer="1" @endif
                 @if ($viendoVencidas) data-vencidas="1" @endif
             >
-                @if ($viendoTodos && ! $viendoPorVencer && ! $viendoVencidas)
-                    <input type="hidden" name="todos" value="1" id="inv-todos-flag" />
-                @endif
                 @if ($viendoPorVencer)
                     <input type="hidden" name="por_vencer" value="1" id="inv-por-vencer-flag" />
                 @endif
@@ -408,32 +477,6 @@
                     <input type="hidden" name="vencidas" value="1" id="inv-vencidas-flag" />
                 @endif
                 <div class="filters-grid filters-grid--single-row">
-                    <div class="filter-field filter-field--date">
-                        <label for="inv-fecha-desde">Fecha desde (ref. turno)</label>
-                        <input
-                            id="inv-fecha-desde"
-                            type="date"
-                            name="fecha_desde"
-                            value="{{ $filters['fecha_desde'] ?? '' }}"
-                            autocomplete="off"
-                        />
-                        @error('fecha_desde')
-                            <p class="err">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div class="filter-field filter-field--date">
-                        <label for="inv-fecha-hasta">Fecha hasta (ref. turno)</label>
-                        <input
-                            id="inv-fecha-hasta"
-                            type="date"
-                            name="fecha_hasta"
-                            value="{{ $filters['fecha_hasta'] ?? '' }}"
-                            autocomplete="off"
-                        />
-                        @error('fecha_hasta')
-                            <p class="err">{{ $message }}</p>
-                        @enderror
-                    </div>
                     <div class="filter-field">
                         <label for="inv-id-producto">Id producto</label>
                         <input
@@ -465,24 +508,68 @@
                         @enderror
                     </div>
                     <div class="filter-field">
-                        <label for="inv-vida-util">Vida útil</label>
+                        <label for="inv-destino">Destino</label>
                         <input
-                            id="inv-vida-util"
+                            id="inv-destino"
                             type="text"
-                            name="vida_util"
-                            value="{{ $filters['vida_util'] ?? '' }}"
-                            maxlength="32"
-                            placeholder="Búsqueda global (días)"
+                            name="destino"
+                            value="{{ $filters['destino'] ?? '' }}"
+                            maxlength="200"
+                            placeholder="Parcial o completo"
                             autocomplete="off"
                         />
-                        @error('vida_util')
+                        @error('destino')
+                            <p class="err">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div class="filter-field">
+                        <label for="inv-adicionales">Adicionales</label>
+                        <select id="inv-adicionales" name="adicionales">
+                            <option value="" @selected(($filters['adicionales'] ?? '') === '')>Todos</option>
+                            <option value="si" @selected(($filters['adicionales'] ?? '') === 'si')>Solo adicionales</option>
+                            <option value="no" @selected(($filters['adicionales'] ?? '') === 'no')>Sin adicionales</option>
+                        </select>
+                        @error('adicionales')
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
-                <p class="muted hint-fechar-turno">
-                    Si indica solo una fecha de ref. turno, se usa ese mismo día como rango (desde y hasta).
-                </p>
+
+                <details class="filters-advanced" @if ($tieneFechasAvanzadas) open @endif>
+                    <summary>Avanzado · filtro por fecha de ref. turno (opcional)</summary>
+                    <div class="filters-grid filters-grid--single-row">
+                        <div class="filter-field filter-field--date">
+                            <label for="inv-fecha-desde">Fecha desde</label>
+                            <input
+                                id="inv-fecha-desde"
+                                type="date"
+                                name="fecha_desde"
+                                value="{{ $filters['fecha_desde'] ?? '' }}"
+                                autocomplete="off"
+                            />
+                            @error('fecha_desde')
+                                <p class="err">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="filter-field filter-field--date">
+                            <label for="inv-fecha-hasta">Fecha hasta</label>
+                            <input
+                                id="inv-fecha-hasta"
+                                type="date"
+                                name="fecha_hasta"
+                                value="{{ $filters['fecha_hasta'] ?? '' }}"
+                                autocomplete="off"
+                            />
+                            @error('fecha_hasta')
+                                <p class="err">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <p class="muted" style="margin: 0.45rem 0 0; font-size: 0.76rem">
+                        Vacío = todo el stock disponible. Si indica solo una fecha, se usa ese mismo día como rango.
+                    </p>
+                </details>
+
                 <div class="filter-actions">
                     <button class="btn-apply" type="submit">Aplicar</button>
                     <button
@@ -491,28 +578,29 @@
                         formaction="{{ route('inventario.lenguas.excel') }}"
                         formmethod="get"
                     >Excel</button>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Volver al día de operación">Limpiar</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Quitar filtros y ver stock disponible">Limpiar</a>
                     <a
-                        class="btn-clear {{ ! $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
-                    >Solo hoy (ref. turno)</a>
-                    <a
-                        class="btn-clear {{ $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', ['todos' => 1]) }}"
-                        aria-current="{{ $viendoTodos && ! $viendoPorVencer && ! $viendoVencidas ? 'page' : 'false' }}"
-                    >Ver todos</a>
+                        class="btn-clear {{ $viendoDisponible && ! $tieneFechasAvanzadas && ($filters['id_producto'] ?? '') === '' && ($filters['propietario'] ?? '') === '' && ($filters['destino'] ?? '') === '' && ($filters['adicionales'] ?? '') === '' ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase) }}"
+                        aria-current="{{ $viendoDisponible && ! $tieneFechasAvanzadas ? 'page' : 'false' }}"
+                    >Disponible</a>
                     <a
                         class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', ['por_vencer' => 1]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1]) }}"
                         title="Lenguas que vencen hoy o mañana (vida útil 4 días desde fecha de registro)"
                         aria-current="{{ $viendoPorVencer ? 'page' : 'false' }}"
                     >Por vencer</a>
                     <a
                         class="btn-clear {{ $viendoVencidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', ['vencidas' => 1]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['vencidas' => 1]) }}"
                         title="Lenguas que ya superaron la fecha de vencimiento en stock"
                         aria-current="{{ $viendoVencidas ? 'page' : 'false' }}"
                     >Vencidas</a>
+                    <a
+                        class="btn-clear {{ ! $viendoPorVencer && ! $viendoVencidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
+                        title="Acotar por ref. turno del día de operación"
+                    >Solo hoy</a>
                 </div>
             </form>
 
@@ -590,15 +678,15 @@
                         'fecha_hasta',
                         'id_producto',
                         'propietario',
-                        'vida_util',
-                        'todos',
+                        'destino',
+                        'adicionales',
                         'por_vencer',
                         'vencidas',
                     ];
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
                         if (!el || el.value === '') {
-                            if (name === 'todos' || name === 'por_vencer' || name === 'vencidas') {
+                            if (name === 'por_vencer' || name === 'vencidas' || name === 'adicionales') {
                                 return;
                             }
                             syncUrl.searchParams.set(name, '');
@@ -606,11 +694,6 @@
                         }
                         syncUrl.searchParams.set(name, el.value);
                     });
-                    // Conservar flags de URL aunque el form se haya alterado
-                    const pageTodos =
-                        filterForm && filterForm.getAttribute('data-ver-todos') === '1'
-                            ? '1'
-                            : new URLSearchParams(window.location.search).get('todos');
                     const pagePorVencer =
                         filterForm && filterForm.getAttribute('data-por-vencer') === '1'
                             ? '1'
@@ -621,14 +704,10 @@
                             : new URLSearchParams(window.location.search).get('vencidas');
                     if (pageVencidas === '1') {
                         syncUrl.searchParams.set('vencidas', '1');
-                        syncUrl.searchParams.delete('todos');
                         syncUrl.searchParams.delete('por_vencer');
                     } else if (pagePorVencer === '1') {
                         syncUrl.searchParams.set('por_vencer', '1');
-                        syncUrl.searchParams.delete('todos');
                         syncUrl.searchParams.delete('vencidas');
-                    } else if (pageTodos === '1') {
-                        syncUrl.searchParams.set('todos', '1');
                     }
                     const body = new FormData();
                     body.append('_token', csrfToken());
@@ -646,13 +725,9 @@
                             }
                             return;
                         }
-                        if (name === 'todos') {
-                            if (
-                                pageVencidas !== '1' &&
-                                pagePorVencer !== '1' &&
-                                (pageTodos === '1' || (el && el.value === '1'))
-                            ) {
-                                body.append('todos', '1');
+                        if (name === 'adicionales') {
+                            if (el && (el.value === 'si' || el.value === 'no')) {
+                                body.append('adicionales', el.value);
                             }
                             return;
                         }

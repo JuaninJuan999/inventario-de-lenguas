@@ -347,6 +347,20 @@
                 color: #fff0f0;
                 background: color-mix(in srgb, #8b1010 72%, transparent);
             }
+            .chip-adicional {
+                display: inline-block;
+                margin-left: 0.4rem;
+                padding: 0.1rem 0.4rem;
+                border-radius: 9999px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                background: color-mix(in srgb, var(--brand-rose) 22%, transparent);
+                color: #ffe9fc;
+                vertical-align: middle;
+                white-space: nowrap;
+            }
             .row-decomisado > td {
                 background: linear-gradient(
                     180deg,
@@ -817,6 +831,7 @@
                                             data-checklist-row="1"
                                             data-en-inv="{{ $line['en_inventario'] ? '1' : '0' }}"
                                             data-alistado="0"
+                                            data-es-adicional="{{ ! empty($line['es_adicional']) ? '1' : '0' }}"
                                             data-canonical="{{ $line['canonical_id_producto'] }}"
                                             data-match-keys="{{ htmlspecialchars(json_encode($line['match_keys'], JSON_THROW_ON_ERROR), ENT_QUOTES | ENT_HTML5, 'UTF-8') }}"
                                             @class([
@@ -838,9 +853,19 @@
                                                 @if (! $line['en_inventario'])
                                                     <div class="dispatch-cell dispatch-cell--empty">—</div>
                                                 @elseif (trim((string) ($line['propietario'] ?? '')) !== '')
-                                                    <div class="dispatch-cell">{{ $line['propietario'] }}</div>
+                                                    <div class="dispatch-cell">
+                                                        {{ $line['propietario'] }}
+                                                        @if (! empty($line['es_adicional']))
+                                                            <span class="chip-adicional">Adicional</span>
+                                                        @endif
+                                                    </div>
                                                 @else
-                                                    <div class="dispatch-cell dispatch-cell--empty">Sin propietario en inventario</div>
+                                                    <div class="dispatch-cell dispatch-cell--empty">
+                                                        Sin propietario en inventario
+                                                        @if (! empty($line['es_adicional']))
+                                                            <span class="chip-adicional">Adicional</span>
+                                                        @endif
+                                                    </div>
                                                 @endif
                                             </td>
                                             <td data-label="Destino">
@@ -1458,6 +1483,35 @@
                     div.className = 'dispatch-cell' + (empty ? ' dispatch-cell--empty' : '');
                 }
 
+                function chipAdicionalEl() {
+                    var span = document.createElement('span');
+                    span.className = 'chip-adicional';
+                    span.textContent = 'Adicional';
+                    return span;
+                }
+
+                function checklistActualizarPropietario(tr, text, esAdicional, emptyLabel) {
+                    var tds = tr.querySelectorAll('td');
+                    var td = tds[1];
+                    if (!td) {
+                        return;
+                    }
+                    var div = td.querySelector('.dispatch-cell');
+                    if (!div) {
+                        return;
+                    }
+                    var v = text != null ? String(text).trim() : '';
+                    var empty = !v;
+                    div.className = 'dispatch-cell' + (empty ? ' dispatch-cell--empty' : '');
+                    div.textContent = '';
+                    div.appendChild(document.createTextNode(empty ? emptyLabel || 'Sin propietario en inventario' : v));
+                    if (esAdicional) {
+                        div.appendChild(document.createTextNode(' '));
+                        div.appendChild(chipAdicionalEl());
+                    }
+                    tr.setAttribute('data-es-adicional', esAdicional ? '1' : '0');
+                }
+
                 function checklistLimpiarFila(tr) {
                     tr.setAttribute('data-alistado', '0');
                     tr.classList.remove('row-checklist-alistado');
@@ -1623,7 +1677,12 @@
                             json.destino != null && String(json.destino).trim() !== ''
                                 ? String(json.destino).trim()
                                 : '';
-                        checklistActualizarCelda(tr, 1, propTxt, 'Sin propietario en inventario', !propTxt);
+                        checklistActualizarPropietario(
+                            tr,
+                            propTxt,
+                            !!json.es_adicional,
+                            'Sin propietario en inventario',
+                        );
                         checklistActualizarCelda(tr, 2, destTxt, 'Sin destino registrado', !destTxt);
                         codes.add(invId.toLowerCase());
                         inputCodigo.value = '';
@@ -1762,6 +1821,7 @@
                     var destinoTxt = '';
                     var encontrado = false;
                     var esDecomisado = false;
+                    var esAdicional = false;
                     var jsonLookup = null;
                     try {
                         var json;
@@ -1783,6 +1843,7 @@
                         idNorm = (json.id_producto || raw).trim();
                         encontrado = !!json.encontrado;
                         esDecomisado = !!json.decomisado;
+                        esAdicional = !!json.es_adicional;
                         propietarioTxt =
                             json.propietario != null && String(json.propietario).trim() !== ''
                                 ? String(json.propietario).trim()
@@ -1811,6 +1872,9 @@
                     codes.add(idNorm.toLowerCase());
 
                     var tr = document.createElement('tr');
+                    if (esAdicional) {
+                        tr.setAttribute('data-es-adicional', '1');
+                    }
                     var td1 = document.createElement('td');
                     td1.className = 'col-codigo';
                     td1.setAttribute('data-label', 'Código');
@@ -1835,6 +1899,10 @@
                         propietarioTxt,
                         encontrado ? 'Sin propietario en inventario' : 'Sin fila en inventario',
                     );
+                    if (esAdicional) {
+                        divProp.appendChild(document.createTextNode(' '));
+                        divProp.appendChild(chipAdicionalEl());
+                    }
                     var divDest = dispatchCell(
                         destinoTxt,
                         encontrado ? 'Sin destino registrado' : 'Sin fila en inventario',

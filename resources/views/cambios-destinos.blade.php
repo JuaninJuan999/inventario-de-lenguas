@@ -860,7 +860,11 @@
 
                     if (formAdicionales) {
                         formAdicionales.addEventListener('submit', function (e) {
-                            var n = formAdicionales.querySelectorAll('.check-adicional-row:checked').length;
+                            // Los checkboxes viven en la tabla (form="form-adicionales-masivo"),
+                            // no como hijos del <form>; hay que contarlos en el tbody.
+                            var n = tbody
+                                ? tbody.querySelectorAll('.check-adicional-row:checked').length
+                                : document.querySelectorAll('.check-adicional-row[form="form-adicionales-masivo"]:checked').length;
                             if (n === 0) {
                                 e.preventDefault();
                                 alert('Seleccione al menos un código.');

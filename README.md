@@ -108,6 +108,8 @@ Documentación de sync para equipo de servidor:
 
 ## Despliegue / `git pull` en servidor
 
+**Importante:** `git pull` solo trae commits ya subidos al remoto. Si una función existe en local (p. ej. **Editar usuario**, **Mi perfil**, filtros nuevos de inventario) pero no en el servidor, casi siempre falta **commit + push** desde la máquina de desarrollo.
+
 Después de traer código nuevo:
 
 ```bash
@@ -115,12 +117,22 @@ git pull
 composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 php artisan modulos:sync-matriz
+php artisan storage:link
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 ```
 
-> Si no corres **`modulos:sync-matriz`**, módulos nuevos (p. ej. **Observatorio**) no aparecen en el menú: el menú lee la BD local, no solo el repo.
+Checklist rápido:
+
+| Si falta… | Causa habitual | Qué hacer |
+|-----------|----------------|-----------|
+| Botón **Editar** / restablecer clave en Gestión usuarios | Código no estaba en el remoto, o caché de vistas | Confirmar commit en GitHub → `git pull` → `view:clear` |
+| Cambio obligatorio de contraseña / foto de perfil | Migraciones no aplicadas | `php artisan migrate --force` (+ `storage:link` para avatares) |
+| Módulo nuevo o rol sin tarjeta en el menú | Matriz solo en config, no en BD | `php artisan modulos:sync-matriz` |
+| Rol **gerencia** / otros permisos “viejos” | `role_modulo` desactualizado | Tras editar `config/modulos_por_rol.php` → `modulos:sync-matriz` |
+
+> El menú y el middleware `module:*` leen la BD local (`modulos` + `role_modulo`), no solo el archivo de config del repo.
 
 ---
 

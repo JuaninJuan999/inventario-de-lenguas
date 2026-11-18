@@ -78,6 +78,7 @@ class DespachoLenguasController extends Controller
                 'en_inventario' => $resumen['en_inventario'],
                 'propietario' => $resumen['propietario'],
                 'destino' => $resumen['destino'],
+                'es_adicional' => $resumen['es_adicional'],
             ];
         }
 

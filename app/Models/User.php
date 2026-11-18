@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
 
-#[Fillable(['name', 'username', 'email', 'password', 'role', 'is_active'])]
+#[Fillable(['name', 'username', 'email', 'avatar_path', 'password', 'role', 'is_active', 'must_change_password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,7 +29,36 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
+    }
+
+    /** URL pública de la foto de perfil, o null. */
+    public function avatarUrl(): ?string
+    {
+        if ($this->avatar_path === null || $this->avatar_path === '') {
+            return null;
+        }
+
+        return asset('storage/'.$this->avatar_path);
+    }
+
+    /** Iniciales para el avatar vacío (máx. 2). */
+    public function avatarInitials(): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->name)) ?: [];
+        $initials = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+            if (mb_strlen($initials) >= 2) {
+                break;
+            }
+        }
+
+        return $initials !== '' ? $initials : '?';
     }
 
     /**

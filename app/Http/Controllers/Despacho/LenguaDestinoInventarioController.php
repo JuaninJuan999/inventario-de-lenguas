@@ -47,6 +47,7 @@ class LenguaDestinoInventarioController extends Controller
             'id_producto' => $idProducto,
             'propietario' => $row?->propietario,
             'destino' => $row?->destino,
+            'es_adicional' => (bool) ($row?->es_adicional ?? false),
             'encontrado' => $row !== null,
             'decomisado' => $decomisado,
             'decomiso' => $decomisado ? [

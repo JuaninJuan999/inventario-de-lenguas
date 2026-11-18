@@ -6,6 +6,9 @@
  * El menú principal lee textos y rutas desde las tablas locales `modulos` y `role_modulo`
  * (sembradas desde esta lista). Tras editar roles aquí: ejecute `php artisan modulos:sync-matriz`.
  *
+ * En servidor, un `git pull` sin ese comando deja permisos viejos en BD (p. ej. gerencia aún ve
+ * Cambios destinos aunque aquí ya no figure). Ver README → Despliegue.
+ *
  * Claves: dashboard, gestion_usuarios, observatorio, inventario, cambios_destinos, ingresos, despacho,
  *          desposte, historial, entrega, decomisos
  *
@@ -40,7 +43,6 @@ return [
         'gerencia' => [
             'dashboard',
             'inventario',
-            'cambios_destinos',
             'ingresos',
             'historial',
             'decomisos',

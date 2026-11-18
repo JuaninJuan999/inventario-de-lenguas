@@ -172,11 +172,12 @@ class HistoriaDespachoLenguasController extends Controller
         $lineas = IngresoLenguaLocal::query()
             ->where('despacho_id', $despacho->id)
             ->orderBy('id')
-            ->get(['id_producto', 'propietario', 'destino'])
+            ->get(['id_producto', 'propietario', 'destino', 'es_adicional'])
             ->map(static fn (IngresoLenguaLocal $r): array => [
                 'id_producto' => (string) $r->id_producto,
                 'propietario' => $r->propietario !== null && $r->propietario !== '' ? (string) $r->propietario : '',
                 'destino' => $r->destino !== null && $r->destino !== '' ? (string) $r->destino : '',
+                'es_adicional' => (bool) $r->es_adicional,
             ])
             ->values()
             ->all();
@@ -194,11 +195,12 @@ class HistoriaDespachoLenguasController extends Controller
         $lineas = IngresoLenguaLocal::query()
             ->where('desposte_id', $desposte->id)
             ->orderBy('id')
-            ->get(['id_producto', 'propietario', 'destino'])
+            ->get(['id_producto', 'propietario', 'destino', 'es_adicional'])
             ->map(static fn (IngresoLenguaLocal $r): array => [
                 'id_producto' => (string) $r->id_producto,
                 'propietario' => $r->propietario !== null && $r->propietario !== '' ? (string) $r->propietario : '',
                 'destino' => $r->destino !== null && $r->destino !== '' ? (string) $r->destino : '',
+                'es_adicional' => (bool) $r->es_adicional,
             ])
             ->values()
             ->all();

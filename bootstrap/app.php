@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthorizeModuleAccess;
 use App\Http\Middleware\EnsureCanManageUsers;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ForceRootUrlFromRequest;
 use Illuminate\Foundation\Application;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ForceRootUrlFromRequest::class,
             EnsureUserIsActive::class,
+            EnsurePasswordIsChanged::class,
         ]);
         $middleware->alias([
             'can.manage.users' => EnsureCanManageUsers::class,

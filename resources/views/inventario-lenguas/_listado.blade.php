@@ -10,19 +10,21 @@
         <p class="muted">Ajuste los criterios de consulta para obtener un resultado conforme a las reglas del módulo.</p>
     @elseif (($listadoEmptyHint ?? 'global') === 'filtered')
         <p class="muted">
-            No existen registros que satisfagan los filtros definidos (límite de presentación: 2.000 registros).
+            No hay stock disponible que coincida con los filtros (tope de presentación: 2.000 registros).
         </p>
     @else
         <p class="muted">
-            La réplica local no contiene información en este momento. El sistema intentará obtener el día de operación
-            desde el origen corporativo de forma automática; si el listado permanece vacío, verifique conectividad,
-            permisos y parámetros de integración.
+            No hay lenguas disponibles en la réplica local. El sistema sincroniza el día de operación desde el origen
+            corporativo automáticamente; si el listado permanece vacío, verifique conectividad e integración.
         </p>
     @endif
 @else
     <p class="muted" style="margin: 0 0 0.75rem">
-        Se listan <strong>{{ $rows->count() }}</strong> registro(s) conforme a los criterios activos (tope de
-        visualización: 2.000).
+        Stock disponible: <strong>{{ $rows->count() }}</strong> registro(s)
+        @if (! empty($filtrosActivos))
+            (con filtros activos)
+        @endif
+        · tope de visualización: 2.000.
     </p>
     <div class="table-wrap">
         <table class="data">
@@ -52,7 +54,12 @@
                         $celAlerta = $esVencida ? 'cel-vencida' : ($esPorVencer ? 'cel-por-vencer' : '');
                     @endphp
                     <tr @class(['row-vencida' => $esVencida, 'row-por-vencer' => $esPorVencer])>
-                        <td @class(['col-id-producto', $celAlerta => $celAlerta !== ''])>{{ $row->id_producto }}</td>
+                        <td @class(['col-id-producto', $celAlerta => $celAlerta !== ''])>
+                            {{ $row->id_producto }}
+                            @if (! empty($row->es_adicional))
+                                <span class="chip-adicional">Adicional</span>
+                            @endif
+                        </td>
                         <td>{{ $row->fecha_registro?->format('Y-m-d') ?? '—' }}</td>
                         <td>{{ $row->hora_registro ?? '—' }}</td>
                         <td>{{ $row->propietario ?? '—' }}</td>

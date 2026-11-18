@@ -40,6 +40,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = $request->user();
+        if ($user !== null && $user->must_change_password) {
+            return redirect()->route('password.change');
+        }
+
         return redirect()->intended(route('menu'));
     }
 

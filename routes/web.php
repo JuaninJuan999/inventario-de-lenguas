@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ForcedPasswordChangeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Decomisos\InspeccionSirtController;
 use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Inventario\InventarioLenguasController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\ObservatorioController;
 use App\Http\Controllers\Usuarios\GestionUsuariosController;
+use App\Http\Controllers\Usuarios\PerfilController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -33,12 +35,27 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/cambiar-contrasena', [ForcedPasswordChangeController::class, 'edit'])->name('password.change');
+    Route::post('/cambiar-contrasena', [ForcedPasswordChangeController::class, 'update'])->name('password.change.update');
+
     Route::get('/menu', MenuController::class)->name('menu');
 
+    Route::get('/mi-perfil', [PerfilController::class, 'edit'])->name('perfil.edit');
+    Route::put('/mi-perfil', [PerfilController::class, 'update'])->name('perfil.update');
+
+    /*
+     | Gestión de usuarios (solo super_admin activo).
+     | Incluye editar, restablecer contraseña (= username + must_change_password) e inactivar.
+     | Tras desplegar: migrate (must_change_password, avatar_path) y ver README → Despliegue.
+     */
     Route::middleware('can.manage.users')->group(function () {
         Route::get('/gestion-de-usuarios/crear', [GestionUsuariosController::class, 'create'])->name('gestion.usuarios.create');
         Route::get('/gestion-de-usuarios', [GestionUsuariosController::class, 'index'])->name('gestion.usuarios.index');
         Route::post('/gestion-de-usuarios', [GestionUsuariosController::class, 'store'])->name('gestion.usuarios.store');
+        Route::get('/gestion-de-usuarios/{user}/editar', [GestionUsuariosController::class, 'edit'])->name('gestion.usuarios.edit');
+        Route::put('/gestion-de-usuarios/{user}', [GestionUsuariosController::class, 'update'])->name('gestion.usuarios.update');
+        Route::post('/gestion-de-usuarios/{user}/restablecer-contrasena', [GestionUsuariosController::class, 'resetPassword'])
+            ->name('gestion.usuarios.reset_password');
         Route::post('/gestion-de-usuarios/{user}/inactivar', [GestionUsuariosController::class, 'inactivar'])
             ->name('gestion.usuarios.inactivar');
         Route::post('/gestion-de-usuarios/{user}/activar', [GestionUsuariosController::class, 'activar'])
