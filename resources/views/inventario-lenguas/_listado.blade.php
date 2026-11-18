@@ -45,16 +45,22 @@
             </thead>
             <tbody>
                 @foreach ($rows as $row)
-                    <tr>
-                        <td class="col-id-producto">{{ $row->id_producto }}</td>
+                    @php
+                        $diasVida = \App\Support\VencimientoLengua::diasHastaVencimiento($row->fecha_registro);
+                        $esVencida = $diasVida !== null && $diasVida < 0;
+                        $esPorVencer = $diasVida !== null && $diasVida >= 0 && $diasVida <= 1;
+                        $celAlerta = $esVencida ? 'cel-vencida' : ($esPorVencer ? 'cel-por-vencer' : '');
+                    @endphp
+                    <tr @class(['row-vencida' => $esVencida, 'row-por-vencer' => $esPorVencer])>
+                        <td @class(['col-id-producto', $celAlerta => $celAlerta !== ''])>{{ $row->id_producto }}</td>
                         <td>{{ $row->fecha_registro?->format('Y-m-d') ?? '—' }}</td>
                         <td>{{ $row->hora_registro ?? '—' }}</td>
                         <td>{{ $row->propietario ?? '—' }}</td>
                         <td>{{ $row->destino !== null && $row->destino !== '' ? $row->destino : '—' }}</td>
                         <td>{{ \App\Support\PesoFormatter::mostrar($row->peso) }}</td>
                         <td>{{ $row->fecha_turno_referencia?->format('Y-m-d') ?? '—' }}</td>
-                        <td>{{ \App\Support\VencimientoLengua::fechaVencimientoTexto($row->fecha_registro) }}</td>
-                        <td>{{ \App\Support\VencimientoLengua::diasHastaVencimientoTexto($row->fecha_registro) }}</td>
+                        <td @class([$celAlerta => $celAlerta !== ''])>{{ \App\Support\VencimientoLengua::fechaVencimientoTexto($row->fecha_registro) }}</td>
+                        <td @class([$celAlerta => $celAlerta !== ''])>{{ \App\Support\VencimientoLengua::diasHastaVencimientoTexto($row->fecha_registro) }}</td>
                     </tr>
                 @endforeach
             </tbody>

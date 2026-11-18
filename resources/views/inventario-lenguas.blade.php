@@ -174,6 +174,22 @@
             table.data td.col-id-producto {
                 white-space: nowrap;
             }
+            table.data td.cel-vencida,
+            table.data td.cel-vencida.col-id-producto {
+                color: #ff8f8f;
+                font-weight: 800;
+            }
+            table.data tr.row-vencida > td {
+                background: color-mix(in srgb, #ff4d4d 12%, transparent);
+            }
+            table.data td.cel-por-vencer,
+            table.data td.cel-por-vencer.col-id-producto {
+                color: #ffc56e;
+                font-weight: 800;
+            }
+            table.data tr.row-por-vencer > td {
+                background: color-mix(in srgb, #ffb020 10%, transparent);
+            }
             .muted {
                 margin: 0;
                 font-size: 0.85rem;
