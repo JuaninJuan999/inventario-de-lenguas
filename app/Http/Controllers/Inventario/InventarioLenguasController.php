@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventario;
 use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Services\IngresosLenguas\IngresosLenguasConsultaSirt;
+use App\Services\Inventario\InventarioLenguasSynchronizer;
 use App\Support\PesoFormatter;
 use App\Support\SimpleXlsxWriter;
 use App\Support\VencimientoLengua;
@@ -18,12 +19,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as ValidatorInstance;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Throwable;
 
 class InventarioLenguasController extends Controller
 {
     public function __construct(
-        protected IngresosLenguasConsultaSirt $consultaSirt
+        protected IngresosLenguasConsultaSirt $consultaSirt,
+        protected InventarioLenguasSynchronizer $synchronizer,
     ) {}
 
     public function index(Request $request): View
@@ -34,26 +35,23 @@ class InventarioLenguasController extends Controller
         }
 
         $payload = $this->inventarioListadoPayload($request);
+        $syncMeta = $this->synchronizer->meta();
 
-        if ($payload['validator']->fails()) {
-            return view('inventario-lenguas', [
-                'rows' => $payload['rows'],
-                'filters' => $payload['filters'],
-                'filtrosActivos' => $payload['filtrosActivos'],
-                'listadoEmptyHint' => $payload['listadoEmptyHint'],
-                'inventarioSyncIntervalSeconds' => $interval,
-                'hoyOperacion' => $this->consultaSirt->fechaHoyOperacion(),
-            ])->withErrors($payload['validator']);
-        }
-
-        return view('inventario-lenguas', [
+        $viewData = [
             'rows' => $payload['rows'],
             'filters' => $payload['filters'],
             'filtrosActivos' => $payload['filtrosActivos'],
             'listadoEmptyHint' => $payload['listadoEmptyHint'],
             'inventarioSyncIntervalSeconds' => $interval,
             'hoyOperacion' => $this->consultaSirt->fechaHoyOperacion(),
-        ]);
+            'inventarioSyncMeta' => $syncMeta,
+        ];
+
+        if ($payload['validator']->fails()) {
+            return view('inventario-lenguas', $viewData)->withErrors($payload['validator']);
+        }
+
+        return view('inventario-lenguas', $viewData);
     }
 
     public function exportExcel(Request $request): StreamedResponse|RedirectResponse
@@ -116,12 +114,15 @@ class InventarioLenguasController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'ok' => $outcome['success'],
+                'hit_limit' => (bool) ($outcome['hit_limit'] ?? false),
+                'limite' => $outcome['limite'] ?? null,
                 'html' => view('inventario-lenguas._listado', [
                     'rows' => $payload['rows'],
                     'importMessage' => $outcome['success'] ? $outcome['message'] : null,
                     'importError' => $outcome['success'] ? null : $outcome['message'],
                     'filtrosActivos' => $payload['filtrosActivos'],
                     'listadoEmptyHint' => $payload['listadoEmptyHint'],
+                    'inventarioSyncMeta' => $this->synchronizer->meta(),
                 ])->render(),
             ]);
         }
@@ -165,6 +166,13 @@ class InventarioLenguasController extends Controller
         $fechas = $this->normalizarFechasTurnoInventario($request);
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
+
+        // Por defecto: día de operación (alinea listado con la sync SIRT del día).
+        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '' && ! $request->boolean('todos')) {
+            $hoy = $this->consultaSirt->fechaHoyOperacion();
+            $fechaDesdeTrim = $hoy;
+            $fechaHastaTrim = $hoy;
+        }
 
         $filters = [
             'fecha_desde' => $fechaDesdeTrim,
@@ -342,143 +350,28 @@ class InventarioLenguasController extends Controller
     }
 
     /**
-     * @return array{success: bool, message: string}
+     * @return array{success: bool, message: string, hit_limit?: bool, limite?: int}
      */
     private function importarDesdeHoyInterno(Request $request): array
     {
-        if (! $this->consultaSirt->externalPostgresEnabled()) {
-            return [
-                'success' => false,
-                'message' => 'Configure la conexión SIRT/Colbeef en .env para importar.',
-            ];
-        }
-
-        $connection = (string) config('ingresos_lenguas.connection');
-        if ($connection === '') {
-            return [
-                'success' => false,
-                'message' => 'Conexión no configurada (ingresos_lenguas.connection).',
-            ];
-        }
-
-        $hoy = $this->consultaSirt->fechaHoyOperacion();
-
         $fechas = $this->normalizarFechasTurnoInventario($request);
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
 
-        $useRangoTurno = false;
-        if ($fechaDesdeTrim !== '' && $fechaHastaTrim !== '') {
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaDesdeTrim) === 1
-                && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaHastaTrim) === 1
-                && $fechaDesdeTrim <= $fechaHastaTrim) {
-                $useRangoTurno = true;
-            }
+        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '' && ! $request->boolean('todos')) {
+            $hoy = $this->consultaSirt->fechaHoyOperacion();
+            $fechaDesdeTrim = $hoy;
+            $fechaHastaTrim = $hoy;
         }
 
-        $primeraCarga = ! $useRangoTurno;
-        $fechaSqlDesde = $useRangoTurno ? $fechaDesdeTrim : '';
-        $fechaSqlHasta = $useRangoTurno ? $fechaHastaTrim : '';
-
-        $filters = [
-            'id_producto' => substr($request->string('id_producto')->trim()->toString(), 0, 80),
-            'propietario' => substr($request->string('propietario')->trim()->toString(), 0, 200),
-        ];
-
-        $result = $this->consultaSirt->consultar(
-            $connection,
-            $hoy,
-            $primeraCarga,
-            $fechaSqlDesde,
-            $fechaSqlHasta,
-            $filters,
-            true,
+        return $this->synchronizer->sync(
+            $fechaDesdeTrim !== '' ? $fechaDesdeTrim : null,
+            $fechaHastaTrim !== '' ? $fechaHastaTrim : null,
+            [
+                'id_producto' => substr($request->string('id_producto')->trim()->toString(), 0, 80),
+                'propietario' => substr($request->string('propietario')->trim()->toString(), 0, 200),
+            ],
+            $request->user()?->id,
         );
-
-        if ($result['exception'] instanceof Throwable) {
-            report($result['exception']);
-            $message = 'No se pudo leer desde SIRT. Revise conexión y permisos.';
-            if (config('app.debug')) {
-                $message .= ' Detalle: '.$result['exception']->getMessage();
-            }
-
-            return [
-                'success' => false,
-                'message' => $message,
-            ];
-        }
-
-        $userId = $request->user()?->id;
-        $importados = 0;
-
-        try {
-            $fechaTurnoFallback = $useRangoTurno ? $fechaHastaTrim : $hoy;
-
-            DB::transaction(function () use ($result, $userId, &$importados, $fechaTurnoFallback): void {
-                foreach ($result['rows'] as $row) {
-                    $r = (array) $row;
-                    $insId = (int) ($r['insensibilizacion_id'] ?? 0);
-                    if ($insId <= 0) {
-                        continue;
-                    }
-
-                    $fechaReg = $r['fecha_registro'] ?? null;
-                    if ($fechaReg instanceof \DateTimeInterface) {
-                        $fechaReg = $fechaReg->format('Y-m-d');
-                    }
-
-                    $hora = $r['hora_registro'] ?? null;
-                    if ($hora instanceof \DateTimeInterface) {
-                        $hora = $hora->format('H:i:s');
-                    }
-
-                    $fechaTurnoRef = $r['fecha_turno_referencia'] ?? null;
-                    if ($fechaTurnoRef instanceof \DateTimeInterface) {
-                        $fechaTurnoRef = $fechaTurnoRef->format('Y-m-d');
-                    } elseif (is_string($fechaTurnoRef)) {
-                        $fechaTurnoRef = trim($fechaTurnoRef);
-                        $fechaTurnoRef = $fechaTurnoRef !== '' ? $fechaTurnoRef : null;
-                    } else {
-                        $fechaTurnoRef = null;
-                    }
-
-                    IngresoLenguaLocal::query()->updateOrCreate(
-                        ['insensibilizacion_id' => $insId],
-                        [
-                            'id_producto' => (string) ($r['id_producto'] ?? ''),
-                            'fecha_registro' => $fechaReg,
-                            'hora_registro' => $hora !== null && $hora !== '' ? (string) $hora : null,
-                            'propietario' => isset($r['propietario']) ? (string) $r['propietario'] : null,
-                            'destino' => isset($r['destino']) ? (string) $r['destino'] : null,
-                            'peso' => isset($r['peso']) && $r['peso'] !== '' ? $r['peso'] : null,
-                            'fecha_turno_referencia' => $fechaTurnoRef ?? $fechaTurnoFallback,
-                            'imported_at' => now(),
-                            'user_id' => $userId,
-                        ],
-                    );
-                    $importados++;
-                }
-            });
-        } catch (Throwable $e) {
-            report($e);
-
-            return [
-                'success' => false,
-                'message' => 'Error al guardar en la base local.',
-            ];
-        }
-
-        $limiteConsulta = max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000)));
-        $msg = $useRangoTurno
-            ? "Sincronización SIRT (ref. turno {$fechaDesdeTrim} a {$fechaHastaTrim}): {$importados} registro(s) actualizados o creados en la réplica local."
-            : "Importación del día de operación ({$hoy}): {$importados} registro(s) actualizados o creados.";
-        if ($importados >= $limiteConsulta) {
-            $msg .= " Aviso: se alcanzó el tope de filas por consulta ({$limiteConsulta}); si faltan códigos, aumente INGRESOS_LENGUAS_CONSULTA_LIMIT o acote fechas/propietario.";
-        }
-
-        return [
-            'success' => true,
-            'message' => $msg,
-        ];
     }
 }

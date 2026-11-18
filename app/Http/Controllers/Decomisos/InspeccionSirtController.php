@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DecomisoManual;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
+use App\Support\DespachoInventarioMatch;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -222,21 +223,21 @@ SQL;
             $nombreEnfermedad = null;
         }
 
-        $ingreso = IngresoLenguaLocal::query()
-            ->sinDespachar()
-            ->where('id_producto', $idProducto)
-            ->orderByDesc('imported_at')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($ingreso === null) {
-            return back()
-                ->withInput()
-                ->withErrors(['id_producto' => 'No hay una lengua disponible en inventario local con ese id de producto.']);
-        }
-
         try {
-            DB::transaction(function () use ($request, $idProducto, $nombreDictamen, $nombreEnfermedad, $ingreso): void {
+            $ok = false;
+            DB::transaction(function () use ($request, $idProducto, $nombreDictamen, $nombreEnfermedad, &$ok): void {
+                $ingreso = DespachoInventarioMatch::findAvailableRow($idProducto);
+                if ($ingreso !== null) {
+                    $ingreso = IngresoLenguaLocal::query()
+                        ->whereKey($ingreso->id)
+                        ->lockForUpdate()
+                        ->first();
+                }
+
+                if ($ingreso === null) {
+                    return;
+                }
+
                 $ahora = now();
 
                 DecomisoManual::query()->create([
@@ -252,7 +253,14 @@ SQL;
                 $ingreso->despachado_at = $ahora;
                 $ingreso->despacho_id = null;
                 $ingreso->save();
+                $ok = true;
             });
+
+            if (! $ok) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['id_producto' => 'No hay una lengua disponible en inventario local con ese id de producto.']);
+            }
         } catch (Throwable $e) {
             report($e);
 
@@ -441,12 +449,13 @@ SQL,
             DB::transaction(function () use ($ids, &$removed): void {
                 $realizadoAt = now();
                 foreach ($ids as $idProducto) {
-                    $row = IngresoLenguaLocal::query()
-                        ->sinDespachar()
-                        ->where('id_producto', $idProducto)
-                        ->orderByDesc('imported_at')
-                        ->orderByDesc('id')
-                        ->first();
+                    $row = DespachoInventarioMatch::findAvailableRow($idProducto);
+                    if ($row !== null) {
+                        $row = IngresoLenguaLocal::query()
+                            ->whereKey($row->id)
+                            ->lockForUpdate()
+                            ->first();
+                    }
 
                     if ($row === null) {
                         continue;

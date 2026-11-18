@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Desposte;
 use App\Http\Controllers\Controller;
 use App\Models\Desposte;
 use App\Models\IngresoLenguaLocal;
+use App\Support\DespachoInventarioMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,12 +41,13 @@ class DesposteFinalizarInventarioController extends Controller
                         continue;
                     }
 
-                    $row = IngresoLenguaLocal::query()
-                        ->sinDespachar()
-                        ->where('id_producto', $codigo)
-                        ->orderByDesc('imported_at')
-                        ->orderByDesc('id')
-                        ->first();
+                    $row = DespachoInventarioMatch::findAvailableRow($codigo);
+                    if ($row !== null) {
+                        $row = IngresoLenguaLocal::query()
+                            ->whereKey($row->id)
+                            ->lockForUpdate()
+                            ->first();
+                    }
 
                     if ($row === null) {
                         $notFound[] = $codigo;

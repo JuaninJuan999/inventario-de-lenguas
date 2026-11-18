@@ -196,6 +196,9 @@ SQL;
         string $fechaHastaTrim,
         array $filters,
         bool $incluirIdInsensibilizacion = false,
+        ?int $despuesDeInsensibilizacionId = null,
+        ?int $antesDeInsensibilizacionId = null,
+        bool $ordenAscendente = false,
     ): array {
         $idParteProducto = (int) config('ingresos_lenguas.id_parte_producto', 4);
         $insLimit = max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000)));
@@ -237,6 +240,18 @@ SQL;
             $cteExtraBindings[] = '%'.$propietarioBusqueda.'%';
         }
 
+        if ($despuesDeInsensibilizacionId !== null && $despuesDeInsensibilizacionId > 0) {
+            $cteExtraWhere .= ' AND ins.id > ?';
+            $cteExtraBindings[] = $despuesDeInsensibilizacionId;
+        }
+
+        if ($antesDeInsensibilizacionId !== null && $antesDeInsensibilizacionId > 0) {
+            $cteExtraWhere .= ' AND ins.id < ?';
+            $cteExtraBindings[] = $antesDeInsensibilizacionId;
+        }
+
+        $orderDir = $ordenAscendente ? 'ASC' : 'DESC';
+
         $colIdIns = $incluirIdInsensibilizacion ? "    i.id AS insensibilizacion_id,\n" : '';
         $colFechaTurnoRef = '';
         if ($incluirIdInsensibilizacion) {
@@ -249,7 +264,7 @@ WITH ins_filtrada AS (
     SELECT ins.id, ins.id_producto, ins.fecha_registro, ins.hora_registro
     FROM trazabilidad_proceso.insensibilizacion ins
     WHERE {$turnoExists}{$cteExtraWhere}
-    ORDER BY ins.id DESC
+    ORDER BY ins.id {$orderDir}
     LIMIT {$insLimit}
 )
 SELECT
@@ -302,7 +317,7 @@ LEFT JOIN LATERAL (
     ORDER BY ppp.id_proceso DESC, ppp.id_parte_producto DESC, ppp.id_producto DESC
     LIMIT 1
 ) pp_peso ON true
-ORDER BY i.id DESC
+ORDER BY i.id {$orderDir}
 SQL;
 
         $countSql = <<<SQL

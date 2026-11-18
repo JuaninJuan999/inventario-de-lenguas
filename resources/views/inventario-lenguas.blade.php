@@ -453,12 +453,22 @@
                         class="btn-clear"
                         href="{{ route('inventario.lenguas', ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
                     >Solo hoy (ref. turno)</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas', ['todos' => 1]) }}">Ver todos</a>
                 </div>
             </form>
 
             @if ($errors->any())
                 <p class="alert alert--err" role="alert">
                     Los criterios de consulta no cumplen las reglas de validación; corrija los campos señalados.
+                </p>
+            @endif
+
+            @if (! empty($inventarioSyncMeta['hit_limit']))
+                <p class="alert alert--err" id="inv-sync-limit-alert" role="status">
+                    La última sincronización alcanzó el tope de
+                    <strong>{{ (int) ($inventarioSyncMeta['limite'] ?? 2000) }}</strong>
+                    filas por consulta a SIRT. Pueden faltar lenguas; aumente
+                    <code>INGRESOS_LENGUAS_CONSULTA_LIMIT</code> o acote el rango. El scheduler seguirá recuperando lotes antiguos en corridas siguientes.
                 </p>
             @endif
 
@@ -469,6 +479,7 @@
                     'importError' => session('import_error'),
                     'filtrosActivos' => $filtrosActivos,
                     'listadoEmptyHint' => $listadoEmptyHint,
+                    'inventarioSyncMeta' => $inventarioSyncMeta ?? null,
                 ])
             </div>
         </section>

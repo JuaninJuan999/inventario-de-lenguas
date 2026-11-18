@@ -56,4 +56,11 @@ return [
     */
     'inventario_sync_interval_seconds' => (int) env('INVENTARIO_LENGUAS_SYNC_INTERVAL', 120),
 
+    /*
+    | Scheduler: minutos entre cada inventario:sync-lenguas en segundo plano.
+    | 0 = no programar el comando (solo sync manual / vista abierta).
+    | Requiere que el schedule de Laravel esté activo (cron o php artisan schedule:work).
+    */
+    'inventario_schedule_minutes' => (int) env('INVENTARIO_LENGUAS_SCHEDULE_MINUTES', 10),
+
 ];
