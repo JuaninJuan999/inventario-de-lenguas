@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Decomisos\InspeccionSirtController;
 use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
 use App\Http\Controllers\Despacho\DespachoLenguasController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Ingresos\IngresosLenguasController;
 use App\Http\Controllers\Inventario\CambiosDestinosController;
 use App\Http\Controllers\Inventario\InventarioLenguasController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\ObservatorioController;
 use App\Http\Controllers\Usuarios\GestionUsuariosController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,7 +48,11 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('module:dashboard')->group(function () {
-        Route::view('/dashboard', 'dashboard')->name('dashboard');
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    });
+
+    Route::middleware('module:observatorio')->group(function () {
+        Route::get('/observatorio', ObservatorioController::class)->name('observatorio');
     });
 
     Route::middleware('module:inventario')->group(function () {
@@ -61,6 +67,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/cambios-de-destinos', [CambiosDestinosController::class, 'index'])->name('cambios.destinos');
         Route::patch('/cambios-de-destinos/{ingreso}', [CambiosDestinosController::class, 'update'])->name('cambios.destinos.update');
         Route::post('/cambios-de-destinos/masivo', [CambiosDestinosController::class, 'bulkUpdate'])->name('cambios.destinos.bulk');
+        Route::post('/cambios-de-destinos/marcar-adicional', [CambiosDestinosController::class, 'marcarAdicional'])
+            ->name('cambios.destinos.marcar_adicional');
+        Route::post('/cambios-de-destinos/adicionales-masivo', [CambiosDestinosController::class, 'bulkAdicionales'])
+            ->name('cambios.destinos.adicionales_bulk');
     });
 
     Route::middleware('module:ingresos')->group(function () {

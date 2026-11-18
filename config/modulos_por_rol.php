@@ -6,14 +6,15 @@
  * El menú principal lee textos y rutas desde las tablas locales `modulos` y `role_modulo`
  * (sembradas desde esta lista). Tras editar roles aquí: ejecute `php artisan modulos:sync-matriz`.
  *
- * Claves: dashboard, gestion_usuarios, inventario, cambios_destinos, ingresos, despacho, desposte,
- *          historial, entrega, decomisos
+ * Claves: dashboard, gestion_usuarios, observatorio, inventario, cambios_destinos, ingresos, despacho,
+ *          desposte, historial, entrega, decomisos
  */
 return [
     'roles' => [
         'super_admin' => [
             'dashboard',
             'gestion_usuarios',
+            'observatorio',
             'inventario',
             'cambios_destinos',
             'ingresos',

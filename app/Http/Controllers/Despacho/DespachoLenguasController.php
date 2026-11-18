@@ -73,18 +73,50 @@ class DespachoLenguasController extends Controller
 
         $base = $this->buildBaseViewData((int) $vehiculo->id_vehiculo_asignado);
 
+        $placaPrefill = trim((string) ($vehiculo->placa_vehiculo ?? ''));
+        $empresaPrefill = $this->resolverOperadorPorPlaca(
+            $placaPrefill,
+            trim((string) ($vehiculo->empresa ?? '')),
+            $base['operadorPlacaFilas'] ?? [],
+        );
+
         $checklistTotalConInv = count(array_filter($checklistLines, static fn (array $l): bool => $l['en_inventario']));
         $checklistSinInv = count(array_filter($checklistLines, static fn (array $l): bool => ! $l['en_inventario']));
 
         return view('despacho-lenguas', array_merge($base, [
             'checklistMode' => true,
-            'vehiculoEmpresaChecklist' => '',
-            'vehiculoPlacaChecklist' => '',
+            'vehiculoEmpresaChecklist' => $empresaPrefill,
+            'vehiculoPlacaChecklist' => $placaPrefill,
+            // Conductor siempre manual: quien despacha lo elige del listado o lo escribe.
             'vehiculoConductorChecklist' => '',
             'checklistLines' => $checklistLines,
             'checklistTotalConInventario' => $checklistTotalConInv,
             'checklistSinInventarioCount' => $checklistSinInv,
         ]));
+    }
+
+    /**
+     * Prefiere el operador del catálogo local (despacho_operador_placas) según la placa;
+     * si no hay coincidencia, usa el nombre de empresa que venga de Colbeef.
+     *
+     * @param  list<array{placa: string, operador: string}>  $filas
+     */
+    private function resolverOperadorPorPlaca(string $placa, string $empresaColbeef, array $filas): string
+    {
+        $placaNorm = strtoupper(preg_replace('/[\s\-]+/', '', $placa) ?? '');
+        if ($placaNorm !== '') {
+            foreach ($filas as $fila) {
+                $p = strtoupper(preg_replace('/[\s\-]+/', '', (string) ($fila['placa'] ?? '')) ?? '');
+                if ($p !== '' && $p === $placaNorm) {
+                    $op = trim((string) ($fila['operador'] ?? ''));
+                    if ($op !== '') {
+                        return $op;
+                    }
+                }
+            }
+        }
+
+        return $empresaColbeef;
     }
 
     /**

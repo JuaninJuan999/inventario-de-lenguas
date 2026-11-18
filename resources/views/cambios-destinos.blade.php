@@ -131,12 +131,109 @@
                 border: 1px solid color-mix(in srgb, var(--brand-green) 35%, rgba(0, 0, 0, 0.55));
                 background: rgba(4, 14, 11, 0.92);
             }
+            .filtros-field--check {
+                display: flex;
+                align-items: flex-end;
+                padding-bottom: 0.15rem;
+            }
+            .check-adicionales {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.45rem;
+                font-size: 0.8rem;
+                font-weight: 600;
+                cursor: pointer;
+                user-select: none;
+            }
+            .check-adicionales input {
+                width: 1rem;
+                height: 1rem;
+                accent-color: var(--brand-green);
+                cursor: pointer;
+            }
             .filtros-actions {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 0.5rem 0.65rem;
                 align-items: center;
                 margin-top: 0.85rem;
+            }
+            .btn-marcar-adicional {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 0.9rem;
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #2a1024;
+                border: 1px solid color-mix(in srgb, var(--brand-rose) 55%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, var(--brand-rose), color-mix(in srgb, var(--brand-rose) 70%, #c48bb8));
+            }
+            .btn-marcar-adicional:hover {
+                filter: brightness(1.05);
+            }
+            .btn-desmarcar-adicional {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 0.75rem;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+                color: var(--text);
+                border: 1px solid color-mix(in srgb, var(--text) 28%, transparent);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: rgba(0, 0, 0, 0.28);
+            }
+            .btn-desmarcar-adicional:hover {
+                border-color: color-mix(in srgb, var(--brand-rose) 50%, transparent);
+            }
+            .chip-adicional {
+                display: inline-block;
+                margin-left: 0.35rem;
+                padding: 0.12rem 0.4rem;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                border-radius: 9999px;
+                color: #2a1024;
+                background: color-mix(in srgb, var(--brand-rose) 82%, #fff);
+                vertical-align: middle;
+            }
+            tr.row-adicional > td {
+                background: color-mix(in srgb, var(--brand-rose) 8%, transparent);
+            }
+            .col-check {
+                width: 2.2rem;
+                text-align: center;
+                vertical-align: middle;
+            }
+            .col-check input {
+                width: 1rem;
+                height: 1rem;
+                accent-color: var(--brand-green);
+                cursor: pointer;
+            }
+            .adicionales-bulk-bar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.45rem 0.65rem;
+                margin: 0 0 0.75rem;
+            }
+            .adicionales-bulk-bar .sel-count {
+                margin: 0;
+                font-size: 0.78rem;
+                color: color-mix(in srgb, var(--text) 68%, transparent);
             }
             .btn-filtrar {
                 display: inline-flex;
@@ -345,9 +442,9 @@
             <div>
                 <h1>Cambios de destinos</h1>
                 <p class="sub">
-                    Busque filas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>
-                    y/o <strong>propietario</strong>; edite los destinos y use <strong>Guardar destinos pendientes</strong>
-                    para aplicar varios cambios a la vez. Las filas modificadas se subrayan.
+                    Busque filas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>,
+                    <strong>propietario</strong> o <strong>solo adicionales</strong>; edite destinos y, si aplica,
+                    marque adicionales en el listado.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -388,6 +485,18 @@
                             placeholder="Parcial o completo"
                         />
                     </div>
+                    <div class="filtros-field filtros-field--check">
+                        <label class="check-adicionales" for="filtro-solo-adicionales">
+                            <input
+                                id="filtro-solo-adicionales"
+                                type="checkbox"
+                                name="solo_adicionales"
+                                value="1"
+                                @checked(! empty($filters['solo_adicionales']))
+                            />
+                            Solo etiquetados como adicionales
+                        </label>
+                    </div>
                 </div>
                 <div class="filtros-actions">
                     <button type="submit" class="btn-filtrar">Buscar en inventario</button>
@@ -413,9 +522,9 @@
 
             @if (! $filtrosActivos)
                 <p class="muted">
-                    Indique al menos un criterio (<strong>ID producto</strong> o <strong>propietario</strong>) y pulse
-                    <strong>Buscar en inventario</strong>. Solo se listan lenguas aún disponibles (no despachadas). Máximo
-                    {{ $listadoLimit }} filas por consulta.
+                    Indique un criterio (<strong>ID producto</strong>, <strong>propietario</strong> o
+                    <strong>solo adicionales</strong>) y pulse <strong>Buscar en inventario</strong>. Solo se listan
+                    lenguas aún disponibles (no despachadas). Máximo {{ $listadoLimit }} filas por consulta.
                 </p>
             @elseif ($rows->isEmpty())
                 <p class="muted">
@@ -425,8 +534,12 @@
                 </p>
             @else
                 <p class="muted">
-                    <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s). Edite uno o varios destinos; al
-                    pasar al siguiente, la fila queda <strong>subrayada</strong> hasta que guarde los cambios pendientes.
+                    <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s)
+                    @if (! empty($filters['solo_adicionales']))
+                        (solo adicionales)
+                    @endif
+                    . Edite destinos o marque/desmarque adicionales; las filas de destino modificadas quedan
+                    <strong>subrayadas</strong> hasta guardar.
                 </p>
 
                 <div class="listado-filtro-rapido">
@@ -446,8 +559,31 @@
                         Mostrando <strong id="filtro-rapido-visibles">{{ $rows->count() }}</strong> de
                         <strong>{{ $rows->count() }}</strong>
                         · Editadas: <strong id="filtro-rapido-editadas">0</strong>
+                        · Adicionales: <strong>{{ $rows->where('es_adicional', true)->count() }}</strong>
                     </p>
                 </div>
+
+                <form
+                    id="form-adicionales-masivo"
+                    method="post"
+                    action="{{ route('cambios.destinos.adicionales_bulk') }}"
+                >
+                    @csrf
+                    <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
+                    <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
+                    @if (! empty($filters['solo_adicionales']))
+                        <input type="hidden" name="solo_adicionales" value="1" />
+                    @endif
+                    <div class="adicionales-bulk-bar">
+                        <button type="submit" name="accion" value="marcar" class="btn-marcar-adicional" id="btn-adicionales-marcar" disabled>
+                            Marcar seleccionados como adicional
+                        </button>
+                        <button type="submit" name="accion" value="desmarcar" class="btn-desmarcar-adicional" id="btn-adicionales-desmarcar" disabled>
+                            Quitar marca a seleccionados
+                        </button>
+                        <p class="sel-count" id="adicionales-sel-count">0 seleccionado(s)</p>
+                    </div>
+                </form>
 
                 <form
                     id="form-destinos-masivo"
@@ -458,11 +594,18 @@
                     @csrf
                     <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
                     <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
+                    @if (! empty($filters['solo_adicionales']))
+                        <input type="hidden" name="solo_adicionales" value="1" />
+                    @endif
 
                     <div class="table-wrap">
                         <table class="data">
                             <thead>
                                 <tr>
+                                    <th class="col-check" scope="col">
+                                        <label class="sr-only" for="check-todos-adicionales">Seleccionar todos</label>
+                                        <input type="checkbox" id="check-todos-adicionales" title="Seleccionar visibles" />
+                                    </th>
                                     <th class="col-producto">ID producto</th>
                                     <th class="col-prop">Propietario</th>
                                     <th>Ref. turno</th>
@@ -473,9 +616,29 @@
                                 @foreach ($rows as $row)
                                     @php
                                         $destinoValor = (string) ($row->destino ?? '');
+                                        $esAdicional = (bool) $row->es_adicional;
                                     @endphp
-                                    <tr data-row-id="{{ $row->id }}" data-id-producto="{{ strtolower($row->id_producto) }}">
-                                        <td class="col-producto">{{ $row->id_producto }}</td>
+                                    <tr
+                                        data-row-id="{{ $row->id }}"
+                                        data-id-producto="{{ strtolower($row->id_producto) }}"
+                                        @class(['row-adicional' => $esAdicional])
+                                    >
+                                        <td class="col-check">
+                                            <input
+                                                type="checkbox"
+                                                class="check-adicional-row"
+                                                form="form-adicionales-masivo"
+                                                name="ids[]"
+                                                value="{{ $row->id }}"
+                                                aria-label="Seleccionar {{ $row->id_producto }}"
+                                            />
+                                        </td>
+                                        <td class="col-producto">
+                                            {{ $row->id_producto }}
+                                            @if ($esAdicional)
+                                                <span class="chip-adicional">Adicional</span>
+                                            @endif
+                                        </td>
                                         <td class="col-prop">{{ $row->propietario !== null && $row->propietario !== '' ? $row->propietario : '—' }}</td>
                                         <td>
                                             {{ $row->fecha_turno_referencia?->format('d/m/Y') ?? '—' }}
@@ -599,6 +762,52 @@
                     var filtroRapido = document.getElementById('filtro-rapido-id');
                     var visiblesEl = document.getElementById('filtro-rapido-visibles');
                     var tbody = document.getElementById('tabla-destinos-body');
+                    var checkTodos = document.getElementById('check-todos-adicionales');
+                    var btnMarcarSel = document.getElementById('btn-adicionales-marcar');
+                    var btnDesmarcarSel = document.getElementById('btn-adicionales-desmarcar');
+                    var selCountEl = document.getElementById('adicionales-sel-count');
+                    var formAdicionales = document.getElementById('form-adicionales-masivo');
+
+                    function filasVisibles() {
+                        if (!tbody) {
+                            return [];
+                        }
+                        return Array.prototype.slice.call(
+                            tbody.querySelectorAll('tr[data-id-producto]:not(.row-filtrada-oculto)'),
+                        );
+                    }
+
+                    function refreshSeleccionAdicionales() {
+                        var n = 0;
+                        if (tbody) {
+                            tbody.querySelectorAll('tr[data-id-producto]:not(.row-filtrada-oculto) .check-adicional-row:checked').forEach(function () {
+                                n++;
+                            });
+                        }
+                        if (selCountEl) {
+                            selCountEl.textContent = n + ' seleccionado(s)';
+                        }
+                        if (btnMarcarSel) {
+                            btnMarcarSel.disabled = n === 0;
+                        }
+                        if (btnDesmarcarSel) {
+                            btnDesmarcarSel.disabled = n === 0;
+                        }
+                        if (checkTodos) {
+                            var visibles = filasVisibles();
+                            var checks = visibles
+                                .map(function (tr) {
+                                    return tr.querySelector('.check-adicional-row');
+                                })
+                                .filter(Boolean);
+                            var checked = checks.filter(function (c) {
+                                return c.checked;
+                            }).length;
+                            checkTodos.checked = checks.length > 0 && checked === checks.length;
+                            checkTodos.indeterminate = checked > 0 && checked < checks.length;
+                        }
+                    }
+
                     if (filtroRapido && tbody) {
                         function aplicarFiltroRapido() {
                             var q = String(filtroRapido.value || '')
@@ -612,15 +821,64 @@
                                 tr.classList.toggle('row-filtrada-oculto', !ok);
                                 if (ok) {
                                     visibles++;
+                                } else {
+                                    var cb = tr.querySelector('.check-adicional-row');
+                                    if (cb) {
+                                        cb.checked = false;
+                                    }
                                 }
                             });
                             if (visiblesEl) {
                                 visiblesEl.textContent = String(visibles);
                             }
+                            refreshSeleccionAdicionales();
                         }
                         filtroRapido.addEventListener('input', aplicarFiltroRapido);
                         filtroRapido.addEventListener('search', aplicarFiltroRapido);
                     }
+
+                    if (tbody) {
+                        tbody.addEventListener('change', function (e) {
+                            if (e.target && e.target.classList.contains('check-adicional-row')) {
+                                refreshSeleccionAdicionales();
+                            }
+                        });
+                    }
+
+                    if (checkTodos) {
+                        checkTodos.addEventListener('change', function () {
+                            var on = checkTodos.checked;
+                            filasVisibles().forEach(function (tr) {
+                                var cb = tr.querySelector('.check-adicional-row');
+                                if (cb) {
+                                    cb.checked = on;
+                                }
+                            });
+                            refreshSeleccionAdicionales();
+                        });
+                    }
+
+                    if (formAdicionales) {
+                        formAdicionales.addEventListener('submit', function (e) {
+                            var n = formAdicionales.querySelectorAll('.check-adicional-row:checked').length;
+                            if (n === 0) {
+                                e.preventDefault();
+                                alert('Seleccione al menos un código.');
+                                return;
+                            }
+                            var submitter = e.submitter;
+                            var accion = submitter && submitter.value ? submitter.value : 'marcar';
+                            var msg =
+                                accion === 'desmarcar'
+                                    ? '¿Quitar la marca de adicional a ' + n + ' código(s)?'
+                                    : '¿Marcar ' + n + ' código(s) como adicional?';
+                            if (!confirm(msg)) {
+                                e.preventDefault();
+                            }
+                        });
+                    }
+
+                    refreshSeleccionAdicionales();
                 })();
             </script>
         @endif

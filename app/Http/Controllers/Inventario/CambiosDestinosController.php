@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventario;
 use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
+use App\Support\DespachoInventarioMatch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,9 @@ class CambiosDestinosController extends Controller
         $idProducto = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $idProducto) ?? '';
         $idProducto = str_replace(['–', '—', '−'], '-', $idProducto);
         $propietario = substr($request->string('propietario')->trim()->toString(), 0, 200);
+        $soloAdicionales = $request->boolean('solo_adicionales');
 
-        $filtrosActivos = $idProducto !== '' || $propietario !== '';
+        $filtrosActivos = $idProducto !== '' || $propietario !== '' || $soloAdicionales;
 
         $rows = collect();
 
@@ -35,6 +37,8 @@ class CambiosDestinosController extends Controller
                 ->sinDespachar()
                 ->when($idProducto !== '', fn ($q) => $this->applyIdProductoFlexibleFilter($q, $op, $idProducto))
                 ->when($propietario !== '', fn ($q) => $q->where('propietario', $op, $patProp))
+                ->when($soloAdicionales, fn ($q) => $q->where('es_adicional', true))
+                ->orderByDesc('es_adicional')
                 ->orderByDesc('imported_at')
                 ->orderByDesc('id')
                 ->limit(self::LISTADO_LIMIT)
@@ -46,6 +50,7 @@ class CambiosDestinosController extends Controller
             'filters' => [
                 'id_producto' => $idProducto,
                 'propietario' => $propietario,
+                'solo_adicionales' => $soloAdicionales,
             ],
             'filtrosActivos' => $filtrosActivos,
             'listadoLimit' => self::LISTADO_LIMIT,
@@ -56,7 +61,7 @@ class CambiosDestinosController extends Controller
     {
         if ($ingreso->despachado_at !== null) {
             return redirect()
-                ->route('cambios.destinos', $request->only(['id_producto', 'propietario']))
+                ->route('cambios.destinos', $this->redirectQuery($request))
                 ->with('cambios_destinos_error', 'Esa lengua ya fue despachada; no puede modificarse el destino desde aquí.');
         }
 
@@ -64,6 +69,7 @@ class CambiosDestinosController extends Controller
             'destino' => ['nullable', 'string', 'max:60000'],
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
+            'solo_adicionales' => ['nullable', 'boolean'],
         ]);
 
         $destino = $validated['destino'] ?? null;
@@ -75,10 +81,7 @@ class CambiosDestinosController extends Controller
         $ingreso->update(['destino' => $destino]);
 
         return redirect()
-            ->route('cambios.destinos', [
-                'id_producto' => $validated['id_producto'] ?? '',
-                'propietario' => $validated['propietario'] ?? '',
-            ])
+            ->route('cambios.destinos', $this->redirectQueryFromValidated($validated))
             ->with('cambios_destinos_ok', 'Destino actualizado correctamente.');
     }
 
@@ -89,6 +92,7 @@ class CambiosDestinosController extends Controller
             'destinos.*' => ['nullable', 'string', 'max:60000'],
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
+            'solo_adicionales' => ['nullable', 'boolean'],
         ]);
 
         $updated = 0;
@@ -125,10 +129,7 @@ class CambiosDestinosController extends Controller
             $updated++;
         }
 
-        $query = [
-            'id_producto' => $validated['id_producto'] ?? '',
-            'propietario' => $validated['propietario'] ?? '',
-        ];
+        $query = $this->redirectQueryFromValidated($validated);
 
         if ($updated === 0) {
             $msg = 'No había cambios de destino distintos a los ya guardados.';
@@ -154,10 +155,113 @@ class CambiosDestinosController extends Controller
     }
 
     /**
-     * Misma idea que inventario ({@see InventarioLenguasController::ejecutarConsultaInventario}):
-     * solo `ILIKE` / `LIKE` con comodines, sin raw SQL frágil.
-     * Se añaden variantes OR (sin guiones, solo dígitos, guiones unicode) para formatos distintos en la columna.
-     *
+     * Escanea / escribe un código y lo marca (o desmarca) como adicional en inventario disponible.
+     */
+    public function marcarAdicional(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'codigo' => ['required', 'string', 'max:120'],
+            'accion' => ['nullable', 'in:marcar,desmarcar'],
+            'id_producto' => ['nullable', 'string', 'max:80'],
+            'propietario' => ['nullable', 'string', 'max:200'],
+            'solo_adicionales' => ['nullable', 'boolean'],
+        ]);
+
+        $accion = $validated['accion'] ?? 'marcar';
+        $marcar = $accion !== 'desmarcar';
+        $codigo = trim((string) $validated['codigo']);
+        $codigo = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $codigo) ?? '';
+        $codigo = DespachoInventarioMatch::normalizarGuionesIdProducto($codigo);
+
+        $query = $this->redirectQueryFromValidated($validated);
+
+        if ($codigo === '') {
+            return redirect()
+                ->route('cambios.destinos', $query)
+                ->with('cambios_destinos_error', 'Indique un código de producto para marcar como adicional.');
+        }
+
+        $ingreso = DespachoInventarioMatch::findAvailableRow($codigo);
+
+        if ($ingreso === null) {
+            return redirect()
+                ->route('cambios.destinos', $query + ['id_producto' => $codigo])
+                ->with(
+                    'cambios_destinos_error',
+                    "No hay inventario disponible (sin despachar) para el código «{$codigo}»."
+                );
+        }
+
+        if ((bool) $ingreso->es_adicional === $marcar) {
+            $msg = $marcar
+                ? "«{$ingreso->id_producto}» ya estaba marcado como adicional."
+                : "«{$ingreso->id_producto}» no tenía marca de adicional.";
+
+            return redirect()
+                ->route('cambios.destinos', $query + ['id_producto' => (string) $ingreso->id_producto])
+                ->with('cambios_destinos_ok', $msg);
+        }
+
+        $ingreso->update(['es_adicional' => $marcar]);
+
+        $msg = $marcar
+            ? "Código «{$ingreso->id_producto}» marcado como adicional."
+            : "Se quitó la marca de adicional a «{$ingreso->id_producto}».";
+
+        return redirect()
+            ->route('cambios.destinos', $query + ['id_producto' => (string) $ingreso->id_producto])
+            ->with('cambios_destinos_ok', $msg);
+    }
+
+    /**
+     * Marca o desmarca varios IDs del listado como adicionales.
+     */
+    public function bulkAdicionales(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer', 'min:1'],
+            'accion' => ['required', 'in:marcar,desmarcar'],
+            'id_producto' => ['nullable', 'string', 'max:80'],
+            'propietario' => ['nullable', 'string', 'max:200'],
+            'solo_adicionales' => ['nullable', 'boolean'],
+        ]);
+
+        $marcar = $validated['accion'] === 'marcar';
+        $ids = array_values(array_unique(array_map('intval', $validated['ids'])));
+        $query = $this->redirectQueryFromValidated($validated);
+
+        $updated = IngresoLenguaLocal::query()
+            ->sinDespachar()
+            ->whereIn('id', $ids)
+            ->where('es_adicional', '!=', $marcar)
+            ->update(['es_adicional' => $marcar]);
+
+        if ($updated === 0) {
+            return redirect()
+                ->route('cambios.destinos', $query)
+                ->with(
+                    'cambios_destinos_error',
+                    $marcar
+                        ? 'Ninguna fila seleccionada cambió (ya estaban como adicionales o no están disponibles).'
+                        : 'Ninguna fila seleccionada tenía marca de adicional (o no están disponibles).'
+                );
+        }
+
+        $msg = $marcar
+            ? ($updated === 1
+                ? 'Se marcó 1 código como adicional.'
+                : "Se marcaron {$updated} códigos como adicionales.")
+            : ($updated === 1
+                ? 'Se quitó la marca de adicional a 1 código.'
+                : "Se quitó la marca de adicional a {$updated} códigos.");
+
+        return redirect()
+            ->route('cambios.destinos', $query)
+            ->with('cambios_destinos_ok', $msg);
+    }
+
+    /**
      * @param  Builder<IngresoLenguaLocal>  $query
      */
     private function applyIdProductoFlexibleFilter(Builder $query, string $op, string $idProducto): void
@@ -216,5 +320,35 @@ class CambiosDestinosController extends Controller
     private function likeOperator(): string
     {
         return DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+    }
+
+    /**
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int}
+     */
+    private function redirectQuery(Request $request): array
+    {
+        return $this->redirectQueryFromValidated([
+            'id_producto' => $request->input('id_producto'),
+            'propietario' => $request->input('propietario'),
+            'solo_adicionales' => $request->boolean('solo_adicionales'),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int}
+     */
+    private function redirectQueryFromValidated(array $validated): array
+    {
+        $query = [
+            'id_producto' => (string) ($validated['id_producto'] ?? ''),
+            'propietario' => (string) ($validated['propietario'] ?? ''),
+        ];
+
+        if (! empty($validated['solo_adicionales'])) {
+            $query['solo_adicionales'] = 1;
+        }
+
+        return $query;
     }
 }

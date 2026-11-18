@@ -79,6 +79,14 @@ class ModulosMatrizSynchronizer
                 'requires_manage_users' => true,
             ],
             [
+                'clave' => 'observatorio',
+                'nombre' => 'Observatorio',
+                'descripcion' => 'Usabilidad del sistema: qué módulos se usan, quién entra y con qué frecuencia (solo superadmin).',
+                'route_name' => 'observatorio',
+                'orden' => 18,
+                'requires_manage_users' => false,
+            ],
+            [
                 'clave' => 'inventario',
                 'nombre' => 'Inventario de Lenguas',
                 'descripcion' => 'Stock disponible en la base de datos local (réplica); puede sincronizarse desde SIRT cuando está configurado.',

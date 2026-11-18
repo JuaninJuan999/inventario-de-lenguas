@@ -746,9 +746,10 @@
                             pasan a <strong>verde (alistado)</strong> al leer un código que coincida y tenga inventario
                             local. Si necesita <strong>añadir</strong> una lengua que no estaba en la lista, al pulsar
                             <strong>Enter</strong> se agregará igual (inventario local). Use
-                            <strong class="hint-quitar">×</strong> para desmarcar. Antes de
-                            <strong>Terminar despacho</strong> elija usted <strong>operador, placa y conductor</strong> con
-                            los botones o a mano.
+                            <strong class="hint-quitar">×</strong> para desmarcar.
+                            <strong>Operador</strong> y <strong>placa</strong> se rellenan desde la placa elegida;
+                            elija el <strong>conductor</strong> con el botón o a mano antes de
+                            <strong>Terminar despacho</strong>.
                         @else
                             Escanee o escriba el código y pulse <strong>Enter</strong>. Si agregó uno por error, use la
                             <strong class="hint-quitar">×</strong> roja en la tabla para retirarlo de este despacho (sigue en
