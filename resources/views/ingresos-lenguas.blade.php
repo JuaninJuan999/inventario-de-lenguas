@@ -241,9 +241,10 @@
                 <p class="sub">
                     Consulta operativa de <strong>ingresos de lenguas</strong> sobre la base de trazabilidad: se
                     muestran identificador de producto, fecha y hora de insensibilización, titular del producto,
-                    destino logístico asociado y peso registrado. Los filtros permiten acotar por periodo de faena,
-                    identificador y nombre de titular; al abrir el módulo se prioriza la jornada en curso y la
-                    consulta devuelve hasta {{ max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000))) }} registros por búsqueda.
+                    destino logístico asociado y peso registrado. Incluye también
+                    <strong>sacrificio de emergencia</strong> aunque no tengan plan de faena. Los filtros acotan por
+                    periodo, identificador y titular; al abrir se prioriza la jornada en curso (hasta
+                    {{ max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000))) }} registros).
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>

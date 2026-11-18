@@ -122,6 +122,43 @@ SQL;
     }
 
     /**
+     * Predicado OR para sacrificio de emergencia (sin plan de faena).
+     * Validado en SIRT: id_proceso=40 y/o id_puesto_trabajo=7.
+     *
+     * @return array{sql: string, bindings: list<int|string>}
+     */
+    public function buildSacrificioEmergenciaPredicate(bool $conRangoFecha): array
+    {
+        if (! filter_var(config('ingresos_lenguas.incluir_sacrificio_emergencia', true), FILTER_VALIDATE_BOOLEAN)) {
+            return ['sql' => '', 'bindings' => []];
+        }
+
+        $idProceso = (int) config('ingresos_lenguas.emergencia_id_proceso', 40);
+        $idPuesto = (int) config('ingresos_lenguas.emergencia_id_puesto_trabajo', 7);
+        if ($idProceso <= 0 && $idPuesto <= 0) {
+            return ['sql' => '', 'bindings' => []];
+        }
+
+        $parts = [];
+        $bindings = [];
+        if ($idProceso > 0) {
+            $parts[] = 'ins.id_proceso = ?';
+            $bindings[] = $idProceso;
+        }
+        if ($idPuesto > 0) {
+            $parts[] = 'ins.id_puesto_trabajo = ?';
+            $bindings[] = $idPuesto;
+        }
+
+        $sql = '('.implode(' OR ', $parts).')';
+        if ($conRangoFecha) {
+            $sql .= "\n      AND (ins.fecha_registro)::date >= CAST(? AS date)\n      AND (ins.fecha_registro)::date <= CAST(? AS date)";
+        }
+
+        return ['sql' => $sql, 'bindings' => $bindings];
+    }
+
+    /**
      * Fecha de turno usada en trazabilidad (mismo origen que el EXISTS de {@see buildTurnoFechaExistsPredicate}),
      * como subconsulta escalar para enlazar cada fila a una fecha Y-m-d coherente con Ingresos.
      *
@@ -216,6 +253,17 @@ SQL;
 
         $turnoExists = $this->buildTurnoFechaExistsPredicate($conRangoFechaEnExists);
 
+        $emergencia = $this->buildSacrificioEmergenciaPredicate($conRangoFechaEnExists);
+        if ($emergencia['sql'] !== '' && $conRangoFechaEnExists) {
+            // Fechas del OR emergencia (ins.fecha_registro); mismos valores que el EXISTS de turno.
+            $emergencia['bindings'][] = $fechaSqlDesde;
+            $emergencia['bindings'][] = $fechaSqlHasta;
+        }
+        $whereIns = $emergencia['sql'] !== ''
+            ? "({$turnoExists}\n    OR {$emergencia['sql']})"
+            : $turnoExists;
+        $whereBindings = array_merge($existBindings, $emergencia['bindings']);
+
         $cteExtraWhere = '';
         $cteExtraBindings = [];
 
@@ -255,15 +303,16 @@ SQL;
         $colIdIns = $incluirIdInsensibilizacion ? "    i.id AS insensibilizacion_id,\n" : '';
         $colFechaTurnoRef = '';
         if ($incluirIdInsensibilizacion) {
+            // Sin plan de faena (emergencia): usar fecha_registro como ref. de turno.
             $fechaTurnoSql = $this->buildTurnoFechaReferenciaScalarSubquery('i.id_producto');
-            $colFechaTurnoRef = "    {$fechaTurnoSql} AS fecha_turno_referencia,\n";
+            $colFechaTurnoRef = "    COALESCE({$fechaTurnoSql}, (i.fecha_registro)::date) AS fecha_turno_referencia,\n";
         }
 
         $sql = <<<SQL
 WITH ins_filtrada AS (
     SELECT ins.id, ins.id_producto, ins.fecha_registro, ins.hora_registro
     FROM trazabilidad_proceso.insensibilizacion ins
-    WHERE {$turnoExists}{$cteExtraWhere}
+    WHERE {$whereIns}{$cteExtraWhere}
     ORDER BY ins.id {$orderDir}
     LIMIT {$insLimit}
 )
@@ -323,17 +372,17 @@ SQL;
         $countSql = <<<SQL
 SELECT COUNT(*)::bigint AS c
 FROM trazabilidad_proceso.insensibilizacion ins
-WHERE {$turnoExists}{$cteExtraWhere}
+WHERE {$whereIns}{$cteExtraWhere}
 SQL;
 
-        $countBindings = array_merge($existBindings, $cteExtraBindings);
+        $countBindings = array_merge($whereBindings, $cteExtraBindings);
 
         try {
             $countRow = DB::connection($connection)->selectOne($countSql, $countBindings);
             $totalCoincidentes = (int) ($countRow->c ?? 0);
 
             $rows = DB::connection($connection)->select($sql, array_merge(
-                $existBindings,
+                $whereBindings,
                 $cteExtraBindings,
                 [
                     $idParteProducto,

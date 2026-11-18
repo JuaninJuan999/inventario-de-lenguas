@@ -21,7 +21,15 @@ Flujo de importación:
 2. Por cada fila con `insensibilizacion_id` se hace `updateOrCreate` en `ingreso_lenguas_locales`.
 3. El listado de inventario muestra filas con `despachado_at` nulo (disponibles).
 
+**Sacrificio de emergencia:** la consulta SIRT también incluye filas de
+`insensibilizacion` con `id_proceso = 40` y/o `id_puesto_trabajo = 7` aunque **no**
+tengan `plan_faena_producto`. En ese caso `fecha_turno_referencia` usa
+`fecha_registro`. Config: `INGRESOS_LENGUAS_INCLUIR_EMERGENCIA` (default `true`) en
+`config/ingresos_lenguas.php`. Tras desplegar: `php artisan config:clear` y
+`php artisan inventario:sync-lenguas`.
+
 Servicio central de sync: `App\Services\Inventario\InventarioLenguasSynchronizer`.
+Consulta: `App\Services\IngresosLenguas\IngresosLenguasConsultaSirt`.
 
 ---
 

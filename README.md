@@ -131,8 +131,15 @@ Checklist rápido:
 | Cambio obligatorio de contraseña / foto de perfil | Migraciones no aplicadas | `php artisan migrate --force` (+ `storage:link` para avatares) |
 | Módulo nuevo o rol sin tarjeta en el menú | Matriz solo en config, no en BD | `php artisan modulos:sync-matriz` |
 | Rol **gerencia** / otros permisos “viejos” | `role_modulo` desactualizado | Tras editar `config/modulos_por_rol.php` → `modulos:sync-matriz` |
+| Faltan reses de **emergencia** en Ingresos/Inventario | Código viejo o caché de config | `git pull` + `config:clear` (+ sync inventario); ver sección abajo |
 
 > El menú y el middleware `module:*` leen la BD local (`modulos` + `role_modulo`), no solo el archivo de config del repo.
+
+Tras un pull que toque Ingresos/Inventario, conviene forzar una sync:
+
+```bash
+php artisan inventario:sync-lenguas
+```
 
 ---
 
@@ -143,6 +150,13 @@ Checklist rápido:
 - **Por vencer:** 0–1 día restante (naranja).
 - **Vencidas:** &lt; 0 días (rojo).
 - Botones y KPIs del dashboard llevan directo a esos filtros.
+
+### Sacrificio de emergencia (sin plan de faena)
+- En SIRT estas lenguas están en `insensibilizacion` pero **sin** `plan_faena_producto`.
+- Criterio Colbeef validado: `id_proceso = 40` (*Insensibilizacion Sacrificio de Emergencia*) y/o `id_puesto_trabajo = 7` (*Sacrificio De Emergencia*).
+- Ingresos las incluye con el mismo rango de fechas sobre `fecha_registro`.
+- Inventario las sincroniza; si no hay plan, `fecha_turno_referencia` = `fecha_registro`.
+- Variables (opcionales): `INGRESOS_LENGUAS_INCLUIR_EMERGENCIA`, `…_EMERGENCIA_ID_PROCESO`, `…_EMERGENCIA_ID_PUESTO` — ver [`.env.example`](.env.example) y `config/ingresos_lenguas.php`.
 
 ### Despacho — día operativo
 - Por defecto solo lista Colbeef del **día de operación**.

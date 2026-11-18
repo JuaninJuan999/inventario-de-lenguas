@@ -51,6 +51,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sacrificio de emergencia (sin plan de faena)
+    |--------------------------------------------------------------------------
+    |
+    | Las reses de emergencia suelen existir en insensibilizacion pero sin fila
+    | en plan_faena_producto, por eso el EXISTS de turno las excluía.
+    | Se incluyen además por id_proceso y/o id_puesto_trabajo (SIRT Colbeef):
+    |   proceso 40 = Insensibilizacion Sacrificio de Emergencia
+    |   puesto 7  = Sacrificio De Emergencia
+    | Con rango de fechas se filtra por ins.fecha_registro.
+    | fecha_turno_referencia cae en fecha_registro si no hay plan.
+    */
+    'incluir_sacrificio_emergencia' => filter_var(
+        env('INGRESOS_LENGUAS_INCLUIR_EMERGENCIA', true),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+    'emergencia_id_proceso' => (int) env('INGRESOS_LENGUAS_EMERGENCIA_ID_PROCESO', 40),
+    'emergencia_id_puesto_trabajo' => (int) env('INGRESOS_LENGUAS_EMERGENCIA_ID_PUESTO', 7),
+
+    /*
+    |--------------------------------------------------------------------------
     | Sync con la vista abierta (polling del navegador)
     |--------------------------------------------------------------------------
     |
