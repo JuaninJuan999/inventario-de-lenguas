@@ -239,11 +239,9 @@
             <div>
                 <h1>Ingresos de Lenguas</h1>
                 <p class="sub">
-                    Consulta operativa de <strong>ingresos de lenguas</strong> sobre la base de trazabilidad: se
-                    muestran identificador de producto, fecha y hora de insensibilización, titular del producto,
-                    destino logístico asociado y peso registrado. Incluye también
-                    <strong>sacrificio de emergencia</strong> aunque no tengan plan de faena. Los filtros acotan por
-                    periodo, identificador y titular; al abrir se prioriza la jornada en curso (hasta
+                    Listado desde SIRT: producto, fecha/hora, titular, destino y peso.
+                    Incluye <strong>sacrificio de emergencia</strong> sin plan de faena.
+                    Al abrir muestra la jornada en curso (hasta
                     {{ max(100, min(10000, (int) config('ingresos_lenguas.consulta_insensibilizacion_limit', 2000))) }} registros).
                 </p>
             </div>
