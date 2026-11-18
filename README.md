@@ -1,14 +1,99 @@
 # Inventario de Lenguas
 
-Aplicación Laravel para inventario operativo de lenguas (réplica local + consulta SIRT/Colbeef).
+<p align="center">
+  <strong>Colbeef®</strong> · control operativo de lenguas<br/>
+  Réplica local · despacho · decomisos · conformidad · usabilidad
+</p>
 
-## Documentación para despliegue / equipo de servidor
+<p align="center">
+  <img alt="Laravel" src="https://img.shields.io/badge/Laravel-13-FF2D20?style=flat-square&logo=laravel&logoColor=white" />
+  <img alt="PHP" src="https://img.shields.io/badge/PHP-8.3+-777BB4?style=flat-square&logo=php&logoColor=white" />
+  <img alt="Stack" src="https://img.shields.io/badge/Stack-SIRT%20%2F%20Colbeef-7CE8AD?style=flat-square" />
+  <img alt="UI" src="https://img.shields.io/badge/UI-verde%20%2B%20rosa-F9DFF8?style=flat-square" />
+</p>
 
-- **Sincronización de inventario, scheduler y `schedule:work`:** [docs/sincronizacion-inventario.md](docs/sincronizacion-inventario.md)
-- Variables de entorno de ejemplo: [`.env.example`](.env.example) (bloque Inventario / sync SIRT)
-- Arranque del worker en Windows/Laragon: [`scripts/start-schedule.bat`](scripts/start-schedule.bat)
+---
 
-Comandos útiles:
+Sistema web para el **inventario operativo de lenguas**: sincroniza desde SIRT/Colbeef, alista despachos por placa, registra decomisos, genera actas de conformidad y deja a superadmin un **Observatorio** de uso real.
+
+> Desarrollado por **Juan Carreño** — Auxiliar TIC · 2026 · Colbeef®
+
+---
+
+## Qué resuelve
+
+| Necesidad | Cómo lo cubre |
+|-----------|----------------|
+| Stock fiable en planta | Réplica local + sync programada / manual desde SIRT |
+| Despacho ordenado | Checklist por placa Colbeef + validación en inventario |
+| Alertas de vida útil | Vencen en **4 días** desde fecha de registro · rojo / naranja en listado |
+| Trazabilidad de salidas | Historial, entrega de conformidad (PDF) y manifiestos |
+| Control de acceso | Roles (`super_admin`, `admin`, `gerencia`, `operador`, `auxiliar`) |
+| Usabilidad (superadmin) | Módulo **Observatorio**: quién entra, a qué módulo y gráficas en el tiempo |
+
+```text
+  ┌─────────────┐     sync      ┌──────────────────┐
+  │  SIRT /     │ ────────────► │  Réplica local   │
+  │  Colbeef    │               │  (inventario)    │
+  └─────────────┘               └────────┬─────────┘
+                                         │
+          ┌──────────────────────────────┼──────────────────────────────┐
+          ▼                              ▼                              ▼
+   Inventario / Destinos          Despacho / Desposte            Decomisos / Acta
+   Dashboard KPIs                 Checklist placas               Conformidad PDF
+                                         │
+                                         ▼
+                                  Observatorio (uso)
+```
+
+---
+
+## Módulos
+
+| Módulo | Para qué |
+|--------|----------|
+| **Dashboard** | KPIs de stock, vencidas, por vencer, despachos y decomisos |
+| **Inventario** | Listado, Excel, sync, filtros *hoy / todos / por vencer / vencidas* |
+| **Cambios de destinos** | Edición masiva + marca **Adicional** |
+| **Ingresos** | Consulta en vivo a SIRT (sin guardar en local) |
+| **Despacho** | Placas pendientes → checklist → terminar despacho |
+| **Desposte** | Salida a planta de desposte |
+| **Historial** | Despachos y movimientos registrados |
+| **Entrega de conformidad** | Acta PDF y manifiestos de destino |
+| **Decomisos** | Manuales + consulta SIRT |
+| **Gestión de usuarios** | Solo **super_admin** |
+| **Observatorio** | Solo **super_admin** · usabilidad y gráficas |
+
+La matriz rol → módulo vive en [`config/modulos_por_rol.php`](config/modulos_por_rol.php). Tras cambiarla en un servidor:
+
+```bash
+php artisan modulos:sync-matriz
+```
+
+---
+
+## Arranque rápido (local)
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+# Configura DB_* y, si aplica, POSTGRES_* / COLBEEF_*
+php artisan migrate --force
+php artisan modulos:sync-matriz
+php artisan db:seed   # si usas seeders de usuarios / placas
+php artisan serve
+```
+
+Abre el menú, inicia sesión y verifica módulos según el rol.
+
+### Windows / Laragon — sync en segundo plano
+
+```bat
+scripts\start-schedule.bat
+```
+
+O manualmente:
 
 ```bash
 php artisan schedule:list
@@ -16,63 +101,83 @@ php artisan inventario:sync-lenguas
 php artisan schedule:work
 ```
 
+Documentación de sync para equipo de servidor:  
+**[docs/sincronizacion-inventario.md](docs/sincronizacion-inventario.md)**
+
 ---
 
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## Despliegue / `git pull` en servidor
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
-
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Después de traer código nuevo:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git pull
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan modulos:sync-matriz
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+> Si no corres **`modulos:sync-matriz`**, módulos nuevos (p. ej. **Observatorio**) no aparecen en el menú: el menú lee la BD local, no solo el repo.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Operación que conviene conocer
 
-## Code of Conduct
+### Vida útil
+- Vencimiento = `fecha_registro` **+ 4 días** (zona de operación).
+- **Por vencer:** 0–1 día restante (naranja).
+- **Vencidas:** &lt; 0 días (rojo).
+- Botones y KPIs del dashboard llevan directo a esos filtros.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Despacho — día operativo
+- Por defecto solo lista Colbeef del **día de operación**.
+- Hasta las **05:00** (configurable) el día operativo sigue siendo el **calendario anterior**, para no vaciar el listado a medianoche.
+- Variable: `DESPACHO_PPV_DIA_OPERACION_CORTE=05:00`  
+  Ver más en [`.env.example`](.env.example).
 
-## Security Vulnerabilities
+### Observatorio
+- Registra entradas a módulos (con throttle) y muestra KPIs, heatmap, top usuarios, feed y **gráficas en el tiempo**.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## Stack
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- **PHP 8.3+** · **Laravel 13**
+- BD app: MySQL / PostgreSQL / SQLite (según `.env`)
+- Origen corporativo: PostgreSQL SIRT / Colbeef (`POSTGRES_*`, `COLBEEF_*`)
+- PDF: Dompdf · Excel: writer propio del proyecto
+
+---
+
+## Estructura útil
+
+```text
+app/
+  Http/Controllers/     # inventario, despacho, decomisos, observatorio…
+  Services/             # sync inventario, Colbeef PPV, matriz de módulos
+  Support/              # vencimiento, matching códigos, parsers
+config/
+  modulos_por_rol.php   # matriz de permisos
+  despacho.php          # filtros PPV / día operativo
+docs/
+  sincronizacion-inventario.md
+resources/views/        # UI verde / rosa del sistema
+scripts/
+  start-schedule.bat
+```
+
+---
+
+## Créditos
+
+**Colbeef®** · 2026  
+Desarrollado por **Juan Carreño** — Auxiliar TIC
+
+---
+
+<p align="center">
+  <sub>Hecho para planta · pensado para turno · listo para servidor</sub>
+</p>
