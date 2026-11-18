@@ -298,17 +298,94 @@
                 color: var(--brand-rose);
                 text-decoration: none;
             }
+            .charts-row {
+                grid-column: 1 / -1;
+                display: grid;
+                gap: 0.9rem;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .chart-panel h2 { margin-bottom: 0.35rem; }
+            .chart-meta {
+                margin: 0 0 0.85rem;
+                font-size: 0.76rem;
+                opacity: 0.7;
+            }
+            .time-chart {
+                display: flex;
+                align-items: flex-end;
+                gap: 0.28rem;
+                min-height: 11rem;
+                height: 11rem;
+                padding: 0.15rem 0.1rem 0;
+                overflow-x: auto;
+            }
+            .time-col {
+                flex: 1 1 0;
+                min-width: 1.35rem;
+                max-width: 2.75rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 0.28rem;
+                height: 100%;
+            }
+            .time-val {
+                font-size: 0.62rem;
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+                opacity: 0.75;
+                min-height: 0.85rem;
+            }
+            .time-bar-wrap {
+                flex: 1 1 auto;
+                width: 100%;
+                display: flex;
+                align-items: flex-end;
+                justify-content: center;
+            }
+            .time-bar {
+                width: 72%;
+                max-width: 1.35rem;
+                height: 0;
+                border-radius: 0.35rem 0.35rem 0.15rem 0.15rem;
+                background: linear-gradient(180deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 45%, #0a2e20));
+                transition: height 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+            }
+            .time-bar--users {
+                background: linear-gradient(180deg, var(--brand-rose), color-mix(in srgb, var(--brand-rose) 45%, #5a2a4e));
+            }
+            .time-label {
+                font-size: 0.58rem;
+                font-weight: 700;
+                letter-spacing: 0.02em;
+                opacity: 0.62;
+                white-space: nowrap;
+                transform: rotate(-35deg);
+                transform-origin: center top;
+                margin-top: 0.15rem;
+                height: 1.5rem;
+            }
+            .time-col.is-peak .time-bar {
+                box-shadow: 0 0 0 1px color-mix(in srgb, #fff 35%, transparent);
+            }
+            .time-col.is-peak .time-val {
+                color: var(--brand-green);
+                opacity: 1;
+            }
             @media (max-width: 980px) {
                 .pulse { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                 .span-7, .span-5 { grid-column: 1 / -1; }
+                .charts-row { grid-template-columns: 1fr; }
             }
             @media (max-width: 560px) {
                 .pulse { grid-template-columns: 1fr; }
                 .heat-row { grid-template-columns: 1fr auto; }
                 .heat-track { grid-column: 1 / -1; }
+                .time-col { min-width: 1.1rem; }
             }
             @media (prefers-reduced-motion: reduce) {
-                .heat-fill, .rank-bar > i { transition: none; }
+                .heat-fill, .rank-bar > i, .time-bar { transition: none; }
             }
         </style>
     </head>
@@ -353,6 +430,67 @@
                     <p class="num">{{ number_format($topModuloTotal) }}</p>
                     <p class="label">Más frecuente</p>
                     <p class="hint">{{ $topModuloNombre }}.</p>
+                </article>
+            </div>
+
+            <div class="charts-row">
+                <article class="panel chart-panel">
+                    <h2>Usabilidad en el tiempo · entradas</h2>
+                    <p class="chart-meta">
+                        @if ($serieGranularidad === 'hora')
+                            Accesos por hora · pico {{ $picoEtiqueta }} ({{ number_format($picoEntradas) }})
+                        @else
+                            Accesos por día · pico {{ $picoEtiqueta }} ({{ number_format($picoEntradas) }})
+                        @endif
+                        @if ($filtroModulo !== '')
+                            · {{ $nombresModulo[$filtroModulo] ?? $filtroModulo }}
+                        @endif
+                    </p>
+                    @if ($picoEntradas === 0)
+                        <p class="empty">Sin actividad en este periodo para graficar.</p>
+                    @else
+                        <div class="time-chart" role="img" aria-label="Gráfico de entradas en el tiempo">
+                            @foreach ($serieTemporal as $punto)
+                                @php
+                                    $h = (int) round(($punto['entradas'] / $maxSerieEntradas) * 100);
+                                    $esPico = $punto['etiqueta'] === $picoEtiqueta && $punto['entradas'] === $picoEntradas && $picoEntradas > 0;
+                                @endphp
+                                <div class="time-col {{ $esPico ? 'is-peak' : '' }}" title="{{ $punto['etiqueta'] }}: {{ $punto['entradas'] }} entrada(s)">
+                                    <span class="time-val">{{ $punto['entradas'] > 0 ? $punto['entradas'] : '' }}</span>
+                                    <div class="time-bar-wrap">
+                                        <div class="time-bar js-bar-h" data-height="{{ max($punto['entradas'] > 0 ? 8 : 2, $h) }}"></div>
+                                    </div>
+                                    <span class="time-label">{{ $punto['etiqueta'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </article>
+                <article class="panel chart-panel">
+                    <h2>Usabilidad en el tiempo · usuarios</h2>
+                    <p class="chart-meta">
+                        Usuarios distintos
+                        {{ $serieGranularidad === 'hora' ? 'por hora' : 'por día' }}
+                        en el mismo periodo.
+                    </p>
+                    @if (collect($serieTemporal)->sum('usuarios') === 0)
+                        <p class="empty">Sin usuarios activos en la serie temporal.</p>
+                    @else
+                        <div class="time-chart" role="img" aria-label="Gráfico de usuarios distintos en el tiempo">
+                            @foreach ($serieTemporal as $punto)
+                                @php
+                                    $h = (int) round(($punto['usuarios'] / $maxSerieUsuarios) * 100);
+                                @endphp
+                                <div class="time-col" title="{{ $punto['etiqueta'] }}: {{ $punto['usuarios'] }} usuario(s)">
+                                    <span class="time-val">{{ $punto['usuarios'] > 0 ? $punto['usuarios'] : '' }}</span>
+                                    <div class="time-bar-wrap">
+                                        <div class="time-bar time-bar--users js-bar-h" data-height="{{ max($punto['usuarios'] > 0 ? 8 : 2, $h) }}"></div>
+                                    </div>
+                                    <span class="time-label">{{ $punto['etiqueta'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </article>
             </div>
 
@@ -462,6 +600,9 @@
                 setTimeout(function () {
                     document.querySelectorAll('.js-width').forEach(function (el) {
                         el.style.width = (el.getAttribute('data-width') || '0') + '%';
+                    });
+                    document.querySelectorAll('.js-bar-h').forEach(function (el) {
+                        el.style.height = (el.getAttribute('data-height') || '2') + '%';
                     });
                 }, reduce ? 0 : 40);
             })();

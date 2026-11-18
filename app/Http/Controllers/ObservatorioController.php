@@ -119,6 +119,17 @@ class ObservatorioController extends Controller
 
         $maxRank = max(1, collect($ranking)->max('total') ?: 1);
 
+        $serieTemporal = $this->serieTemporalUsabilidad(
+            $periodo,
+            $inicio,
+            $fin,
+            $tz,
+            $filtroModulo !== '' ? $filtroModulo : null,
+        );
+        $maxSerieEntradas = max(1, collect($serieTemporal)->max('entradas') ?: 1);
+        $maxSerieUsuarios = max(1, collect($serieTemporal)->max('usuarios') ?: 1);
+        $pico = collect($serieTemporal)->sortByDesc('entradas')->first();
+
         return view('observatorio', [
             'periodo' => $periodo,
             'periodoEtiqueta' => $periodoEtiqueta,
@@ -137,7 +148,103 @@ class ObservatorioController extends Controller
             'ranking' => $ranking,
             'maxRank' => $maxRank,
             'nombresModulo' => $nombresModulo,
+            'serieTemporal' => $serieTemporal,
+            'maxSerieEntradas' => $maxSerieEntradas,
+            'maxSerieUsuarios' => $maxSerieUsuarios,
+            'serieGranularidad' => $periodo === 'hoy' ? 'hora' : 'dia',
+            'picoEtiqueta' => is_array($pico) ? (string) ($pico['etiqueta'] ?? '—') : '—',
+            'picoEntradas' => is_array($pico) ? (int) ($pico['entradas'] ?? 0) : 0,
         ]);
+    }
+
+    /**
+     * Serie de usabilidad en el tiempo: hoy = por hora; 7d/mes = por día.
+     *
+     * @return list<array{clave: string, etiqueta: string, entradas: int, usuarios: int}>
+     */
+    private function serieTemporalUsabilidad(
+        string $periodo,
+        Carbon $inicio,
+        Carbon $fin,
+        string $tz,
+        ?string $filtroModulo,
+    ): array {
+        $accesos = ModuloAcceso::query()
+            ->where('created_at', '>=', $inicio)
+            ->where('created_at', '<=', $fin)
+            ->when($filtroModulo !== null && $filtroModulo !== '', fn ($q) => $q->where('modulo_clave', $filtroModulo))
+            ->get(['created_at', 'user_id']);
+
+        if ($periodo === 'hoy') {
+            /** @var array<string, array{clave: string, etiqueta: string, entradas: int, users: array<int, true>}> $buckets */
+            $buckets = [];
+            for ($h = 0; $h < 24; $h++) {
+                $clave = sprintf('%02d', $h);
+                $buckets[$clave] = [
+                    'clave' => $clave,
+                    'etiqueta' => $clave.'h',
+                    'entradas' => 0,
+                    'users' => [],
+                ];
+            }
+
+            foreach ($accesos as $acceso) {
+                if ($acceso->created_at === null) {
+                    continue;
+                }
+                $clave = $acceso->created_at->timezone($tz)->format('H');
+                if (! isset($buckets[$clave])) {
+                    continue;
+                }
+                $buckets[$clave]['entradas']++;
+                $buckets[$clave]['users'][(int) $acceso->user_id] = true;
+            }
+
+            return array_values(array_map(static function (array $b): array {
+                return [
+                    'clave' => $b['clave'],
+                    'etiqueta' => $b['etiqueta'],
+                    'entradas' => $b['entradas'],
+                    'usuarios' => count($b['users']),
+                ];
+            }, $buckets));
+        }
+
+        /** @var array<string, array{clave: string, etiqueta: string, entradas: int, users: array<int, true>}> $buckets */
+        $buckets = [];
+        $cursor = $inicio->copy()->timezone($tz)->startOfDay();
+        $finDia = $fin->copy()->timezone($tz)->startOfDay();
+        while ($cursor->lte($finDia)) {
+            $clave = $cursor->format('Y-m-d');
+            $buckets[$clave] = [
+                'clave' => $clave,
+                'etiqueta' => $cursor->copy()->locale('es')->translatedFormat('D d'),
+                'entradas' => 0,
+                'users' => [],
+            ];
+            $cursor->addDay();
+        }
+
+        foreach ($accesos as $acceso) {
+            if ($acceso->created_at === null) {
+                continue;
+            }
+            $clave = $acceso->created_at->timezone($tz)->format('Y-m-d');
+            if (! isset($buckets[$clave])) {
+                continue;
+            }
+            $buckets[$clave]['entradas']++;
+            $buckets[$clave]['users'][(int) $acceso->user_id] = true;
+        }
+
+        return array_values(array_map(static function (array $b): array {
+            return [
+                'clave' => $b['clave'],
+                'etiqueta' => $b['etiqueta'],
+                'entradas' => $b['entradas'],
+                'usuarios' => count($b['users']),
+            ];
+        }, $buckets));
     }
 
     /**
