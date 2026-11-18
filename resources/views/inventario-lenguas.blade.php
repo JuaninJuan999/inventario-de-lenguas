@@ -292,6 +292,13 @@
             .btn-clear:hover {
                 background: color-mix(in srgb, var(--brand-rose) 12%, transparent);
             }
+            .btn-clear.is-active {
+                text-decoration: underline;
+                text-underline-offset: 3px;
+                background: color-mix(in srgb, var(--brand-rose) 16%, transparent);
+                border-color: color-mix(in srgb, var(--brand-rose) 70%, transparent);
+                color: #fff;
+            }
             .btn-excel {
                 display: inline-flex;
                 align-items: center;
@@ -357,13 +364,20 @@
                 </div>
             </div>
 
+            @php
+                $viendoTodos = request()->boolean('todos');
+            @endphp
             <form
                 id="inv-filters"
                 class="filters"
                 method="get"
                 action="{{ route('inventario.lenguas') }}"
                 aria-label="Criterios de consulta del inventario de lenguas"
+                @if ($viendoTodos) data-ver-todos="1" @endif
             >
+                @if ($viendoTodos)
+                    <input type="hidden" name="todos" value="1" id="inv-todos-flag" />
+                @endif
                 <div class="filters-grid filters-grid--single-row">
                     <div class="filter-field filter-field--date">
                         <label for="inv-fecha-desde">Fecha desde (ref. turno)</label>
@@ -448,12 +462,16 @@
                         formaction="{{ route('inventario.lenguas.excel') }}"
                         formmethod="get"
                     >Descargar Excel</button>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}">Limpiar</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Volver al día de operación">Limpiar</a>
                     <a
-                        class="btn-clear"
+                        class="btn-clear {{ ! $viendoTodos && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
                     >Solo hoy (ref. turno)</a>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas', ['todos' => 1]) }}">Ver todos</a>
+                    <a
+                        class="btn-clear {{ $viendoTodos ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', ['todos' => 1]) }}"
+                        aria-current="{{ $viendoTodos ? 'page' : 'false' }}"
+                    >Ver todos</a>
                 </div>
             </form>
 
@@ -532,15 +550,37 @@
                         'id_producto',
                         'propietario',
                         'vida_util',
+                        'todos',
                     ];
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
-                        syncUrl.searchParams.set(name, el ? el.value : '');
+                        if (!el || el.value === '') {
+                            if (name === 'todos') {
+                                return;
+                            }
+                            syncUrl.searchParams.set(name, '');
+                            return;
+                        }
+                        syncUrl.searchParams.set(name, el.value);
                     });
+                    // Conservar ?todos=1 de la URL aunque el form se haya alterado
+                    const pageTodos =
+                        filterForm && filterForm.getAttribute('data-ver-todos') === '1'
+                            ? '1'
+                            : new URLSearchParams(window.location.search).get('todos');
+                    if (pageTodos === '1') {
+                        syncUrl.searchParams.set('todos', '1');
+                    }
                     const body = new FormData();
                     body.append('_token', csrfToken());
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
+                        if (name === 'todos') {
+                            if (pageTodos === '1' || (el && el.value === '1')) {
+                                body.append('todos', '1');
+                            }
+                            return;
+                        }
                         body.append(name, el ? el.value : '');
                     });
                     try {

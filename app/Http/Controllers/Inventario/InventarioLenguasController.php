@@ -133,7 +133,13 @@ class InventarioLenguasController extends Controller
             'id_producto',
             'propietario',
             'vida_util',
+            'todos',
         ]);
+        if ($request->boolean('todos')) {
+            $queryFiltros['todos'] = 1;
+        } else {
+            unset($queryFiltros['todos']);
+        }
 
         if ($outcome['success']) {
             return redirect()

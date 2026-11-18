@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:cambios_destinos')->group(function () {
         Route::get('/cambios-de-destinos', [CambiosDestinosController::class, 'index'])->name('cambios.destinos');
         Route::patch('/cambios-de-destinos/{ingreso}', [CambiosDestinosController::class, 'update'])->name('cambios.destinos.update');
+        Route::post('/cambios-de-destinos/masivo', [CambiosDestinosController::class, 'bulkUpdate'])->name('cambios.destinos.bulk');
     });
 
     Route::middleware('module:ingresos')->group(function () {
@@ -107,6 +108,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:decomisos')->group(function () {
         Route::get('/decomisos-de-lenguas', [InspeccionSirtController::class, 'index'])->name('decomisos.lenguas');
+        Route::get('/decomisos-de-lenguas/excel', [InspeccionSirtController::class, 'exportExcel'])->name('decomisos.lenguas.excel');
         Route::post('/decomisos-de-lenguas/manual', [InspeccionSirtController::class, 'storeManual'])->name('decomisos.lenguas.manual');
     });
 });

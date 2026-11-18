@@ -50,16 +50,38 @@ return [
     'turno_tabla_fecha_column' => env('INGRESOS_LENGUAS_TURNO_TABLA_FECHA_COLUMN', 'fecha'),
 
     /*
-    | Inventario de Lenguas: segundos entre cada sincronización automática con SIRT
-    | mientras la página del inventario está abierta (polling). Mínimo efectivo 30.
-    | Use 0 para solo sincronizar al abrir la página, sin repetir.
+    |--------------------------------------------------------------------------
+    | Sync con la vista abierta (polling del navegador)
+    |--------------------------------------------------------------------------
+    |
+    | Segundos entre cada POST inventario.lenguas.importar_hoy mientras la
+    | página de Inventario está abierta. Mínimo efectivo 30. Use 0 para solo
+    | sincronizar al cargar, sin repetir.
+    |
+    | Esto NO reemplaza el scheduler de segundo plano (ver abajo). Si nadie
+    | tiene la vista abierta, esta vía no actualiza la réplica.
+    |
+    | Guía servidor: docs/sincronizacion-inventario.md
     */
     'inventario_sync_interval_seconds' => (int) env('INVENTARIO_LENGUAS_SYNC_INTERVAL', 120),
 
     /*
-    | Scheduler: minutos entre cada inventario:sync-lenguas en segundo plano.
-    | 0 = no programar el comando (solo sync manual / vista abierta).
-    | Requiere que el schedule de Laravel esté activo (cron o php artisan schedule:work).
+    |--------------------------------------------------------------------------
+    | Sync en segundo plano (scheduler Laravel)
+    |--------------------------------------------------------------------------
+    |
+    | Minutos entre cada `php artisan inventario:sync-lenguas` registrado en
+    | routes/console.php. 0 = no programar la tarea (solo sync manual / vista).
+    |
+    | IMPORTANTE — “opcional” pero necesario para sync sin navegador:
+    | Registrar la tarea no basta. En el servidor debe haber un despertador:
+    |   - Linux producción: cron cada minuto → php artisan schedule:run
+    |   - Windows / Laragon: scripts/start-schedule.bat → schedule:work
+    |
+    | Comprobar: php artisan schedule:list
+    | Probar a mano: php artisan inventario:sync-lenguas
+    |
+    | Guía completa: docs/sincronizacion-inventario.md
     */
     'inventario_schedule_minutes' => (int) env('INVENTARIO_LENGUAS_SCHEDULE_MINUTES', 10),
 

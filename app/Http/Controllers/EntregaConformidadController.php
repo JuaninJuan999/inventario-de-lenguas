@@ -6,25 +6,38 @@ use App\Models\Despacho;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DestinoEntregaParser;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class EntregaConformidadController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $despachos = Despacho::query()
+        $viendoTodos = $request->boolean('todos');
+        $tz = (string) config('app.timezone', 'UTC');
+        $inicioMes = Carbon::now($tz)->startOfMonth();
+        $finMes = Carbon::now($tz)->endOfMonth();
+
+        $query = Despacho::query()
             ->with('user')
             ->withCount('ingresos as lenguas_count')
             ->orderByDesc('realizado_at')
-            ->orderByDesc('id')
-            ->paginate(25)
-            ->withQueryString();
+            ->orderByDesc('id');
+
+        if (! $viendoTodos) {
+            $query->whereBetween('realizado_at', [$inicioMes, $finMes]);
+        }
+
+        $despachos = $query->paginate(25)->withQueryString();
 
         return view('entrega-conformidad.index', [
             'despachos' => $despachos,
+            'viendoTodos' => $viendoTodos,
+            'mesEtiqueta' => $inicioMes->copy()->locale('es')->translatedFormat('F Y'),
         ]);
     }
 

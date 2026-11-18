@@ -78,6 +78,43 @@
                 font-size: 0.85rem;
                 color: color-mix(in srgb, var(--text) 68%, transparent);
             }
+            .listado-toolbar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.65rem 1rem;
+                margin: 0 0 1rem;
+            }
+            .listado-toolbar .muted {
+                margin: 0;
+            }
+            .listado-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.45rem;
+                align-items: center;
+            }
+            .btn-vista {
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: var(--brand-rose);
+                text-decoration: none;
+                padding: 0.38rem 0.75rem;
+                border-radius: 9999px;
+                border: 1px solid color-mix(in srgb, var(--brand-rose) 45%, transparent);
+                background: color-mix(in srgb, var(--brand-rose) 8%, transparent);
+            }
+            .btn-vista:hover {
+                background: color-mix(in srgb, var(--brand-rose) 16%, transparent);
+            }
+            .btn-vista.is-active {
+                text-decoration: underline;
+                text-underline-offset: 3px;
+                background: color-mix(in srgb, var(--brand-rose) 18%, transparent);
+                border-color: color-mix(in srgb, var(--brand-rose) 70%, transparent);
+                color: #fff;
+            }
             .table-wrap {
                 overflow-x: auto;
                 border-radius: 0.65rem;
@@ -261,25 +298,51 @@
             <div>
                 <h1>Entrega de Conformidad</h1>
                 <p class="sub">
-                    Solo para movimientos tipo <strong>Despacho</strong> (módulo Despacho de lenguas). Genere el PDF con
-                    el acto de conformidad: resumen del transporte, nota legal y detalle por lengua (código, descripción,
-                    fecha de beneficio del ingreso y destino).
+                    Genere el PDF con el Acta de conformidad: resumen del transporte, nota legal y detalle por lengua
+                    (código, descripción, fecha de beneficio del ingreso y destino).
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
         </header>
 
         <section class="sheet">
+            <div class="listado-toolbar">
+                <p class="muted">
+                    @if ($viendoTodos)
+                        Mostrando <strong>todos</strong> los despachos.
+                    @else
+                        Mostrando despachos de <strong>{{ $mesEtiqueta }}</strong>.
+                    @endif
+                    @if (! $despachos->isEmpty())
+                        · <strong>{{ $despachos->total() }}</strong> despacho(s). Página {{ $despachos->currentPage() }} de
+                        {{ $despachos->lastPage() }}.
+                    @endif
+                </p>
+                <div class="listado-actions">
+                    <a
+                        class="btn-vista {{ ! $viendoTodos ? 'is-active' : '' }}"
+                        href="{{ route('entrega.conformidad') }}"
+                        @if (! $viendoTodos) aria-current="page" @endif
+                    >Mes actual</a>
+                    <a
+                        class="btn-vista {{ $viendoTodos ? 'is-active' : '' }}"
+                        href="{{ route('entrega.conformidad', ['todos' => 1]) }}"
+                        @if ($viendoTodos) aria-current="page" @endif
+                    >Ver todos</a>
+                </div>
+            </div>
+
             @if ($despachos->isEmpty())
                 <p class="muted">
-                    No hay despachos registrados. El documento se habilita cuando exista al menos un despacho finalizado
-                    con lenguas asociadas.
+                    @if ($viendoTodos)
+                        No hay despachos registrados. El documento se habilita cuando exista al menos un despacho
+                        finalizado con lenguas asociadas.
+                    @else
+                        No hay despachos en {{ $mesEtiqueta }}. Use <strong>Ver todos</strong> para consultar el
+                        historial completo.
+                    @endif
                 </p>
             @else
-                <p class="muted">
-                    <strong>{{ $despachos->total() }}</strong> despacho(s). Página {{ $despachos->currentPage() }} de
-                    {{ $despachos->lastPage() }}.
-                </p>
                 <div class="table-wrap">
                     <table class="data">
                         <thead>

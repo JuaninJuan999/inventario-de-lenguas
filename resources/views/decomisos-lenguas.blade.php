@@ -253,6 +253,37 @@
             .btn-clear:hover {
                 background: color-mix(in srgb, var(--brand-rose) 12%, transparent);
             }
+            .btn-excel {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.4rem 0.95rem;
+                font-size: 0.72rem;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: #04261c;
+                text-decoration: none;
+                border: 1px solid color-mix(in srgb, #9be7a8 55%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, #c8f7d4, color-mix(in srgb, var(--brand-green) 55%, #1f6b48));
+            }
+            .btn-excel:hover {
+                filter: brightness(1.06);
+            }
+            .listado-meta {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.65rem;
+                margin: 0 0 0.75rem;
+            }
+            .listado-meta .muted {
+                margin: 0;
+            }
             .manual-box {
                 margin-bottom: 1.25rem;
                 padding: 1rem 1.1rem 1.15rem;
@@ -397,7 +428,7 @@
                 </form>
             </div>
 
-            <form class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
+            <form id="filtros-decomisos" class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
                 <div class="filters-row">
                     <div class="filter-field filter-field--grow">
                         <label for="f-q">Búsqueda libre</label>
@@ -452,7 +483,16 @@
             @if (count($rows) === 0)
                 <p class="muted">No hay filas para los filtros indicados (máx. 500 por consulta).</p>
             @else
-                <p class="muted" style="margin: 0 0 0.75rem">{{ count($rows) }} registro(s).</p>
+                <div class="listado-meta">
+                    <p class="muted">{{ count($rows) }} registro(s).</p>
+                    <button
+                        class="btn-excel"
+                        type="submit"
+                        form="filtros-decomisos"
+                        formaction="{{ route('decomisos.lenguas.excel') }}"
+                        formmethod="get"
+                    >Descargar Excel</button>
+                </div>
                 <div class="table-wrap">
                     <table class="data">
                         <thead>

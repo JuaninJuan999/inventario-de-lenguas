@@ -200,7 +200,11 @@
             .col-producto {
                 white-space: nowrap;
             }
-            .col-prop,
+            .col-prop {
+                width: 1%;
+                white-space: nowrap;
+                vertical-align: middle;
+            }
             .col-destino {
                 max-width: 16rem;
                 word-break: break-word;
@@ -219,6 +223,19 @@
                 background: rgba(4, 14, 11, 0.92);
                 resize: vertical;
             }
+            .destino-input.is-dirty {
+                border-color: color-mix(in srgb, var(--brand-rose) 65%, transparent);
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-rose) 35%, transparent);
+            }
+            tr.row-pendiente > td {
+                background: color-mix(in srgb, var(--brand-rose) 10%, transparent);
+            }
+            tr.row-pendiente .col-producto {
+                font-weight: 800;
+                text-decoration: underline;
+                text-underline-offset: 3px;
+                color: #ffe8f7;
+            }
             .btn-guardar {
                 display: inline-flex;
                 align-items: center;
@@ -236,8 +253,89 @@
                 background: linear-gradient(145deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 72%, #1a5c40));
                 white-space: nowrap;
             }
-            .btn-guardar:hover {
+            .btn-guardar:hover:not(:disabled) {
                 filter: brightness(1.06);
+            }
+            .btn-guardar:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                filter: none;
+            }
+            .btn-guardar--masivo {
+                padding: 0.42rem 1rem;
+                font-size: 0.78rem;
+            }
+            .bulk-actions-bar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.65rem;
+                margin: 0.85rem 0 0;
+            }
+            .pendientes-hint {
+                margin: 0;
+                font-size: 0.78rem;
+                font-weight: 600;
+                color: color-mix(in srgb, var(--brand-rose) 88%, #fff);
+            }
+            .pendientes-hint[hidden] {
+                display: none;
+            }
+            .listado-filtro-rapido {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-end;
+                gap: 0.5rem 0.85rem;
+                margin: 0 0 0.85rem;
+                padding: 0.75rem 0.85rem;
+                border-radius: 0.65rem;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 24%, transparent);
+                background: rgba(0, 0, 0, 0.18);
+            }
+            .listado-filtro-rapido label {
+                display: block;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                margin-bottom: 0.28rem;
+                opacity: 0.92;
+            }
+            .listado-filtro-rapido input[type='search'] {
+                min-width: min(100%, 18rem);
+                width: 18rem;
+                max-width: 100%;
+                padding: 0.42rem 0.5rem;
+                font-size: 0.85rem;
+                font-family: inherit;
+                color: var(--text);
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, rgba(0, 0, 0, 0.55));
+                background: rgba(4, 14, 11, 0.92);
+            }
+            .listado-filtro-rapido input[type='search']:focus {
+                outline: 2px solid var(--brand-green);
+                outline-offset: 1px;
+            }
+            .listado-filtro-rapido .filtro-rapido-meta {
+                margin: 0;
+                font-size: 0.78rem;
+                color: color-mix(in srgb, var(--text) 65%, transparent);
+            }
+            tr.row-filtrada-oculto {
+                display: none;
+            }
+            .sr-only {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
             }
         </style>
     </head>
@@ -248,7 +346,8 @@
                 <h1>Cambios de destinos</h1>
                 <p class="sub">
                     Busque filas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>
-                    y/o <strong>propietario</strong>; edite el <strong>destino</strong> y guarde cada registro.
+                    y/o <strong>propietario</strong>; edite los destinos y use <strong>Guardar destinos pendientes</strong>
+                    para aplicar varios cambios a la vez. Las filas modificadas se subrayan.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -295,6 +394,20 @@
                     @if ($filtrosActivos)
                         <a class="link-limpiar" href="{{ route('cambios.destinos') }}">Limpiar</a>
                     @endif
+                    @if ($filtrosActivos && $rows->isNotEmpty())
+                        <button
+                            type="submit"
+                            class="btn-guardar btn-guardar--masivo"
+                            form="form-destinos-masivo"
+                            id="btn-guardar-masivo-top"
+                            disabled
+                        >
+                            Guardar destinos pendientes
+                        </button>
+                        <p class="pendientes-hint" id="pendientes-hint-top" hidden>
+                            <span class="js-pendientes-count">0</span> cambio(s) por aplicar
+                        </p>
+                    @endif
                 </div>
             </form>
 
@@ -312,76 +425,204 @@
                 </p>
             @else
                 <p class="muted">
-                    <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s). Edite el destino y pulse
-                    <strong>Guardar</strong> en la fila correspondiente.
+                    <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s). Edite uno o varios destinos; al
+                    pasar al siguiente, la fila queda <strong>subrayada</strong> hasta que guarde los cambios pendientes.
                 </p>
-                <div class="table-wrap">
-                    <table class="data">
-                        <thead>
-                            <tr>
-                                <th class="col-producto">ID producto</th>
-                                <th class="col-prop">Propietario</th>
-                                <th>Ref. turno</th>
-                                <th class="col-destino">Destino</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($rows as $row)
+
+                <div class="listado-filtro-rapido">
+                    <div>
+                        <label for="filtro-rapido-id">Filtrar ID producto (en este listado)</label>
+                        <input
+                            id="filtro-rapido-id"
+                            type="search"
+                            inputmode="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Escriba el código…"
+                            aria-controls="tabla-destinos-body"
+                        />
+                    </div>
+                    <p class="filtro-rapido-meta" id="filtro-rapido-meta" aria-live="polite">
+                        Mostrando <strong id="filtro-rapido-visibles">{{ $rows->count() }}</strong> de
+                        <strong>{{ $rows->count() }}</strong>
+                        · Editadas: <strong id="filtro-rapido-editadas">0</strong>
+                    </p>
+                </div>
+
+                <form
+                    id="form-destinos-masivo"
+                    method="post"
+                    action="{{ route('cambios.destinos.bulk') }}"
+                    data-dirty-tracker="1"
+                >
+                    @csrf
+                    <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
+                    <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
+
+                    <div class="table-wrap">
+                        <table class="data">
+                            <thead>
                                 <tr>
-                                    <td class="col-producto">{{ $row->id_producto }}</td>
-                                    <td class="col-prop">{{ $row->propietario !== null && $row->propietario !== '' ? $row->propietario : '—' }}</td>
-                                    <td>
-                                        {{ $row->fecha_turno_referencia?->format('d/m/Y') ?? '—' }}
-                                    </td>
-                                    <td class="col-destino">
-                                        <form method="post" action="{{ route('cambios.destinos.update', $row) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
-                                            <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
-                                            <input type="hidden" name="context_row_id" value="{{ $row->id }}" />
+                                    <th class="col-producto">ID producto</th>
+                                    <th class="col-prop">Propietario</th>
+                                    <th>Ref. turno</th>
+                                    <th class="col-destino">Destino</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-destinos-body">
+                                @foreach ($rows as $row)
+                                    @php
+                                        $destinoValor = (string) ($row->destino ?? '');
+                                    @endphp
+                                    <tr data-row-id="{{ $row->id }}" data-id-producto="{{ strtolower($row->id_producto) }}">
+                                        <td class="col-producto">{{ $row->id_producto }}</td>
+                                        <td class="col-prop">{{ $row->propietario !== null && $row->propietario !== '' ? $row->propietario : '—' }}</td>
+                                        <td>
+                                            {{ $row->fecha_turno_referencia?->format('d/m/Y') ?? '—' }}
+                                        </td>
+                                        <td class="col-destino">
                                             <label class="sr-only" for="destino-{{ $row->id }}">Destino para {{ $row->id_producto }}</label>
-                                            @php
-                                                $failedRowId = old('context_row_id');
-                                                $destinoValor =
-                                                    $failedRowId !== null && (int) $failedRowId === $row->id
-                                                        ? old('destino', '')
-                                                        : ($row->destino ?? '');
-                                            @endphp
                                             <textarea
                                                 id="destino-{{ $row->id }}"
                                                 class="destino-input"
-                                                name="destino"
+                                                name="destinos[{{ $row->id }}]"
                                                 rows="2"
                                                 maxlength="60000"
+                                                data-original="{{ $destinoValor }}"
                                             >{{ $destinoValor }}</textarea>
-                                            @if ($failedRowId !== null && (int) $failedRowId === $row->id && $errors->has('destino'))
-                                                <p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: #ffb4b4; font-weight: 600">{{ $errors->first('destino') }}</p>
-                                            @endif
-                                            <div style="margin-top: 0.4rem">
-                                                <button type="submit" class="btn-guardar">Guardar destino</button>
-                                            </div>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bulk-actions-bar">
+                        <p class="pendientes-hint" id="pendientes-hint-bottom" hidden>
+                            <span class="js-pendientes-count">0</span> cambio(s) por aplicar
+                        </p>
+                        <button
+                            type="submit"
+                            class="btn-guardar btn-guardar--masivo"
+                            id="btn-guardar-masivo-bottom"
+                            disabled
+                        >
+                            Guardar destinos pendientes
+                        </button>
+                    </div>
+                </form>
             @endif
         </section>
-        <style>
-            .sr-only {
-                position: absolute;
-                width: 1px;
-                height: 1px;
-                padding: 0;
-                margin: -1px;
-                overflow: hidden;
-                clip: rect(0, 0, 0, 0);
-                white-space: nowrap;
-                border: 0;
-            }
-        </style>
+        @if ($filtrosActivos && $rows->isNotEmpty())
+            <script>
+                (function () {
+                    var form = document.getElementById('form-destinos-masivo');
+                    if (!form) {
+                        return;
+                    }
+                    var buttons = [
+                        document.getElementById('btn-guardar-masivo-top'),
+                        document.getElementById('btn-guardar-masivo-bottom'),
+                    ].filter(Boolean);
+                    var hints = document.querySelectorAll('.pendientes-hint');
+                    var countEls = document.querySelectorAll('.js-pendientes-count');
+                    var editadasEl = document.getElementById('filtro-rapido-editadas');
+
+                    function norm(v) {
+                        return String(v == null ? '' : v).replace(/\r\n/g, '\n').trim();
+                    }
+
+                    function markDirty(textarea, dirty) {
+                        var tr = textarea.closest('tr');
+                        var rowId = tr ? tr.getAttribute('data-row-id') : '';
+                        textarea.classList.toggle('is-dirty', dirty);
+                        if (tr) {
+                            tr.classList.toggle('row-pendiente', dirty);
+                        }
+                        if (dirty && rowId) {
+                            textarea.setAttribute('name', 'destinos[' + rowId + ']');
+                        } else {
+                            textarea.removeAttribute('name');
+                        }
+                    }
+
+                    function refresh() {
+                        var n = 0;
+                        form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
+                            var dirty = norm(ta.value) !== norm(ta.getAttribute('data-original'));
+                            markDirty(ta, dirty);
+                            if (dirty) {
+                                n++;
+                            }
+                        });
+                        buttons.forEach(function (btn) {
+                            btn.disabled = n === 0;
+                        });
+                        hints.forEach(function (h) {
+                            if (n > 0) {
+                                h.hidden = false;
+                            } else {
+                                h.hidden = true;
+                            }
+                        });
+                        countEls.forEach(function (el) {
+                            el.textContent = String(n);
+                        });
+                        if (editadasEl) {
+                            editadasEl.textContent = String(n);
+                        }
+                    }
+
+                    form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
+                        // Al cargar, sin name hasta que haya cambio (evita POST masivo vacío de no editados).
+                        ta.removeAttribute('name');
+                        ta.addEventListener('input', refresh);
+                        ta.addEventListener('change', refresh);
+                        ta.addEventListener('blur', refresh);
+                    });
+
+                    form.addEventListener('submit', function (e) {
+                        refresh();
+                        var n = form.querySelectorAll('textarea.destino-input[name]').length;
+                        if (n === 0) {
+                            e.preventDefault();
+                            alert('No hay destinos modificados para guardar.');
+                            return;
+                        }
+                        if (!confirm('¿Aplicar ' + n + ' cambio(s) de destino?')) {
+                            e.preventDefault();
+                        }
+                    });
+
+                    refresh();
+
+                    var filtroRapido = document.getElementById('filtro-rapido-id');
+                    var visiblesEl = document.getElementById('filtro-rapido-visibles');
+                    var tbody = document.getElementById('tabla-destinos-body');
+                    if (filtroRapido && tbody) {
+                        function aplicarFiltroRapido() {
+                            var q = String(filtroRapido.value || '')
+                                .trim()
+                                .toLowerCase()
+                                .replace(/[\s]+/g, '');
+                            var visibles = 0;
+                            tbody.querySelectorAll('tr[data-id-producto]').forEach(function (tr) {
+                                var id = String(tr.getAttribute('data-id-producto') || '').replace(/[\s]+/g, '');
+                                var ok = q === '' || id.indexOf(q) !== -1;
+                                tr.classList.toggle('row-filtrada-oculto', !ok);
+                                if (ok) {
+                                    visibles++;
+                                }
+                            });
+                            if (visiblesEl) {
+                                visiblesEl.textContent = String(visibles);
+                            }
+                        }
+                        filtroRapido.addEventListener('input', aplicarFiltroRapido);
+                        filtroRapido.addEventListener('search', aplicarFiltroRapido);
+                    }
+                })();
+            </script>
+        @endif
     </body>
 </html>

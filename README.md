@@ -1,3 +1,23 @@
+# Inventario de Lenguas
+
+Aplicación Laravel para inventario operativo de lenguas (réplica local + consulta SIRT/Colbeef).
+
+## Documentación para despliegue / equipo de servidor
+
+- **Sincronización de inventario, scheduler y `schedule:work`:** [docs/sincronizacion-inventario.md](docs/sincronizacion-inventario.md)
+- Variables de entorno de ejemplo: [`.env.example`](.env.example) (bloque Inventario / sync SIRT)
+- Arranque del worker en Windows/Laragon: [`scripts/start-schedule.bat`](scripts/start-schedule.bat)
+
+Comandos útiles:
+
+```bash
+php artisan schedule:list
+php artisan inventario:sync-lenguas
+php artisan schedule:work
+```
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

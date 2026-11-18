@@ -8,8 +8,23 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
+/**
+ * Alimenta la réplica local (ingreso_lenguas_locales) desde SIRT/Colbeef.
+ *
+ * Usado por:
+ * - POST inventario.lenguas.importar_hoy (polling de la vista)
+ * - php artisan inventario:sync-lenguas (CLI / scheduler)
+ *
+ * Guarda meta de la última sync en caché (hit_limit, watermark de ids) para
+ * alertas en UI y pases incrementales / catch-up cuando se alcanza el tope
+ * INGRESOS_LENGUAS_CONSULTA_LIMIT.
+ *
+ * Relación con Ingresos: misma consulta SIRT; Ingresos no escribe en local.
+ * Documentación operativa: docs/sincronizacion-inventario.md
+ */
 class InventarioLenguasSynchronizer
 {
+    /** Clave de caché con last_sync_at, hit_limit, max/min insensibilizacion_id, etc. */
     public const CACHE_META_KEY = 'inventario_lenguas.sync.meta';
 
     public function __construct(

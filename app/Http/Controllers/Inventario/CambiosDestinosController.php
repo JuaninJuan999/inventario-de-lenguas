@@ -82,6 +82,77 @@ class CambiosDestinosController extends Controller
             ->with('cambios_destinos_ok', 'Destino actualizado correctamente.');
     }
 
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'destinos' => ['required', 'array', 'min:1', 'max:500'],
+            'destinos.*' => ['nullable', 'string', 'max:60000'],
+            'id_producto' => ['nullable', 'string', 'max:80'],
+            'propietario' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $updated = 0;
+        $omitidos = 0;
+
+        foreach ($validated['destinos'] as $id => $destinoRaw) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+
+            $destino = is_string($destinoRaw) ? trim($destinoRaw) : '';
+            $destino = $destino === '' ? null : $destino;
+
+            $ingreso = IngresoLenguaLocal::query()
+                ->sinDespachar()
+                ->whereKey($id)
+                ->first();
+
+            if ($ingreso === null) {
+                $omitidos++;
+
+                continue;
+            }
+
+            $actual = $ingreso->destino !== null ? trim((string) $ingreso->destino) : null;
+            $actual = $actual === '' ? null : $actual;
+
+            if ($actual === $destino) {
+                continue;
+            }
+
+            $ingreso->update(['destino' => $destino]);
+            $updated++;
+        }
+
+        $query = [
+            'id_producto' => $validated['id_producto'] ?? '',
+            'propietario' => $validated['propietario'] ?? '',
+        ];
+
+        if ($updated === 0) {
+            $msg = 'No había cambios de destino distintos a los ya guardados.';
+            if ($omitidos > 0) {
+                $msg .= " ({$omitidos} fila(s) no disponibles o ya despachadas.)";
+            }
+
+            return redirect()
+                ->route('cambios.destinos', $query)
+                ->with('cambios_destinos_error', $msg);
+        }
+
+        $msg = $updated === 1
+            ? 'Se actualizó 1 destino correctamente.'
+            : "Se actualizaron {$updated} destinos correctamente.";
+        if ($omitidos > 0) {
+            $msg .= " Se omitieron {$omitidos} fila(s) no disponibles.";
+        }
+
+        return redirect()
+            ->route('cambios.destinos', $query)
+            ->with('cambios_destinos_ok', $msg);
+    }
+
     /**
      * Misma idea que inventario ({@see InventarioLenguasController::ejecutarConsultaInventario}):
      * solo `ILIKE` / `LIKE` con comodines, sin raw SQL frágil.

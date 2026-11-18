@@ -7,6 +7,7 @@ use App\Models\DecomisoManual;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
 use App\Support\DespachoInventarioMatch;
+use App\Support\SimpleXlsxWriter;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class InspeccionSirtController extends Controller
@@ -194,6 +196,66 @@ SQL;
         ]));
     }
 
+    public function exportExcel(Request $request): StreamedResponse|RedirectResponse
+    {
+        $resolved = $this->resolverListadoDecomisos($request);
+
+        if ($resolved['validator']->fails()) {
+            return redirect()
+                ->route('decomisos.lenguas', $request->query())
+                ->withErrors($resolved['validator']);
+        }
+
+        $headers = [
+            'Id producto',
+            'Fecha registro',
+            'Hora registro',
+            'Nombre dictamen',
+            'Nombre enfermedad',
+            'Origen',
+        ];
+
+        $excelRows = [];
+        foreach ($resolved['rows'] as $row) {
+            $r = (array) $row;
+            $idProd = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+
+            $hora = $r['hora_registro'] ?? null;
+            if ($hora instanceof \DateTimeInterface) {
+                $horaTxt = $hora->format('H:i:s');
+            } else {
+                $horaTxt = $hora !== null && $hora !== '' ? (string) $hora : '';
+            }
+
+            $fecha = $r['fecha_registro'] ?? null;
+            if ($fecha instanceof \DateTimeInterface) {
+                $fechaTxt = $fecha->format('Y-m-d');
+            } else {
+                $fechaTxt = $fecha !== null && $fecha !== '' ? (string) $fecha : '';
+            }
+
+            $origen = strtolower((string) ($r['origen'] ?? 'sirt')) === 'manual' ? 'Manual' : 'SIRT';
+
+            $excelRows[] = [
+                $idProd,
+                $fechaTxt,
+                $horaTxt,
+                isset($r['nombre_dictamen']) ? (string) $r['nombre_dictamen'] : '',
+                isset($r['nombre_enfermedad']) && $r['nombre_enfermedad'] !== null ? (string) $r['nombre_enfermedad'] : '',
+                $origen,
+            ];
+        }
+
+        $binary = SimpleXlsxWriter::build($headers, $excelRows, 'Decomisos');
+        $filename = 'decomisos-lenguas-'.Carbon::now()->format('Ymd-His').'.xlsx';
+
+        return response()->streamDownload(static function () use ($binary): void {
+            echo $binary;
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
     public function storeManual(Request $request): RedirectResponse
     {
         $validated = $request->validate(
@@ -359,6 +421,137 @@ SQL,
         return [
             'dictamenes' => $dictamenes,
             'enfermedades' => $enfermedades,
+        ];
+    }
+
+    /**
+     * Misma lógica de filtros/listado que index, sin baja automática de inventario (para Excel).
+     *
+     * @return array{filters: array{q: string, fecha_desde: ?string, fecha_hasta: ?string}, rows: list<object>, validator: \Illuminate\Validation\Validator}
+     */
+    private function resolverListadoDecomisos(Request $request): array
+    {
+        $idParte = (int) config('decomisos.id_parte_producto');
+        $idDictamen = (int) config('decomisos.id_dictamen');
+
+        $ahora = Carbon::now();
+        $inicioMes = $ahora->copy()->startOfMonth()->toDateString();
+        $finMes = $ahora->copy()->endOfMonth()->toDateString();
+
+        $qRaw = substr($request->string('q')->trim()->toString(), 0, 200);
+        $tieneBusquedaLibre = str_replace(['%', '_'], '', $qRaw) !== '';
+
+        $fechaDesdeIn = $request->filled('fecha_desde') ? (string) $request->input('fecha_desde') : null;
+        $fechaHastaIn = $request->filled('fecha_hasta') ? (string) $request->input('fecha_hasta') : null;
+
+        if (! $tieneBusquedaLibre && $fechaDesdeIn === null && $fechaHastaIn === null) {
+            $fechaDesdeIn = $inicioMes;
+            $fechaHastaIn = $finMes;
+        }
+
+        if ($tieneBusquedaLibre) {
+            $fechaDesdeIn = null;
+            $fechaHastaIn = null;
+        }
+
+        $filters = [
+            'q' => $qRaw,
+            'fecha_desde' => $fechaDesdeIn,
+            'fecha_hasta' => $fechaHastaIn,
+        ];
+
+        $validator = Validator::make(
+            [
+                'q' => $filters['q'],
+                'fecha_desde' => $filters['fecha_desde'],
+                'fecha_hasta' => $filters['fecha_hasta'],
+            ],
+            [
+                'q' => ['nullable', 'string', 'max:200'],
+                'fecha_desde' => ['nullable', 'date'],
+                'fecha_hasta' => ['nullable', 'date'],
+            ],
+        );
+
+        $validator->after(function ($v) use ($filters): void {
+            $d1 = $filters['fecha_desde'] ?? null;
+            $d2 = $filters['fecha_hasta'] ?? null;
+            if (is_string($d1) && $d1 !== '' && is_string($d2) && $d2 !== '' && $d1 > $d2) {
+                $v->errors()->add('fecha_hasta', 'La fecha hasta debe ser mayor o igual que la fecha desde.');
+            }
+        });
+
+        $manualRows = $this->filasManualesComoRows($filters);
+
+        if ($validator->fails()) {
+            return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
+        }
+
+        if (! $this->sirtLookupEnabled()) {
+            return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
+        }
+
+        $connection = (string) config('decomisos.sirt_connection');
+        if ($connection === '') {
+            return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
+        }
+
+        $sql = <<<'SQL'
+SELECT
+    i.id_producto,
+    i.fecha_registro,
+    i.hora_registro,
+    d.nombre AS nombre_dictamen,
+    e.nombre AS nombre_enfermedad
+FROM sai.inspeccion i
+JOIN sai.dictamen d ON i.id_dictamen = d.id
+LEFT JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
+LEFT JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
+WHERE i.id_parte_producto = ?
+  AND i.id_dictamen = ?
+SQL;
+
+        $bindings = [$idParte, $idDictamen];
+
+        $q = str_replace(['%', '_'], '', $filters['q']);
+        if ($q !== '') {
+            $pat = '%'.$q.'%';
+            $sql .= ' AND (
+    i.id_producto::text ILIKE ?
+    OR d.nombre ILIKE ?
+    OR COALESCE(e.nombre, \'\') ILIKE ?
+)';
+            $bindings[] = $pat;
+            $bindings[] = $pat;
+            $bindings[] = $pat;
+        }
+
+        if ($q === '') {
+            if (! empty($filters['fecha_desde'])) {
+                $sql .= ' AND i.fecha_registro >= ?';
+                $bindings[] = $filters['fecha_desde'];
+            }
+
+            if (! empty($filters['fecha_hasta'])) {
+                $sql .= ' AND i.fecha_registro <= ?';
+                $bindings[] = $filters['fecha_hasta'];
+            }
+        }
+
+        $sql .= ' ORDER BY i.id DESC LIMIT 500';
+
+        try {
+            $sirtRows = DB::connection($connection)->select($sql, $bindings);
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
+        }
+
+        return [
+            'filters' => $filters,
+            'rows' => $this->fusionarRows($manualRows, $sirtRows),
+            'validator' => $validator,
         ];
     }
 
