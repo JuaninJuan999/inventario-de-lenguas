@@ -267,7 +267,8 @@
                 transform: rotate(225deg);
                 margin-top: 0.1rem;
             }
-            .chip-adicional {
+            .chip-adicional,
+            .chip-salida {
                 display: inline-block;
                 margin-left: 0.35rem;
                 padding: 0.1rem 0.4rem;
@@ -276,9 +277,15 @@
                 font-weight: 800;
                 letter-spacing: 0.04em;
                 text-transform: uppercase;
+                vertical-align: middle;
+            }
+            .chip-adicional {
                 background: color-mix(in srgb, var(--brand-rose) 22%, transparent);
                 color: #ffe9fc;
-                vertical-align: middle;
+            }
+            .chip-salida {
+                background: color-mix(in srgb, var(--brand-green) 28%, transparent);
+                color: #e8f6ef;
             }
             .filter-field label {
                 display: block;
@@ -366,6 +373,10 @@
                 filter: brightness(1.06);
             }
             .btn-clear {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
                 font-size: 0.82rem;
                 font-weight: 600;
                 color: var(--brand-rose);
@@ -383,6 +394,42 @@
                 background: color-mix(in srgb, var(--brand-rose) 16%, transparent);
                 border-color: color-mix(in srgb, var(--brand-rose) 70%, transparent);
                 color: #fff;
+            }
+            .btn-clear__badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 1.15rem;
+                height: 1.15rem;
+                padding: 0 0.28rem;
+                border-radius: 9999px;
+                font-size: 0.62rem;
+                font-weight: 800;
+                line-height: 1;
+                letter-spacing: 0;
+                text-decoration: none;
+                color: #fff;
+                background: #e11d48;
+                box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--welcome-surface, #0b1a14) 80%, transparent);
+            }
+            .btn-clear__badge--zero {
+                background: color-mix(in srgb, var(--text) 28%, transparent);
+                color: color-mix(in srgb, var(--text) 85%, #fff);
+            }
+            .btn-clear.is-active .btn-clear__badge {
+                background: #fff;
+                color: #9f1239;
+            }
+            .btn-clear.is-active .btn-clear__badge--zero {
+                background: color-mix(in srgb, #fff 35%, transparent);
+                color: #fff;
+            }
+            .btn-clear--salidas .btn-clear__badge:not(.btn-clear__badge--zero) {
+                background: color-mix(in srgb, var(--brand-green) 78%, #0a3d2a);
+            }
+            .btn-clear--salidas.is-active .btn-clear__badge:not(.btn-clear__badge--zero) {
+                background: #fff;
+                color: #0a3d2a;
             }
             .btn-excel {
                 display: inline-flex;
@@ -452,12 +499,13 @@
             @php
                 $viendoPorVencer = ! empty($filters['por_vencer']);
                 $viendoVencidas = ! empty($filters['vencidas']);
+                $viendoAdicionales = ($filters['adicionales'] ?? '') === 'si';
+                $viendoSalidas = ! empty($filters['salidas']);
                 $tieneFechasAvanzadas = ($filters['fecha_desde'] ?? '') !== '' || ($filters['fecha_hasta'] ?? '') !== '';
                 $chipQueryBase = array_filter([
                     'id_producto' => $filters['id_producto'] ?? '',
                     'propietario' => $filters['propietario'] ?? '',
                     'destino' => $filters['destino'] ?? '',
-                    'adicionales' => $filters['adicionales'] ?? '',
                 ], static fn ($v) => $v !== null && $v !== '');
             @endphp
             <form
@@ -468,12 +516,20 @@
                 aria-label="Criterios de consulta del inventario de lenguas"
                 @if ($viendoPorVencer) data-por-vencer="1" @endif
                 @if ($viendoVencidas) data-vencidas="1" @endif
+                @if ($viendoAdicionales) data-adicionales="1" @endif
+                @if ($viendoSalidas) data-salidas="1" @endif
             >
                 @if ($viendoPorVencer)
                     <input type="hidden" name="por_vencer" value="1" id="inv-por-vencer-flag" />
                 @endif
                 @if ($viendoVencidas)
                     <input type="hidden" name="vencidas" value="1" id="inv-vencidas-flag" />
+                @endif
+                @if ($viendoAdicionales)
+                    <input type="hidden" name="adicionales" value="si" id="inv-adicionales-flag" />
+                @endif
+                @if ($viendoSalidas)
+                    <input type="hidden" name="salidas" value="1" id="inv-salidas-flag" />
                 @endif
                 <div class="filters-grid filters-grid--single-row">
                     <div class="filter-field">
@@ -518,17 +574,6 @@
                             autocomplete="off"
                         />
                         @error('destino')
-                            <p class="err">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div class="filter-field">
-                        <label for="inv-adicionales">Adicionales</label>
-                        <select id="inv-adicionales" name="adicionales">
-                            <option value="" @selected(($filters['adicionales'] ?? '') === '')>Todos</option>
-                            <option value="si" @selected(($filters['adicionales'] ?? '') === 'si')>Solo adicionales</option>
-                            <option value="no" @selected(($filters['adicionales'] ?? '') === 'no')>Sin adicionales</option>
-                        </select>
-                        @error('adicionales')
                             <p class="err">{{ $message }}</p>
                         @enderror
                     </div>
@@ -578,6 +623,40 @@
                         formmethod="get"
                     >Excel</button>
                     <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Quitar filtros y ver todo el stock">Limpiar</a>
+                    @php
+                        $nAdi = (int) ($conteoAdicionales ?? 0);
+                        $nSal = (int) ($conteoSalidas ?? 0);
+                    @endphp
+                    <a
+                        id="inv-chip-adicionales"
+                        class="btn-clear {{ $viendoAdicionales ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['adicionales' => 'si']) }}"
+                        title="Solo lenguas etiquetadas como Adicional (ADI.): {{ $nAdi }} disponible(s)"
+                        aria-current="{{ $viendoAdicionales ? 'page' : 'false' }}"
+                        aria-label="Adicionales, {{ $nAdi }} disponible{{ $nAdi === 1 ? '' : 's' }}"
+                        data-badge-kind="adicionales"
+                    >
+                        Adicionales
+                        <span
+                            id="inv-badge-adicionales"
+                            @class(['btn-clear__badge', 'btn-clear__badge--zero' => $nAdi === 0])
+                        >{{ $nAdi > 99 ? '99+' : $nAdi }}</span>
+                    </a>
+                    <a
+                        id="inv-chip-salidas"
+                        class="btn-clear btn-clear--salidas {{ $viendoSalidas ? 'is-active' : '' }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['salidas' => 1]) }}"
+                        title="Solo lenguas etiquetadas como Salida (SAL.): {{ $nSal }} disponible(s)"
+                        aria-current="{{ $viendoSalidas ? 'page' : 'false' }}"
+                        aria-label="Salidas, {{ $nSal }} disponible{{ $nSal === 1 ? '' : 's' }}"
+                        data-badge-kind="salidas"
+                    >
+                        Salidas
+                        <span
+                            id="inv-badge-salidas"
+                            @class(['btn-clear__badge', 'btn-clear__badge--zero' => $nSal === 0])
+                        >{{ $nSal > 99 ? '99+' : $nSal }}</span>
+                    </a>
                     <a
                         class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1]) }}"
@@ -591,7 +670,7 @@
                         aria-current="{{ $viendoVencidas ? 'page' : 'false' }}"
                     >Vencidas</a>
                     <a
-                        class="btn-clear {{ ! $viendoPorVencer && ! $viendoVencidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
+                        class="btn-clear {{ ! $viendoPorVencer && ! $viendoVencidas && ! $viendoAdicionales && ! $viendoSalidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', $chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
                         title="Acotar por ref. turno del día de operación"
                     >Solo hoy</a>
@@ -664,6 +743,61 @@
                     }
                 }
 
+                function formatBadgeCount(n) {
+                    n = parseInt(n, 10);
+                    if (!isFinite(n) || n < 0) {
+                        n = 0;
+                    }
+                    return n > 99 ? '99+' : String(n);
+                }
+
+                function updateEtiquetaBadge(chipId, badgeId, count, label) {
+                    const chip = document.getElementById(chipId);
+                    const badge = document.getElementById(badgeId);
+                    if (!badge) {
+                        return;
+                    }
+                    const n = parseInt(count, 10);
+                    const safe = !isFinite(n) || n < 0 ? 0 : n;
+                    badge.textContent = formatBadgeCount(safe);
+                    badge.classList.toggle('btn-clear__badge--zero', safe === 0);
+                    if (chip) {
+                        const plural = safe === 1 ? '' : 's';
+                        chip.title =
+                            'Solo lenguas etiquetadas como ' +
+                            label +
+                            ': ' +
+                            safe +
+                            ' disponible(s)';
+                        chip.setAttribute(
+                            'aria-label',
+                            label.split(' ')[0] + ', ' + safe + ' disponible' + plural,
+                        );
+                    }
+                }
+
+                function updateEtiquetaBadges(data) {
+                    if (!data || typeof data !== 'object') {
+                        return;
+                    }
+                    if (typeof data.conteo_adicionales !== 'undefined') {
+                        updateEtiquetaBadge(
+                            'inv-chip-adicionales',
+                            'inv-badge-adicionales',
+                            data.conteo_adicionales,
+                            'Adicional (ADI.)',
+                        );
+                    }
+                    if (typeof data.conteo_salidas !== 'undefined') {
+                        updateEtiquetaBadge(
+                            'inv-chip-salidas',
+                            'inv-badge-salidas',
+                            data.conteo_salidas,
+                            'Salida (SAL.)',
+                        );
+                    }
+                }
+
                 async function runSync() {
                     if (!importUrl || syncInFlight) {
                         return;
@@ -680,13 +814,19 @@
                         'propietario',
                         'destino',
                         'adicionales',
+                        'salidas',
                         'por_vencer',
                         'vencidas',
                     ];
                     filterNames.forEach(function (name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
                         if (!el || el.value === '') {
-                            if (name === 'por_vencer' || name === 'vencidas' || name === 'adicionales') {
+                            if (
+                                name === 'por_vencer' ||
+                                name === 'vencidas' ||
+                                name === 'adicionales' ||
+                                name === 'salidas'
+                            ) {
                                 return;
                             }
                             syncUrl.searchParams.set(name, '');
@@ -702,12 +842,27 @@
                         filterForm && filterForm.getAttribute('data-vencidas') === '1'
                             ? '1'
                             : new URLSearchParams(window.location.search).get('vencidas');
+                    const pageAdicionales =
+                        filterForm && filterForm.getAttribute('data-adicionales') === '1'
+                            ? '1'
+                            : new URLSearchParams(window.location.search).get('adicionales');
+                    const pageSalidas =
+                        filterForm && filterForm.getAttribute('data-salidas') === '1'
+                            ? '1'
+                            : new URLSearchParams(window.location.search).get('salidas');
                     if (pageVencidas === '1') {
                         syncUrl.searchParams.set('vencidas', '1');
                         syncUrl.searchParams.delete('por_vencer');
                     } else if (pagePorVencer === '1') {
                         syncUrl.searchParams.set('por_vencer', '1');
                         syncUrl.searchParams.delete('vencidas');
+                    }
+                    if (pageAdicionales === '1' || pageAdicionales === 'si') {
+                        syncUrl.searchParams.set('adicionales', 'si');
+                        syncUrl.searchParams.delete('salidas');
+                    } else if (pageSalidas === '1') {
+                        syncUrl.searchParams.set('salidas', '1');
+                        syncUrl.searchParams.delete('adicionales');
                     }
                     const body = new FormData();
                     body.append('_token', csrfToken());
@@ -726,8 +881,23 @@
                             return;
                         }
                         if (name === 'adicionales') {
-                            if (el && (el.value === 'si' || el.value === 'no')) {
-                                body.append('adicionales', el.value);
+                            if (
+                                pageSalidas !== '1' &&
+                                (pageAdicionales === '1' ||
+                                    pageAdicionales === 'si' ||
+                                    (el && el.value === 'si'))
+                            ) {
+                                body.append('adicionales', 'si');
+                            }
+                            return;
+                        }
+                        if (name === 'salidas') {
+                            if (
+                                pageAdicionales !== '1' &&
+                                pageAdicionales !== 'si' &&
+                                (pageSalidas === '1' || (el && el.value === '1'))
+                            ) {
+                                body.append('salidas', '1');
                             }
                             return;
                         }
@@ -752,6 +922,7 @@
                         if (typeof data.html === 'string') {
                             target.innerHTML = data.html;
                         }
+                        updateEtiquetaBadges(data);
                         const t = formatClock(new Date());
                         if (data.ok) {
                             setLine1('Última actualización de réplica correcta (' + t + ').');

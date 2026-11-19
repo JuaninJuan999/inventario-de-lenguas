@@ -105,6 +105,7 @@
                 opacity: 0.92;
             }
             .filtros-field input[type='date'],
+            .filtros-field input[type='text'],
             .filtros-field select {
                 width: 100%;
                 padding: 0.42rem 0.45rem;
@@ -433,6 +434,18 @@
                 <h2 id="filtros-historial-heading" class="filtros-form__title">Filtros del historial</h2>
                 <div class="filtros-grid">
                     <div class="filtros-field">
+                        <label for="filtro-codigo">Código / Id producto</label>
+                        <input
+                            id="filtro-codigo"
+                            type="text"
+                            name="codigo"
+                            value="{{ $filtros['codigo'] ?? '' }}"
+                            maxlength="80"
+                            autocomplete="off"
+                            placeholder="Ej. 2611-06259"
+                        />
+                    </div>
+                    <div class="filtros-field">
                         <label for="filtro-desde">Desde</label>
                         <span class="date-input-shell">
                             <input id="filtro-desde" type="date" name="desde" value="{{ $filtros['desde'] ?? '' }}" autocomplete="off" />
@@ -468,6 +481,12 @@
                         <a class="link-limpiar" href="{{ route('historia.despacho.lenguas') }}">Quitar filtros</a>
                     @endif
                 </div>
+                @if (($filtros['codigo'] ?? '') !== '')
+                    <p class="muted" style="margin: 0.65rem 0 0; font-size: 0.78rem">
+                        Buscando el movimiento (despacho o desposte) donde aparece el código
+                        <strong>{{ $filtros['codigo'] }}</strong>. Use <strong>Ver detalle</strong> para confirmar la lengua en el listado.
+                    </p>
+                @endif
                 @if (($filtros['operador'] ?? '') !== '')
                     <p class="muted" style="margin: 0.65rem 0 0; font-size: 0.78rem">
                         Con operador seleccionado solo se listan <strong>despachos</strong> (los movimientos a Planta de Desposte no tienen operador asignado).
@@ -478,7 +497,15 @@
             @if ($movimientos->isEmpty())
                 <p class="muted">
                     @if ($filtrosActivos ?? false)
-                        No hay movimientos que coincidan con los filtros indicados. Pruebe ampliar fechas o cambiar tipo / operador.
+                        @if (($filtros['codigo'] ?? '') !== '')
+                            No hay despacho ni desposte con el código <strong>{{ $filtros['codigo'] }}</strong>
+                            @if (($filtros['desde'] ?? null) || ($filtros['hasta'] ?? null) || ($filtros['tipo'] ?? '') !== '' || ($filtros['operador'] ?? '') !== '')
+                                bajo los demás filtros aplicados
+                            @endif
+                            . Verifique el código o quite filtros de fecha / tipo.
+                        @else
+                            No hay movimientos que coincidan con los filtros indicados. Pruebe ampliar fechas o cambiar tipo / operador.
+                        @endif
                     @else
                         Aún no hay movimientos en el historial. Aparecen al usar <strong>Terminar despacho</strong> en
                         despacho de lenguas o <strong>Registrar movimiento a Planta de Desposte</strong> en Lenguas
@@ -487,8 +514,11 @@
                 </p>
             @else
                 <p class="muted">
-                    Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s){{ ($filtrosActivos ?? false) ? ' con los filtros aplicados' : ' en total' }}. Página
-                    {{ $movimientos->currentPage() }} de {{ $movimientos->lastPage() }}.
+                    Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s){{ ($filtrosActivos ?? false) ? ' con los filtros aplicados' : ' en total' }}
+                    @if (($filtros['codigo'] ?? '') !== '')
+                        · código <strong>{{ $filtros['codigo'] }}</strong>
+                    @endif
+                    . Página {{ $movimientos->currentPage() }} de {{ $movimientos->lastPage() }}.
                 </p>
                 <div class="table-wrap">
                     <table class="data">

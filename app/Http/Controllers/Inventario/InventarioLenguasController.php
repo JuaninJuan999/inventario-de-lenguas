@@ -36,6 +36,7 @@ class InventarioLenguasController extends Controller
 
         $payload = $this->inventarioListadoPayload($request);
         $syncMeta = $this->synchronizer->meta();
+        $conteosEtiquetas = $this->conteosEtiquetasDisponibles();
 
         $viewData = [
             'rows' => $payload['rows'],
@@ -47,6 +48,8 @@ class InventarioLenguasController extends Controller
             'inventarioSyncIntervalSeconds' => $interval,
             'hoyOperacion' => $this->consultaSirt->fechaHoyOperacion(),
             'inventarioSyncMeta' => $syncMeta,
+            'conteoAdicionales' => $conteosEtiquetas['adicionales'],
+            'conteoSalidas' => $conteosEtiquetas['salidas'],
         ];
 
         if ($payload['validator']->fails()) {
@@ -114,10 +117,14 @@ class InventarioLenguasController extends Controller
         $payload = $this->inventarioListadoPayload($request);
 
         if ($request->expectsJson()) {
+            $conteosEtiquetas = $this->conteosEtiquetasDisponibles();
+
             return response()->json([
                 'ok' => $outcome['success'],
                 'hit_limit' => (bool) ($outcome['hit_limit'] ?? false),
                 'limite' => $outcome['limite'] ?? null,
+                'conteo_adicionales' => $conteosEtiquetas['adicionales'],
+                'conteo_salidas' => $conteosEtiquetas['salidas'],
                 'html' => view('inventario-lenguas._listado', [
                     'rows' => $payload['rows'],
                     'filters' => $payload['filters'],
@@ -142,6 +149,7 @@ class InventarioLenguasController extends Controller
             'propietario',
             'destino',
             'adicionales',
+            'salidas',
             'vida_util',
             'por_vencer',
             'vencidas',
@@ -159,8 +167,15 @@ class InventarioLenguasController extends Controller
             unset($queryFiltros['vencidas']);
         }
         $adicionales = strtolower(trim((string) ($queryFiltros['adicionales'] ?? '')));
-        if (! in_array($adicionales, ['si', 'no'], true)) {
+        if ($adicionales === 'si' || $request->boolean('adicionales')) {
+            $queryFiltros['adicionales'] = 'si';
+        } else {
             unset($queryFiltros['adicionales']);
+        }
+        if ($request->boolean('salidas')) {
+            $queryFiltros['salidas'] = 1;
+        } else {
+            unset($queryFiltros['salidas']);
         }
 
         if ($outcome['success']) {
@@ -186,6 +201,7 @@ class InventarioLenguasController extends Controller
      *         propietario: string,
      *         destino: string,
      *         adicionales: string,
+     *         salidas: bool,
      *         vida_util: string,
      *         por_vencer: bool,
      *         vencidas: bool,
@@ -210,9 +226,12 @@ class InventarioLenguasController extends Controller
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
 
-        $adicionales = strtolower(substr($request->string('adicionales')->trim()->toString(), 0, 8));
-        if (! in_array($adicionales, ['si', 'no'], true)) {
-            $adicionales = '';
+        $adicionalesRaw = strtolower(substr($request->string('adicionales')->trim()->toString(), 0, 8));
+        $soloAdicionales = $adicionalesRaw === 'si' || $request->boolean('adicionales');
+        $soloSalidas = $request->boolean('salidas');
+        // Un solo filtro de etiqueta a la vez.
+        if ($soloAdicionales && $soloSalidas) {
+            $soloSalidas = false;
         }
 
         $idProducto = substr($request->string('id_producto')->trim()->toString(), 0, 80);
@@ -231,7 +250,8 @@ class InventarioLenguasController extends Controller
             'id_producto' => $idProducto,
             'propietario' => $propietario,
             'destino' => $destino,
-            'adicionales' => $adicionales,
+            'adicionales' => $soloAdicionales ? 'si' : '',
+            'salidas' => $soloSalidas,
             'vida_util' => substr($request->string('vida_util')->trim()->toString(), 0, 32),
             'por_vencer' => $porVencer,
             'vencidas' => $vencidas,
@@ -242,7 +262,8 @@ class InventarioLenguasController extends Controller
             || $filters['id_producto'] !== ''
             || $filters['propietario'] !== ''
             || $filters['destino'] !== ''
-            || $filters['adicionales'] !== ''
+            || $soloAdicionales
+            || $soloSalidas
             || $filters['vida_util'] !== ''
             || $porVencer
             || $vencidas;
@@ -273,6 +294,7 @@ class InventarioLenguasController extends Controller
             $porVencer,
             $vencidas,
             $listadoLimit,
+            $soloSalidas,
         );
 
         $listadoEmptyHint = 'global';
@@ -310,6 +332,7 @@ class InventarioLenguasController extends Controller
             'propietario' => $filters['propietario'],
             'destino' => $filters['destino'],
             'adicionales' => $filters['adicionales'] === '' ? null : $filters['adicionales'],
+            'salidas' => ! empty($filters['salidas']) ? 1 : null,
             'fecha_desde' => $fechaDesdeTrim === '' ? null : $fechaDesdeTrim,
             'fecha_hasta' => $fechaHastaTrim === '' ? null : $fechaHastaTrim,
             'vida_util' => $filters['vida_util'] === '' ? null : $filters['vida_util'],
@@ -319,7 +342,8 @@ class InventarioLenguasController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'destino' => ['nullable', 'string', 'max:200'],
-            'adicionales' => ['nullable', 'in:si,no'],
+            'adicionales' => ['nullable', 'in:si'],
+            'salidas' => ['nullable', 'boolean'],
             'fecha_desde' => ['nullable', 'date'],
             'fecha_hasta' => ['nullable', 'date'],
             'vida_util' => ['nullable', 'string', 'max:32'],
@@ -372,6 +396,7 @@ class InventarioLenguasController extends Controller
         bool $porVencer = false,
         bool $vencidas = false,
         int $listadoLimit = 2000,
+        bool $soloSalidas = false,
     ): array {
         $op = $this->likeOperator();
         $patId = '%'.$idProducto.'%';
@@ -399,10 +424,8 @@ class InventarioLenguasController extends Controller
             ->when($adicionales === 'si', function ($q): void {
                 $q->where('es_adicional', true);
             })
-            ->when($adicionales === 'no', function ($q): void {
-                $q->where(function ($inner): void {
-                    $inner->where('es_adicional', false)->orWhereNull('es_adicional');
-                });
+            ->when($soloSalidas, function ($q): void {
+                $q->where('es_salida', true);
             })
             ->when($porVencer, function ($q) use ($diasExpr, $hoyYmd): void {
                 // Vencen hoy o mañana (0–1 días), igual que DashboardController::conteosVencimiento.
@@ -426,13 +449,29 @@ class InventarioLenguasController extends Controller
         $total = (clone $q)->count();
 
         $rows = (clone $q)
-            ->orderByDesc('es_adicional')
-            ->orderByDesc('imported_at')
+            ->orderByDesc('fecha_registro')
+            ->orderByDesc('hora_registro')
+            ->orderByDesc('fecha_turno_referencia')
             ->orderByDesc('id')
             ->limit($listadoLimit)
             ->get();
 
         return ['rows' => $rows, 'total' => $total];
+    }
+
+    /**
+     * Conteos de stock disponible por etiqueta (badges de filtros).
+     *
+     * @return array{adicionales: int, salidas: int}
+     */
+    private function conteosEtiquetasDisponibles(): array
+    {
+        $base = IngresoLenguaLocal::query()->sinDespachar();
+
+        return [
+            'adicionales' => (int) (clone $base)->where('es_adicional', true)->count(),
+            'salidas' => (int) (clone $base)->where('es_salida', true)->count(),
+        ];
     }
 
     /**

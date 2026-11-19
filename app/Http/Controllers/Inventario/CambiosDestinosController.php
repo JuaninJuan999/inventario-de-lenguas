@@ -262,6 +262,54 @@ class CambiosDestinosController extends Controller
     }
 
     /**
+     * Marca o desmarca varios IDs del listado como salida.
+     */
+    public function bulkSalidas(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer', 'min:1'],
+            'accion' => ['required', 'in:marcar,desmarcar'],
+            'id_producto' => ['nullable', 'string', 'max:80'],
+            'propietario' => ['nullable', 'string', 'max:200'],
+            'solo_adicionales' => ['nullable', 'boolean'],
+        ]);
+
+        $marcar = $validated['accion'] === 'marcar';
+        $ids = array_values(array_unique(array_map('intval', $validated['ids'])));
+        $query = $this->redirectQueryFromValidated($validated);
+
+        $updated = IngresoLenguaLocal::query()
+            ->sinDespachar()
+            ->whereIn('id', $ids)
+            ->where('es_salida', '!=', $marcar)
+            ->update(['es_salida' => $marcar]);
+
+        if ($updated === 0) {
+            return redirect()
+                ->route('cambios.destinos', $query)
+                ->with(
+                    'cambios_destinos_error',
+                    $marcar
+                        ? 'Ninguna fila seleccionada cambió (ya estaban como salida o no están disponibles).'
+                        : 'Ninguna fila seleccionada tenía marca de salida (o no están disponibles).'
+                );
+        }
+
+        $msg = $marcar
+            ? ($updated === 1
+                ? 'Se marcó 1 código como salida.'
+                : "Se marcaron {$updated} códigos como salida.")
+            : ($updated === 1
+                ? 'Se quitó la marca de salida a 1 código.'
+                : "Se quitó la marca de salida a {$updated} códigos.");
+
+        return redirect()
+            ->route('cambios.destinos', $query)
+            ->with('cambios_destinos_ok', $msg);
+    }
+
+    /**
      * @param  Builder<IngresoLenguaLocal>  $query
      */
     private function applyIdProductoFlexibleFilter(Builder $query, string $op, string $idProducto): void

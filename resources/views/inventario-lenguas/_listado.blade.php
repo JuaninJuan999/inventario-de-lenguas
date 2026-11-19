@@ -91,6 +91,9 @@
                             @if (! empty($row->es_adicional))
                                 <span class="chip-adicional">Adicional</span>
                             @endif
+                            @if (! empty($row->es_salida))
+                                <span class="chip-salida">Salida</span>
+                            @endif
                         </td>
                         <td>{{ $row->fecha_registro?->format('Y-m-d') ?? '—' }}</td>
                         <td>{{ $row->hora_registro ?? '—' }}</td>

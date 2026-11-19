@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Despacho;
 use App\Models\Desposte;
 use App\Models\IngresoLenguaLocal;
+use App\Support\DespachoInventarioMatch;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class HistoriaDespachoLenguasController extends Controller
@@ -42,7 +44,16 @@ class HistoriaDespachoLenguasController extends Controller
             [$desde, $hasta] = [$hasta, $desde];
         }
 
+        $codigoRaw = $request->query('codigo', '');
+        $codigo = is_string($codigoRaw) ? trim($codigoRaw) : '';
+        $codigo = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $codigo) ?? '';
+        $codigo = DespachoInventarioMatch::normalizarGuionesIdProducto(substr($codigo, 0, 80));
+
         $operadorFiltro = $operador !== '' ? $operador : null;
+
+        $idsPorCodigo = $codigo !== ''
+            ? $this->idsMovimientosPorCodigo($codigo)
+            : null;
 
         $despachoQuery = Despacho::query()
             ->with('user')
@@ -57,6 +68,14 @@ class HistoriaDespachoLenguasController extends Controller
         if ($operadorFiltro !== null) {
             $despachoQuery->where('empresa', $operadorFiltro);
         }
+        if ($idsPorCodigo !== null) {
+            $despachoIds = $idsPorCodigo['despacho_ids'];
+            if ($despachoIds === []) {
+                $despachoQuery->whereRaw('0 = 1');
+            } else {
+                $despachoQuery->whereIn('id', $despachoIds);
+            }
+        }
 
         $desposteQuery = Desposte::query()
             ->with('user')
@@ -67,6 +86,14 @@ class HistoriaDespachoLenguasController extends Controller
         }
         if ($hasta !== null) {
             $desposteQuery->whereDate('realizado_at', '<=', $hasta);
+        }
+        if ($idsPorCodigo !== null) {
+            $desposteIds = $idsPorCodigo['desposte_ids'];
+            if ($desposteIds === []) {
+                $desposteQuery->whereRaw('0 = 1');
+            } else {
+                $desposteQuery->whereIn('id', $desposteIds);
+            }
         }
 
         $incluirDespacho = $tipo === '' || $tipo === 'despacho';
@@ -139,7 +166,8 @@ class HistoriaDespachoLenguasController extends Controller
         $filtrosActivos = $desde !== null
             || $hasta !== null
             || $tipo !== ''
-            || $operadorFiltro !== null;
+            || $operadorFiltro !== null
+            || $codigo !== '';
 
         return view('historia-despacho-lenguas', [
             'movimientos' => $movimientos,
@@ -150,8 +178,49 @@ class HistoriaDespachoLenguasController extends Controller
                 'hasta' => $hasta,
                 'tipo' => $tipo,
                 'operador' => $operador,
+                'codigo' => $codigo,
             ],
         ]);
+    }
+
+    /**
+     * Localiza despachos / despostes que contienen el código de producto (parcial o exacto).
+     *
+     * @return array{despacho_ids: list<int>, desposte_ids: list<int>}
+     */
+    private function idsMovimientosPorCodigo(string $codigo): array
+    {
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $needle = '%'.addcslashes($codigo, '%_\\').'%';
+
+        $rows = IngresoLenguaLocal::query()
+            ->where(function ($q) use ($op, $needle, $codigo): void {
+                $q->where('id_producto', $op, $needle);
+                $keys = DespachoInventarioMatch::matchKeysForProductId($codigo);
+                if ($keys !== []) {
+                    $q->orWhereIn('id_producto', $keys);
+                }
+            })
+            ->where(function ($q): void {
+                $q->whereNotNull('despacho_id')->orWhereNotNull('desposte_id');
+            })
+            ->get(['despacho_id', 'desposte_id']);
+
+        $despachoIds = [];
+        $desposteIds = [];
+        foreach ($rows as $row) {
+            if ($row->despacho_id !== null) {
+                $despachoIds[] = (int) $row->despacho_id;
+            }
+            if ($row->desposte_id !== null) {
+                $desposteIds[] = (int) $row->desposte_id;
+            }
+        }
+
+        return [
+            'despacho_ids' => array_values(array_unique($despachoIds)),
+            'desposte_ids' => array_values(array_unique($desposteIds)),
+        ];
     }
 
     private static function parseFechaFiltro(mixed $valor): ?string

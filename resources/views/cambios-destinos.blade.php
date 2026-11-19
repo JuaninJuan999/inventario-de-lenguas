@@ -144,12 +144,77 @@
                 font-weight: 600;
                 cursor: pointer;
                 user-select: none;
+                position: relative;
+                max-width: 100%;
             }
             .check-adicionales input {
                 width: 1rem;
                 height: 1rem;
                 accent-color: var(--brand-green);
                 cursor: pointer;
+                flex-shrink: 0;
+            }
+            .check-adicionales__tip {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.15rem;
+                height: 1.15rem;
+                margin-left: 0.1rem;
+                flex-shrink: 0;
+                border-radius: 999px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 55%, rgba(255, 255, 255, 0.25));
+                background: color-mix(in srgb, var(--brand-green) 22%, rgba(4, 14, 11, 0.9));
+                color: #e8f6ef;
+                font-size: 0.72rem;
+                font-weight: 800;
+                line-height: 1;
+                cursor: help;
+            }
+            .check-adicionales__tip:focus {
+                outline: 2px solid color-mix(in srgb, var(--brand-green) 70%, white);
+                outline-offset: 2px;
+            }
+            .check-adicionales__bubble {
+                position: absolute;
+                left: 0;
+                bottom: calc(100% + 0.45rem);
+                z-index: 20;
+                width: min(18.5rem, 78vw);
+                padding: 0.55rem 0.7rem;
+                border-radius: 8px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, rgba(0, 0, 0, 0.45));
+                background: rgba(4, 14, 11, 0.97);
+                color: #dceee5;
+                font-size: 0.72rem;
+                font-weight: 500;
+                line-height: 1.35;
+                letter-spacing: 0.01em;
+                text-transform: none;
+                box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(4px);
+                transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+            }
+            .check-adicionales__bubble::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 1.1rem;
+                border: 6px solid transparent;
+                border-top-color: color-mix(in srgb, var(--brand-green) 40%, rgba(0, 0, 0, 0.45));
+            }
+            .check-adicionales:hover .check-adicionales__bubble,
+            .check-adicionales:focus-within .check-adicionales__bubble,
+            .check-adicionales__tip:hover .check-adicionales__bubble,
+            .check-adicionales__tip:focus .check-adicionales__bubble,
+            .check-adicionales__tip.is-open .check-adicionales__bubble {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0);
             }
             .filtros-actions {
                 display: flex;
@@ -196,7 +261,8 @@
             .btn-desmarcar-adicional:hover {
                 border-color: color-mix(in srgb, var(--brand-rose) 50%, transparent);
             }
-            .chip-adicional {
+            .chip-adicional,
+            .chip-salida {
                 display: inline-block;
                 margin-left: 0.35rem;
                 padding: 0.12rem 0.4rem;
@@ -205,17 +271,36 @@
                 letter-spacing: 0.05em;
                 text-transform: uppercase;
                 border-radius: 9999px;
+                vertical-align: middle;
+            }
+            .chip-adicional {
                 color: #2a1024;
                 background: color-mix(in srgb, var(--brand-rose) 82%, #fff);
-                vertical-align: middle;
+            }
+            .chip-salida {
+                color: #04261c;
+                background: color-mix(in srgb, var(--brand-green) 78%, #fff);
             }
             tr.row-adicional > td {
                 background: color-mix(in srgb, var(--brand-rose) 8%, transparent);
             }
+            tr.row-salida > td {
+                box-shadow: inset 3px 0 0 color-mix(in srgb, var(--brand-green) 70%, transparent);
+            }
             .col-check {
-                width: 2.2rem;
+                width: 2.6rem;
                 text-align: center;
                 vertical-align: middle;
+            }
+            .col-check .col-check-label {
+                display: block;
+                margin: 0 0 0.2rem;
+                font-size: 0.62rem;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                line-height: 1.1;
+                color: color-mix(in srgb, var(--text) 72%, transparent);
             }
             .col-check input {
                 width: 1rem;
@@ -223,17 +308,65 @@
                 accent-color: var(--brand-green);
                 cursor: pointer;
             }
-            .adicionales-bulk-bar {
+            .adicionales-bulk-bar,
+            .salidas-bulk-bar {
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
                 gap: 0.45rem 0.65rem;
-                margin: 0 0 0.75rem;
+                margin: 0 0 0.55rem;
             }
-            .adicionales-bulk-bar .sel-count {
+            .adicionales-bulk-bar .sel-count,
+            .salidas-bulk-bar .sel-count {
                 margin: 0;
                 font-size: 0.78rem;
                 color: color-mix(in srgb, var(--text) 68%, transparent);
+            }
+            .btn-marcar-salida {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 0.9rem;
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #04261c;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 50%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, var(--brand-green), color-mix(in srgb, var(--brand-green) 72%, #1a5c40));
+            }
+            .btn-marcar-salida:hover {
+                filter: brightness(1.05);
+            }
+            .btn-desmarcar-salida {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 0.9rem;
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: #dceee5;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 35%, rgba(0, 0, 0, 0.45));
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: rgba(4, 14, 11, 0.75);
+            }
+            .btn-desmarcar-salida:hover {
+                border-color: color-mix(in srgb, var(--brand-green) 55%, #fff);
+            }
+            .btn-marcar-adicional:disabled,
+            .btn-desmarcar-adicional:disabled,
+            .btn-marcar-salida:disabled,
+            .btn-desmarcar-salida:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                filter: none;
             }
             .btn-filtrar {
                 display: inline-flex;
@@ -486,15 +619,34 @@
                         />
                     </div>
                     <div class="filtros-field filtros-field--check">
-                        <label class="check-adicionales" for="filtro-solo-adicionales">
+                        <label
+                            class="check-adicionales"
+                            for="filtro-solo-adicionales"
+                            title="Filtra la búsqueda: solo lenguas ya marcadas como Adicional."
+                        >
                             <input
                                 id="filtro-solo-adicionales"
                                 type="checkbox"
                                 name="solo_adicionales"
                                 value="1"
                                 @checked(! empty($filters['solo_adicionales']))
+                                aria-describedby="hint-solo-adicionales"
                             />
                             Solo etiquetados como adicionales
+                            <span
+                                class="check-adicionales__tip"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Qué hace esta opción"
+                                aria-describedby="hint-solo-adicionales"
+                            >
+                                ?
+                                <span class="check-adicionales__bubble" id="hint-solo-adicionales" role="tooltip">
+                                    Al activarlo, la búsqueda lista <strong>solo</strong> las lenguas que ya tienen
+                                    la etiqueta <strong>Adicional</strong>. Desmárquelo para ver también el resto del
+                                    inventario disponible (según código o propietario).
+                                </span>
+                            </span>
                         </label>
                     </div>
                 </div>
@@ -559,7 +711,8 @@
                         Mostrando <strong id="filtro-rapido-visibles">{{ $rows->count() }}</strong> de
                         <strong>{{ $rows->count() }}</strong>
                         · Editadas: <strong id="filtro-rapido-editadas">0</strong>
-                        · Adicionales: <strong>{{ $rows->where('es_adicional', true)->count() }}</strong>
+                        · ADI.: <strong>{{ $rows->where('es_adicional', true)->count() }}</strong>
+                        · SAL.: <strong>{{ $rows->where('es_salida', true)->count() }}</strong>
                     </p>
                 </div>
 
@@ -576,12 +729,34 @@
                     @endif
                     <div class="adicionales-bulk-bar">
                         <button type="submit" name="accion" value="marcar" class="btn-marcar-adicional" id="btn-adicionales-marcar" disabled>
-                            Marcar seleccionados como adicional
+                            Marcar ADI. seleccionados
                         </button>
                         <button type="submit" name="accion" value="desmarcar" class="btn-desmarcar-adicional" id="btn-adicionales-desmarcar" disabled>
-                            Quitar marca a seleccionados
+                            Quitar ADI. a seleccionados
                         </button>
-                        <p class="sel-count" id="adicionales-sel-count">0 seleccionado(s)</p>
+                        <p class="sel-count" id="adicionales-sel-count">0 ADI. seleccionado(s)</p>
+                    </div>
+                </form>
+
+                <form
+                    id="form-salidas-masivo"
+                    method="post"
+                    action="{{ route('cambios.destinos.salidas_bulk') }}"
+                >
+                    @csrf
+                    <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
+                    <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
+                    @if (! empty($filters['solo_adicionales']))
+                        <input type="hidden" name="solo_adicionales" value="1" />
+                    @endif
+                    <div class="salidas-bulk-bar">
+                        <button type="submit" name="accion" value="marcar" class="btn-marcar-salida" id="btn-salidas-marcar" disabled>
+                            Marcar SAL. seleccionados
+                        </button>
+                        <button type="submit" name="accion" value="desmarcar" class="btn-desmarcar-salida" id="btn-salidas-desmarcar" disabled>
+                            Quitar SAL. a seleccionados
+                        </button>
+                        <p class="sel-count" id="salidas-sel-count">0 SAL. seleccionado(s)</p>
                     </div>
                 </form>
 
@@ -602,14 +777,28 @@
                         <table class="data">
                             <thead>
                                 <tr>
-                                    <th class="col-check" scope="col">
-                                        <label class="sr-only" for="check-todos-adicionales">Seleccionar todos</label>
-                                        <input type="checkbox" id="check-todos-adicionales" title="Seleccionar visibles" />
+                                    <th class="col-check" scope="col" title="Adicional — seleccionar visibles">
+                                        <span class="col-check-label" aria-hidden="true">ADI.</span>
+                                        <label class="sr-only" for="check-todos-adicionales">Seleccionar todos (Adicional)</label>
+                                        <input
+                                            type="checkbox"
+                                            id="check-todos-adicionales"
+                                            title="ADI. — seleccionar visibles para marcar/quitar Adicional"
+                                        />
                                     </th>
                                     <th class="col-producto">ID producto</th>
                                     <th class="col-prop">Propietario</th>
                                     <th>Ref. turno</th>
                                     <th class="col-destino">Destino</th>
+                                    <th class="col-check col-check--salida" scope="col" title="Salida — seleccionar visibles">
+                                        <span class="col-check-label" aria-hidden="true">SAL.</span>
+                                        <label class="sr-only" for="check-todos-salidas">Seleccionar todos (Salida)</label>
+                                        <input
+                                            type="checkbox"
+                                            id="check-todos-salidas"
+                                            title="SAL. — seleccionar visibles para marcar/quitar Salida"
+                                        />
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="tabla-destinos-body">
@@ -617,11 +806,12 @@
                                     @php
                                         $destinoValor = (string) ($row->destino ?? '');
                                         $esAdicional = (bool) $row->es_adicional;
+                                        $esSalida = (bool) $row->es_salida;
                                     @endphp
                                     <tr
                                         data-row-id="{{ $row->id }}"
                                         data-id-producto="{{ strtolower($row->id_producto) }}"
-                                        @class(['row-adicional' => $esAdicional])
+                                        @class(['row-adicional' => $esAdicional, 'row-salida' => $esSalida])
                                     >
                                         <td class="col-check">
                                             <input
@@ -630,13 +820,17 @@
                                                 form="form-adicionales-masivo"
                                                 name="ids[]"
                                                 value="{{ $row->id }}"
-                                                aria-label="Seleccionar {{ $row->id_producto }}"
+                                                aria-label="ADI. {{ $row->id_producto }}"
+                                                title="Seleccionar para Adicional"
                                             />
                                         </td>
                                         <td class="col-producto">
                                             {{ $row->id_producto }}
                                             @if ($esAdicional)
                                                 <span class="chip-adicional">Adicional</span>
+                                            @endif
+                                            @if ($esSalida)
+                                                <span class="chip-salida">Salida</span>
                                             @endif
                                         </td>
                                         <td class="col-prop">{{ $row->propietario !== null && $row->propietario !== '' ? $row->propietario : '—' }}</td>
@@ -653,6 +847,17 @@
                                                 maxlength="60000"
                                                 data-original="{{ $destinoValor }}"
                                             >{{ $destinoValor }}</textarea>
+                                        </td>
+                                        <td class="col-check col-check--salida">
+                                            <input
+                                                type="checkbox"
+                                                class="check-salida-row"
+                                                form="form-salidas-masivo"
+                                                name="ids[]"
+                                                value="{{ $row->id }}"
+                                                aria-label="SAL. {{ $row->id_producto }}"
+                                                title="Seleccionar para Salida"
+                                            />
                                         </td>
                                     </tr>
                                 @endforeach
@@ -676,6 +881,34 @@
                 </form>
             @endif
         </section>
+        <script>
+            (function () {
+                var tip = document.querySelector('.check-adicionales__tip');
+                if (!tip) {
+                    return;
+                }
+                tip.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    tip.classList.toggle('is-open');
+                    tip.focus();
+                });
+                tip.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        tip.classList.toggle('is-open');
+                    }
+                    if (e.key === 'Escape') {
+                        tip.classList.remove('is-open');
+                    }
+                });
+                document.addEventListener('click', function (e) {
+                    if (!tip.contains(e.target)) {
+                        tip.classList.remove('is-open');
+                    }
+                });
+            })();
+        </script>
         @if ($filtrosActivos && $rows->isNotEmpty())
             <script>
                 (function () {
@@ -763,10 +996,15 @@
                     var visiblesEl = document.getElementById('filtro-rapido-visibles');
                     var tbody = document.getElementById('tabla-destinos-body');
                     var checkTodos = document.getElementById('check-todos-adicionales');
+                    var checkTodosSalidas = document.getElementById('check-todos-salidas');
                     var btnMarcarSel = document.getElementById('btn-adicionales-marcar');
                     var btnDesmarcarSel = document.getElementById('btn-adicionales-desmarcar');
+                    var btnMarcarSalidas = document.getElementById('btn-salidas-marcar');
+                    var btnDesmarcarSalidas = document.getElementById('btn-salidas-desmarcar');
                     var selCountEl = document.getElementById('adicionales-sel-count');
+                    var selCountSalidasEl = document.getElementById('salidas-sel-count');
                     var formAdicionales = document.getElementById('form-adicionales-masivo');
+                    var formSalidas = document.getElementById('form-salidas-masivo');
 
                     function filasVisibles() {
                         if (!tbody) {
@@ -777,35 +1015,61 @@
                         );
                     }
 
-                    function refreshSeleccionAdicionales() {
+                    function refreshSeleccionPorClase(rowClass, checkTodosEl, btnMarcar, btnDesmarcar, countEl, label) {
                         var n = 0;
                         if (tbody) {
-                            tbody.querySelectorAll('tr[data-id-producto]:not(.row-filtrada-oculto) .check-adicional-row:checked').forEach(function () {
-                                n++;
-                            });
+                            tbody
+                                .querySelectorAll(
+                                    'tr[data-id-producto]:not(.row-filtrada-oculto) .' + rowClass + ':checked',
+                                )
+                                .forEach(function () {
+                                    n++;
+                                });
                         }
-                        if (selCountEl) {
-                            selCountEl.textContent = n + ' seleccionado(s)';
+                        if (countEl) {
+                            countEl.textContent = n + ' ' + label + ' seleccionado(s)';
                         }
-                        if (btnMarcarSel) {
-                            btnMarcarSel.disabled = n === 0;
+                        if (btnMarcar) {
+                            btnMarcar.disabled = n === 0;
                         }
-                        if (btnDesmarcarSel) {
-                            btnDesmarcarSel.disabled = n === 0;
+                        if (btnDesmarcar) {
+                            btnDesmarcar.disabled = n === 0;
                         }
-                        if (checkTodos) {
+                        if (checkTodosEl) {
                             var visibles = filasVisibles();
                             var checks = visibles
                                 .map(function (tr) {
-                                    return tr.querySelector('.check-adicional-row');
+                                    return tr.querySelector('.' + rowClass);
                                 })
                                 .filter(Boolean);
                             var checked = checks.filter(function (c) {
                                 return c.checked;
                             }).length;
-                            checkTodos.checked = checks.length > 0 && checked === checks.length;
-                            checkTodos.indeterminate = checked > 0 && checked < checks.length;
+                            checkTodosEl.checked = checks.length > 0 && checked === checks.length;
+                            checkTodosEl.indeterminate = checked > 0 && checked < checks.length;
                         }
+                    }
+
+                    function refreshSeleccionAdicionales() {
+                        refreshSeleccionPorClase(
+                            'check-adicional-row',
+                            checkTodos,
+                            btnMarcarSel,
+                            btnDesmarcarSel,
+                            selCountEl,
+                            'ADI.',
+                        );
+                    }
+
+                    function refreshSeleccionSalidas() {
+                        refreshSeleccionPorClase(
+                            'check-salida-row',
+                            checkTodosSalidas,
+                            btnMarcarSalidas,
+                            btnDesmarcarSalidas,
+                            selCountSalidasEl,
+                            'SAL.',
+                        );
                     }
 
                     if (filtroRapido && tbody) {
@@ -822,9 +1086,13 @@
                                 if (ok) {
                                     visibles++;
                                 } else {
-                                    var cb = tr.querySelector('.check-adicional-row');
-                                    if (cb) {
-                                        cb.checked = false;
+                                    var cbAdi = tr.querySelector('.check-adicional-row');
+                                    var cbSal = tr.querySelector('.check-salida-row');
+                                    if (cbAdi) {
+                                        cbAdi.checked = false;
+                                    }
+                                    if (cbSal) {
+                                        cbSal.checked = false;
                                     }
                                 }
                             });
@@ -832,6 +1100,7 @@
                                 visiblesEl.textContent = String(visibles);
                             }
                             refreshSeleccionAdicionales();
+                            refreshSeleccionSalidas();
                         }
                         filtroRapido.addEventListener('input', aplicarFiltroRapido);
                         filtroRapido.addEventListener('search', aplicarFiltroRapido);
@@ -839,8 +1108,14 @@
 
                     if (tbody) {
                         tbody.addEventListener('change', function (e) {
-                            if (e.target && e.target.classList.contains('check-adicional-row')) {
+                            if (!e.target) {
+                                return;
+                            }
+                            if (e.target.classList.contains('check-adicional-row')) {
                                 refreshSeleccionAdicionales();
+                            }
+                            if (e.target.classList.contains('check-salida-row')) {
+                                refreshSeleccionSalidas();
                             }
                         });
                     }
@@ -858,13 +1133,29 @@
                         });
                     }
 
-                    if (formAdicionales) {
-                        formAdicionales.addEventListener('submit', function (e) {
-                            // Los checkboxes viven en la tabla (form="form-adicionales-masivo"),
-                            // no como hijos del <form>; hay que contarlos en el tbody.
+                    if (checkTodosSalidas) {
+                        checkTodosSalidas.addEventListener('change', function () {
+                            var on = checkTodosSalidas.checked;
+                            filasVisibles().forEach(function (tr) {
+                                var cb = tr.querySelector('.check-salida-row');
+                                if (cb) {
+                                    cb.checked = on;
+                                }
+                            });
+                            refreshSeleccionSalidas();
+                        });
+                    }
+
+                    function bindBulkConfirm(formEl, rowClass, formAttr, etiqueta) {
+                        if (!formEl) {
+                            return;
+                        }
+                        formEl.addEventListener('submit', function (e) {
                             var n = tbody
-                                ? tbody.querySelectorAll('.check-adicional-row:checked').length
-                                : document.querySelectorAll('.check-adicional-row[form="form-adicionales-masivo"]:checked').length;
+                                ? tbody.querySelectorAll('.' + rowClass + ':checked').length
+                                : document.querySelectorAll(
+                                      '.' + rowClass + '[form="' + formAttr + '"]:checked',
+                                  ).length;
                             if (n === 0) {
                                 e.preventDefault();
                                 alert('Seleccione al menos un código.');
@@ -874,15 +1165,19 @@
                             var accion = submitter && submitter.value ? submitter.value : 'marcar';
                             var msg =
                                 accion === 'desmarcar'
-                                    ? '¿Quitar la marca de adicional a ' + n + ' código(s)?'
-                                    : '¿Marcar ' + n + ' código(s) como adicional?';
+                                    ? '¿Quitar la marca de ' + etiqueta + ' a ' + n + ' código(s)?'
+                                    : '¿Marcar ' + n + ' código(s) como ' + etiqueta + '?';
                             if (!confirm(msg)) {
                                 e.preventDefault();
                             }
                         });
                     }
 
+                    bindBulkConfirm(formAdicionales, 'check-adicional-row', 'form-adicionales-masivo', 'adicional');
+                    bindBulkConfirm(formSalidas, 'check-salida-row', 'form-salidas-masivo', 'salida');
+
                     refreshSeleccionAdicionales();
+                    refreshSeleccionSalidas();
                 })();
             </script>
         @endif

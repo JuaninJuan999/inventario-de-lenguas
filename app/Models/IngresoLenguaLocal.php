@@ -18,6 +18,7 @@ class IngresoLenguaLocal extends Model
         'propietario',
         'destino',
         'es_adicional',
+        'es_salida',
         'peso',
         'fecha_turno_referencia',
         'imported_at',
@@ -34,6 +35,7 @@ class IngresoLenguaLocal extends Model
             'fecha_turno_referencia' => 'date',
             'peso' => 'float',
             'es_adicional' => 'boolean',
+            'es_salida' => 'boolean',
             'imported_at' => 'datetime',
             'despachado_at' => 'datetime',
         ];

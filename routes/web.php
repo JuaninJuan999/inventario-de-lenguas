@@ -88,6 +88,8 @@ Route::middleware('auth')->group(function () {
             ->name('cambios.destinos.marcar_adicional');
         Route::post('/cambios-de-destinos/adicionales-masivo', [CambiosDestinosController::class, 'bulkAdicionales'])
             ->name('cambios.destinos.adicionales_bulk');
+        Route::post('/cambios-de-destinos/salidas-masivo', [CambiosDestinosController::class, 'bulkSalidas'])
+            ->name('cambios.destinos.salidas_bulk');
     });
 
     Route::middleware('module:ingresos')->group(function () {
