@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         @include('partials.favicon')
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>Cambios de destinos — {{ config('app.name') }}</title>
+        <title>Destinos y etiquetas — {{ config('app.name') }}</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700,800" rel="stylesheet" />
         <style>
@@ -573,11 +573,11 @@
         @include('partials.logo-institucional')
         <header class="page-bar">
             <div>
-                <h1>Cambios de destinos</h1>
+                <h1>Destinos y etiquetas</h1>
                 <p class="sub">
-                    Busque filas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>,
-                    <strong>propietario</strong> o <strong>solo adicionales</strong>; edite destinos y, si aplica,
-                    marque adicionales en el listado.
+                    Busque lenguas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>,
+                    <strong>propietario</strong> o <strong>solo adicionales</strong>; actualice el <strong>destino</strong>
+                    y marque <strong>Adicional (ADI.)</strong> o <strong>Salida (SAL.)</strong> en el listado.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -690,7 +690,7 @@
                     @if (! empty($filters['solo_adicionales']))
                         (solo adicionales)
                     @endif
-                    . Edite destinos o marque/desmarque adicionales; las filas de destino modificadas quedan
+                    . Edite destinos o marque/desmarque <strong>ADI.</strong> / <strong>SAL.</strong>; las filas de destino modificadas quedan
                     <strong>subrayadas</strong> hasta guardar.
                 </p>
 

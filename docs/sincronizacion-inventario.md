@@ -4,6 +4,10 @@ Documento operativo para el equipo que despliega o mantiene la aplicación.
 Complementa los comentarios en `config/ingresos_lenguas.php`, `routes/console.php` y
 `app/Console/Commands/SyncInventarioLenguasCommand.php`.
 
+Roles y módulos (menú / permisos): ver `docs/roles-y-modulos.md`.
+Etiquetas locales `es_adicional` / `es_salida` se gestionan en **Destinos y etiquetas**
+y **no** se sobrescriben al sincronizar desde SIRT.
+
 ---
 
 ## 1. Cómo se alimenta el inventario (resumen)

@@ -95,9 +95,11 @@ class ModulosMatrizSynchronizer
                 'requires_manage_users' => false,
             ],
             [
+                // Clave histórica `cambios_destinos` (no renombrar): UI «Destinos y etiquetas».
+                // Ver docs/roles-y-modulos.md
                 'clave' => 'cambios_destinos',
-                'nombre' => 'Cambios de destinos',
-                'descripcion' => 'Buscar por ID producto y propietario y actualizar el destino logístico en inventario disponible.',
+                'nombre' => 'Destinos y etiquetas',
+                'descripcion' => 'Actualizar el destino logístico y marcar lenguas como Adicional o Salida en el inventario disponible.',
                 'route_name' => 'cambios.destinos',
                 'orden' => 25,
                 'requires_manage_users' => false,

@@ -228,7 +228,7 @@ SQL;
             ['titulo' => 'Despacho', 'desc' => 'Alistar y cerrar carga', 'route' => 'despacho.lenguas'],
             ['titulo' => 'Decomisos', 'desc' => 'Manuales y consulta SIRT', 'route' => 'decomisos.lenguas'],
             ['titulo' => 'Conformidad', 'desc' => 'Acta PDF y manifiestos', 'route' => 'entrega.conformidad'],
-            ['titulo' => 'Cambios destino', 'desc' => 'Edición masiva local', 'route' => 'cambios.destinos'],
+            ['titulo' => 'Destinos y etiquetas', 'desc' => 'Destino, Adicional y Salida', 'route' => 'cambios.destinos'],
             ['titulo' => 'Historial', 'desc' => 'Despachos y despostes', 'route' => 'historia.despacho.lenguas'],
         ];
 

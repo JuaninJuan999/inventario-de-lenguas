@@ -28,7 +28,7 @@ Sistema web para el **inventario operativo de lenguas**: sincroniza desde SIRT/C
 | Despacho ordenado | Checklist por placa Colbeef + validación en inventario |
 | Alertas de vida útil | Vencen en **4 días** desde fecha de registro · rojo / naranja en listado |
 | Trazabilidad de salidas | Historial, entrega de conformidad (PDF) y manifiestos |
-| Control de acceso | Roles (`super`, `admin`, `gerencia`, `logistico`, `auxiliar`, `planillaje`, `calidad`); aliases `super_admin`/`operador`/`user` |
+| Control de acceso | Roles (`super_admin`, `admin`, `supervisor`, `gerencia`, `logistico`, `auxiliar`, `planillaje`, `calidad`); aliases `operador`/`user` |
 | Usabilidad (superadmin) | Módulo **Observatorio**: quién entra, a qué módulo y gráficas en el tiempo |
 
 ```text
@@ -54,7 +54,7 @@ Sistema web para el **inventario operativo de lenguas**: sincroniza desde SIRT/C
 |--------|----------|
 | **Dashboard** | KPIs de stock, vencidas, por vencer, despachos y decomisos |
 | **Inventario** | Listado, Excel, sync, filtros *hoy / todos / por vencer / vencidas* |
-| **Cambios de destinos** | Edición masiva + marca **Adicional** |
+| **Destinos y etiquetas** | Destino logístico + marcas **Adicional** / **Salida** |
 | **Ingresos** | Consulta en vivo a SIRT (sin guardar en local) |
 | **Despacho** | Placas pendientes → checklist → terminar despacho |
 | **Desposte** | Salida a planta de desposte |
@@ -64,7 +64,10 @@ Sistema web para el **inventario operativo de lenguas**: sincroniza desde SIRT/C
 | **Gestión de usuarios** | Solo **super_admin** |
 | **Observatorio** | Solo **super_admin** · usabilidad y gráficas |
 
-La matriz rol → módulo vive en [`config/modulos_por_rol.php`](config/modulos_por_rol.php). Tras cambiarla en un servidor:
+La matriz rol → módulo vive en [`config/modulos_por_rol.php`](config/modulos_por_rol.php).  
+Guía de roles (incl. **supervisor** y «Destinos y etiquetas»): **[docs/roles-y-modulos.md](docs/roles-y-modulos.md)**.
+
+Tras cambiarla en un servidor:
 
 ```bash
 php artisan modulos:sync-matriz
@@ -198,6 +201,7 @@ config/
   despacho.php          # filtros PPV / día operativo
 docs/
   sincronizacion-inventario.md
+  roles-y-modulos.md
 resources/views/        # UI verde / rosa del sistema
 scripts/
   start-schedule.bat
