@@ -44,7 +44,7 @@ Campos locales en `ingreso_lenguas_locales` (independientes de SIRT):
 | `admin` | Administración operativa | Todo lo operativo (sin usuarios/observatorio); decomisos con escritura |
 | `supervisor` | Responsable de turno / planta | Operación de piso (inventario, ingresos, despacho, desposte, historial, entrega); **sin** Destinos y etiquetas; **decomisos solo lectura** |
 | `gerencia` | Consulta gerencial | Dashboard, inventario, ingresos, historial, decomisos (lectura) — **sin** destinos/etiquetas ni despacho |
-| `logistico` / `operador` | Operación de salida | Inventario, despacho, desposte |
+| `logistico` / `operador` | Operación de salida | Inventario, despacho, desposte, historial |
 | `auxiliar` / `user` | Apoyo | Inventario, historial, entrega, decomisos (lectura) |
 | `planillaje` | Planillas | Inventario + decomisos (lectura) |
 | `calidad` | Calidad | Inventario + decomisos (escritura) |

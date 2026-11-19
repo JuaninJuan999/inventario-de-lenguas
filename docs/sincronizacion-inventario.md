@@ -6,6 +6,9 @@ Complementa los comentarios en `config/ingresos_lenguas.php`, `routes/console.ph
 
 Roles y módulos (menú / permisos): ver `docs/roles-y-modulos.md`.
 
+Reinicio / baseline desde Excel de códigos: ver `docs/inventario/reiniciar-desde-excel.md`
+(`php artisan inventario:reiniciar-desde-excel …`).
+
 Campos locales que la sync **no** debe pisar si ya fueron editados en planta:
 
 - `es_adicional` / `es_salida` (etiquetas en **Destinos y etiquetas**)

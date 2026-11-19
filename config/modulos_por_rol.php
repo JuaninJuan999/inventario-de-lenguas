@@ -72,6 +72,7 @@ return [
             'inventario',
             'despacho',
             'desposte',
+            'historial',
         ],
         'auxiliar' => [
             'dashboard',
@@ -99,6 +100,7 @@ return [
             'inventario',
             'despacho',
             'desposte',
+            'historial',
         ],
         'user' => [
             'dashboard',

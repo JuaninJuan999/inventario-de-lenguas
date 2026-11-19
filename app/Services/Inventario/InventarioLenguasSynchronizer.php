@@ -32,7 +32,8 @@ class InventarioLenguasSynchronizer
     public const CACHE_META_KEY = 'inventario_lenguas.sync.meta';
 
     public function __construct(
-        protected IngresosLenguasConsultaSirt $consultaSirt
+        protected IngresosLenguasConsultaSirt $consultaSirt,
+        protected InventarioBaseline $baseline,
     ) {}
 
     /**
@@ -356,6 +357,11 @@ class InventarioLenguasSynchronizer
                         ->first();
 
                     if ($existente === null) {
+                        // Baseline Excel: no reabrir histórico excluido; solo lista + turnos posteriores.
+                        $turnoParaBaseline = $fechaTurnoRef ?? $fechaTurnoFallback;
+                        if (! $this->baseline->permiteAlta((string) ($attrs['id_producto'] ?? ''), $turnoParaBaseline)) {
+                            continue;
+                        }
                         $attrs['destino'] = $destinoSirt;
                         $attrs['destino_local'] = false;
                         IngresoLenguaLocal::query()->create(array_merge(

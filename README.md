@@ -202,6 +202,7 @@ config/
 docs/
   sincronizacion-inventario.md
   roles-y-modulos.md
+  inventario/reiniciar-desde-excel.md
 resources/views/        # UI verde / rosa del sistema
 scripts/
   start-schedule.bat
