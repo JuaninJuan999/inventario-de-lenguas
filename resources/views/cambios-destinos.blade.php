@@ -576,8 +576,9 @@
                 <h1>Destinos y etiquetas</h1>
                 <p class="sub">
                     Busque lenguas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>,
-                    <strong>propietario</strong> o <strong>solo adicionales</strong>; actualice el <strong>destino</strong>
-                    y marque <strong>Adicional (ADI.)</strong> o <strong>Salida (SAL.)</strong> en el listado.
+                    <strong>propietario</strong>, <strong>solo adicionales</strong> o <strong>solo salidas</strong>;
+                    actualice el <strong>destino</strong> y marque <strong>Adicional (ADI.)</strong> o
+                    <strong>Salida (SAL.)</strong> en el listado.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -649,6 +650,37 @@
                             </span>
                         </label>
                     </div>
+                    <div class="filtros-field filtros-field--check">
+                        <label
+                            class="check-adicionales"
+                            for="filtro-solo-salidas"
+                            title="Filtra la búsqueda: solo lenguas ya marcadas como Salida."
+                        >
+                            <input
+                                id="filtro-solo-salidas"
+                                type="checkbox"
+                                name="solo_salidas"
+                                value="1"
+                                @checked(! empty($filters['solo_salidas']))
+                                aria-describedby="hint-solo-salidas"
+                            />
+                            Solo etiquetados como salidas
+                            <span
+                                class="check-adicionales__tip"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Qué hace esta opción"
+                                aria-describedby="hint-solo-salidas"
+                            >
+                                ?
+                                <span class="check-adicionales__bubble" id="hint-solo-salidas" role="tooltip">
+                                    Al activarlo, la búsqueda lista <strong>solo</strong> las lenguas que ya tienen
+                                    la etiqueta <strong>Salida</strong>. Desmárquelo para ver también el resto del
+                                    inventario disponible (según código o propietario).
+                                </span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
                 <div class="filtros-actions">
                     <button type="submit" class="btn-filtrar">Buscar en inventario</button>
@@ -674,9 +706,10 @@
 
             @if (! $filtrosActivos)
                 <p class="muted">
-                    Indique un criterio (<strong>ID producto</strong>, <strong>propietario</strong> o
-                    <strong>solo adicionales</strong>) y pulse <strong>Buscar en inventario</strong>. Solo se listan
-                    lenguas aún disponibles (no despachadas). Máximo {{ $listadoLimit }} filas por consulta.
+                    Indique un criterio (<strong>ID producto</strong>, <strong>propietario</strong>,
+                    <strong>solo adicionales</strong> o <strong>solo salidas</strong>) y pulse
+                    <strong>Buscar en inventario</strong>. Solo se listan lenguas aún disponibles (no despachadas).
+                    Máximo {{ $listadoLimit }} filas por consulta.
                 </p>
             @elseif ($rows->isEmpty())
                 <p class="muted">
@@ -687,8 +720,12 @@
             @else
                 <p class="muted">
                     <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s)
-                    @if (! empty($filters['solo_adicionales']))
+                    @if (! empty($filters['solo_adicionales']) && ! empty($filters['solo_salidas']))
+                        (solo adicionales y salidas)
+                    @elseif (! empty($filters['solo_adicionales']))
                         (solo adicionales)
+                    @elseif (! empty($filters['solo_salidas']))
+                        (solo salidas)
                     @endif
                     . Edite destinos o marque/desmarque <strong>ADI.</strong> / <strong>SAL.</strong>; las filas de destino modificadas quedan
                     <strong>subrayadas</strong> hasta guardar.
@@ -727,6 +764,9 @@
                     @if (! empty($filters['solo_adicionales']))
                         <input type="hidden" name="solo_adicionales" value="1" />
                     @endif
+                    @if (! empty($filters['solo_salidas']))
+                        <input type="hidden" name="solo_salidas" value="1" />
+                    @endif
                     <div class="adicionales-bulk-bar">
                         <button type="submit" name="accion" value="marcar" class="btn-marcar-adicional" id="btn-adicionales-marcar" disabled>
                             Marcar ADI. seleccionados
@@ -748,6 +788,9 @@
                     <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
                     @if (! empty($filters['solo_adicionales']))
                         <input type="hidden" name="solo_adicionales" value="1" />
+                    @endif
+                    @if (! empty($filters['solo_salidas']))
+                        <input type="hidden" name="solo_salidas" value="1" />
                     @endif
                     <div class="salidas-bulk-bar">
                         <button type="submit" name="accion" value="marcar" class="btn-marcar-salida" id="btn-salidas-marcar" disabled>
@@ -771,6 +814,9 @@
                     <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
                     @if (! empty($filters['solo_adicionales']))
                         <input type="hidden" name="solo_adicionales" value="1" />
+                    @endif
+                    @if (! empty($filters['solo_salidas']))
+                        <input type="hidden" name="solo_salidas" value="1" />
                     @endif
 
                     <div class="table-wrap">
@@ -883,29 +929,38 @@
         </section>
         <script>
             (function () {
-                var tip = document.querySelector('.check-adicionales__tip');
-                if (!tip) {
+                var tips = document.querySelectorAll('.check-adicionales__tip');
+                if (!tips.length) {
                     return;
                 }
-                tip.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    tip.classList.toggle('is-open');
-                    tip.focus();
-                });
-                tip.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                tips.forEach(function (tip) {
+                    tip.addEventListener('click', function (e) {
                         e.preventDefault();
+                        e.stopPropagation();
+                        tips.forEach(function (other) {
+                            if (other !== tip) {
+                                other.classList.remove('is-open');
+                            }
+                        });
                         tip.classList.toggle('is-open');
-                    }
-                    if (e.key === 'Escape') {
-                        tip.classList.remove('is-open');
-                    }
+                        tip.focus();
+                    });
+                    tip.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            tip.classList.toggle('is-open');
+                        }
+                        if (e.key === 'Escape') {
+                            tip.classList.remove('is-open');
+                        }
+                    });
                 });
                 document.addEventListener('click', function (e) {
-                    if (!tip.contains(e.target)) {
-                        tip.classList.remove('is-open');
-                    }
+                    tips.forEach(function (tip) {
+                        if (!tip.contains(e.target)) {
+                            tip.classList.remove('is-open');
+                        }
+                    });
                 });
             })();
         </script>

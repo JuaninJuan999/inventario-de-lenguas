@@ -5,8 +5,13 @@ Complementa los comentarios en `config/ingresos_lenguas.php`, `routes/console.ph
 `app/Console/Commands/SyncInventarioLenguasCommand.php`.
 
 Roles y módulos (menú / permisos): ver `docs/roles-y-modulos.md`.
-Etiquetas locales `es_adicional` / `es_salida` se gestionan en **Destinos y etiquetas**
-y **no** se sobrescriben al sincronizar desde SIRT.
+
+Campos locales que la sync **no** debe pisar si ya fueron editados en planta:
+
+- `es_adicional` / `es_salida` (etiquetas en **Destinos y etiquetas**)
+- `destino` cuando `destino_local = true` (destino editado en **Destinos y etiquetas**)
+
+El módulo **Ingresos** consulta SIRT en vivo: allí el destino corporativo no cambia por ediciones locales.
 
 ---
 

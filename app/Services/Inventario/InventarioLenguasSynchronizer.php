@@ -337,20 +337,37 @@ class InventarioLenguasSynchronizer
                         $fechaTurnoRef = null;
                     }
 
-                    IngresoLenguaLocal::query()->updateOrCreate(
-                        ['insensibilizacion_id' => $insId],
-                        [
-                            'id_producto' => (string) ($r['id_producto'] ?? ''),
-                            'fecha_registro' => $fechaReg,
-                            'hora_registro' => $hora !== null && $hora !== '' ? (string) $hora : null,
-                            'propietario' => isset($r['propietario']) ? (string) $r['propietario'] : null,
-                            'destino' => isset($r['destino']) ? (string) $r['destino'] : null,
-                            'peso' => isset($r['peso']) && $r['peso'] !== '' ? $r['peso'] : null,
-                            'fecha_turno_referencia' => $fechaTurnoRef ?? $fechaTurnoFallback,
-                            'imported_at' => now(),
-                            'user_id' => $userId,
-                        ],
-                    );
+                    // destino: en altas viene de SIRT; si ya fue editado en «Destinos y etiquetas»
+                    // (destino_local), no se sobrescribe. es_adicional / es_salida tampoco se tocan.
+                    $destinoSirt = isset($r['destino']) ? (string) $r['destino'] : null;
+                    $attrs = [
+                        'id_producto' => (string) ($r['id_producto'] ?? ''),
+                        'fecha_registro' => $fechaReg,
+                        'hora_registro' => $hora !== null && $hora !== '' ? (string) $hora : null,
+                        'propietario' => isset($r['propietario']) ? (string) $r['propietario'] : null,
+                        'peso' => isset($r['peso']) && $r['peso'] !== '' ? $r['peso'] : null,
+                        'fecha_turno_referencia' => $fechaTurnoRef ?? $fechaTurnoFallback,
+                        'imported_at' => now(),
+                        'user_id' => $userId,
+                    ];
+
+                    $existente = IngresoLenguaLocal::query()
+                        ->where('insensibilizacion_id', $insId)
+                        ->first();
+
+                    if ($existente === null) {
+                        $attrs['destino'] = $destinoSirt;
+                        $attrs['destino_local'] = false;
+                        IngresoLenguaLocal::query()->create(array_merge(
+                            ['insensibilizacion_id' => $insId],
+                            $attrs,
+                        ));
+                    } else {
+                        if (! $existente->destino_local) {
+                            $attrs['destino'] = $destinoSirt;
+                        }
+                        $existente->update($attrs);
+                    }
                     $importados++;
                     $maxId = $maxId === null ? $insId : max($maxId, $insId);
                     $minId = $minId === null ? $insId : min($minId, $insId);

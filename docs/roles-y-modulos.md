@@ -25,7 +25,14 @@ php artisan modulos:sync-matriz
 | `gestion_usuarios` | Gestión de usuarios | Solo `super_admin` |
 | `observatorio` | Observatorio | Solo `super_admin` |
 
-Campo local `ingreso_lenguas_locales.es_salida` (migración `2026_11_18_221000_…`): etiqueta **Salida**, independiente de SIRT. La sync de inventario **no** borra `es_adicional` ni `es_salida`.
+Campos locales en `ingreso_lenguas_locales` (independientes de SIRT):
+
+| Campo | Uso |
+|-------|-----|
+| `es_adicional` / `es_salida` | Etiquetas ADI. / SAL. La sync **no** las borra. |
+| `destino` + `destino_local` | Si se edita el destino en **Destinos y etiquetas**, `destino_local=true` y la sync **no** lo sobrescribe con el destino de SIRT. |
+
+**Ingresos de Lenguas** sigue mostrando el destino de SIRT en vivo (no usa la réplica local). Inventario, despacho, desposte, historial y entrega sí leen el destino local.
 
 ---
 

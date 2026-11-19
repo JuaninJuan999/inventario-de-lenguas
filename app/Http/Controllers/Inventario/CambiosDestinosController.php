@@ -23,8 +23,9 @@ class CambiosDestinosController extends Controller
         $idProducto = str_replace(['–', '—', '−'], '-', $idProducto);
         $propietario = substr($request->string('propietario')->trim()->toString(), 0, 200);
         $soloAdicionales = $request->boolean('solo_adicionales');
+        $soloSalidas = $request->boolean('solo_salidas');
 
-        $filtrosActivos = $idProducto !== '' || $propietario !== '' || $soloAdicionales;
+        $filtrosActivos = $idProducto !== '' || $propietario !== '' || $soloAdicionales || $soloSalidas;
 
         $rows = collect();
 
@@ -38,7 +39,9 @@ class CambiosDestinosController extends Controller
                 ->when($idProducto !== '', fn ($q) => $this->applyIdProductoFlexibleFilter($q, $op, $idProducto))
                 ->when($propietario !== '', fn ($q) => $q->where('propietario', $op, $patProp))
                 ->when($soloAdicionales, fn ($q) => $q->where('es_adicional', true))
+                ->when($soloSalidas, fn ($q) => $q->where('es_salida', true))
                 ->orderByDesc('es_adicional')
+                ->orderByDesc('es_salida')
                 ->orderByDesc('imported_at')
                 ->orderByDesc('id')
                 ->limit(self::LISTADO_LIMIT)
@@ -51,6 +54,7 @@ class CambiosDestinosController extends Controller
                 'id_producto' => $idProducto,
                 'propietario' => $propietario,
                 'solo_adicionales' => $soloAdicionales,
+                'solo_salidas' => $soloSalidas,
             ],
             'filtrosActivos' => $filtrosActivos,
             'listadoLimit' => self::LISTADO_LIMIT,
@@ -70,6 +74,7 @@ class CambiosDestinosController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
+            'solo_salidas' => ['nullable', 'boolean'],
         ]);
 
         $destino = $validated['destino'] ?? null;
@@ -78,7 +83,10 @@ class CambiosDestinosController extends Controller
             $destino = $destino === '' ? null : $destino;
         }
 
-        $ingreso->update(['destino' => $destino]);
+        $ingreso->update([
+            'destino' => $destino,
+            'destino_local' => true,
+        ]);
 
         return redirect()
             ->route('cambios.destinos', $this->redirectQueryFromValidated($validated))
@@ -93,6 +101,7 @@ class CambiosDestinosController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
+            'solo_salidas' => ['nullable', 'boolean'],
         ]);
 
         $updated = 0;
@@ -125,7 +134,10 @@ class CambiosDestinosController extends Controller
                 continue;
             }
 
-            $ingreso->update(['destino' => $destino]);
+            $ingreso->update([
+                'destino' => $destino,
+                'destino_local' => true,
+            ]);
             $updated++;
         }
 
@@ -165,6 +177,7 @@ class CambiosDestinosController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
+            'solo_salidas' => ['nullable', 'boolean'],
         ]);
 
         $accion = $validated['accion'] ?? 'marcar';
@@ -225,6 +238,7 @@ class CambiosDestinosController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
+            'solo_salidas' => ['nullable', 'boolean'],
         ]);
 
         $marcar = $validated['accion'] === 'marcar';
@@ -273,6 +287,7 @@ class CambiosDestinosController extends Controller
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
+            'solo_salidas' => ['nullable', 'boolean'],
         ]);
 
         $marcar = $validated['accion'] === 'marcar';
@@ -371,7 +386,7 @@ class CambiosDestinosController extends Controller
     }
 
     /**
-     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int}
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int}
      */
     private function redirectQuery(Request $request): array
     {
@@ -379,12 +394,13 @@ class CambiosDestinosController extends Controller
             'id_producto' => $request->input('id_producto'),
             'propietario' => $request->input('propietario'),
             'solo_adicionales' => $request->boolean('solo_adicionales'),
+            'solo_salidas' => $request->boolean('solo_salidas'),
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $validated
-     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int}
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int}
      */
     private function redirectQueryFromValidated(array $validated): array
     {
@@ -395,6 +411,9 @@ class CambiosDestinosController extends Controller
 
         if (! empty($validated['solo_adicionales'])) {
             $query['solo_adicionales'] = 1;
+        }
+        if (! empty($validated['solo_salidas'])) {
+            $query['solo_salidas'] = 1;
         }
 
         return $query;
