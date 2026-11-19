@@ -135,11 +135,19 @@ Checklist rápido:
 
 > El menú y el middleware `module:*` leen la BD local (`modulos` + `role_modulo`), no solo el archivo de config del repo.
 
-Tras un pull que toque Ingresos/Inventario, conviene forzar una sync:
+Tras un pull que toque Ingresos/Inventario:
 
 ```bash
+# Sync incremental (no borra histórico local):
 php artisan inventario:sync-lenguas
+# Ventana por defecto: desde ayer hasta hoy (INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS=1)
+
+# Si el servidor debe quedar como el entorno limpio (solo desde ayer + sin datos viejos
+# de despacho/desposte/decomisos), usar UNA VEZ:
+php artisan inventario:limpiar-operativo --force
 ```
+
+Detalle operativo: **[docs/sincronizacion-inventario.md](docs/sincronizacion-inventario.md)** §6.
 
 ---
 

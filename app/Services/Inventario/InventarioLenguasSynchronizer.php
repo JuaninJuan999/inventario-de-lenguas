@@ -4,6 +4,7 @@ namespace App\Services\Inventario;
 
 use App\Models\IngresoLenguaLocal;
 use App\Services\IngresosLenguas\IngresosLenguasConsultaSirt;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -14,6 +15,9 @@ use Throwable;
  * Usado por:
  * - POST inventario.lenguas.importar_hoy (polling de la vista)
  * - php artisan inventario:sync-lenguas (CLI / scheduler)
+ *
+ * Sin rango explícito importa desde (hoy − INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS)
+ * hasta el día de operación (default: desde ayer).
  *
  * Guarda meta de la última sync en caché (hit_limit, watermark de ids) para
  * alertas en UI y pases incrementales / catch-up cuando se alcanza el tope
@@ -63,6 +67,19 @@ class InventarioLenguasSynchronizer
         $fechaDesdeTrim = trim((string) ($fechaDesde ?? ''));
         $fechaHastaTrim = trim((string) ($fechaHasta ?? ''));
 
+        // Sin rango explícito: ventana configurable (default desde ayer hasta hoy).
+        if ($fechaDesdeTrim === '' && $fechaHastaTrim === '') {
+            $diasAtras = max(0, (int) config('ingresos_lenguas.inventario_sync_dias_atras', 1));
+            $fechaHastaTrim = $hoy;
+            try {
+                $tz = trim((string) config('ingresos_lenguas.fecha_operacion_timezone', '')) ?: null;
+                $fechaDesdeTrim = Carbon::parse($hoy, $tz)->subDays($diasAtras)->toDateString();
+            } catch (Throwable $e) {
+                report($e);
+                $fechaDesdeTrim = Carbon::parse($hoy)->subDays($diasAtras)->toDateString();
+            }
+        }
+
         if ($fechaDesdeTrim !== '' && $fechaHastaTrim === '') {
             $fechaHastaTrim = $fechaDesdeTrim;
         }
@@ -79,9 +96,10 @@ class InventarioLenguasSynchronizer
             }
         }
 
-        $primeraCarga = ! $useRangoTurno;
-        $fechaSqlDesde = $useRangoTurno ? $fechaDesdeTrim : '';
-        $fechaSqlHasta = $useRangoTurno ? $fechaHastaTrim : '';
+        // Con ventana por defecto ya no usamos “solo hoy” (primeraCarga).
+        $primeraCarga = false;
+        $fechaSqlDesde = $useRangoTurno ? $fechaDesdeTrim : $hoy;
+        $fechaSqlHasta = $useRangoTurno ? $fechaHastaTrim : $hoy;
         $fechaTurnoFallback = $useRangoTurno ? $fechaHastaTrim : $hoy;
 
         $filterPayload = [
@@ -168,10 +186,10 @@ class InventarioLenguasSynchronizer
         }
 
         $msg = $useRangoTurno
-            ? "Sincronización SIRT (ref. turno {$fechaDesdeTrim} a {$fechaHastaTrim}): {$importados} registro(s) actualizados o creados en la réplica local."
-            : "Importación del día de operación ({$hoy}): {$importados} registro(s) actualizados o creados.";
+            ? "Réplica actualizada desde SIRT ({$fechaDesdeTrim} → {$fechaHastaTrim})."
+            : "Réplica actualizada desde SIRT (día {$hoy}).";
         if ($hitLimit) {
-            $msg .= " Aviso: se alcanzó el tope de filas por consulta ({$limiteConsulta}); si faltan códigos, aumente INGRESOS_LENGUAS_CONSULTA_LIMIT o acote fechas/propietario.";
+            $msg .= " Tope de consulta SIRT ({$limiteConsulta}): pueden faltar filas; suba INGRESOS_LENGUAS_CONSULTA_LIMIT o acote filtros.";
         }
 
         $this->guardarMeta([

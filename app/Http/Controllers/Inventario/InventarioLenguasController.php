@@ -42,6 +42,8 @@ class InventarioLenguasController extends Controller
             'filters' => $payload['filters'],
             'filtrosActivos' => $payload['filtrosActivos'],
             'listadoEmptyHint' => $payload['listadoEmptyHint'],
+            'totalCoincidentes' => $payload['totalCoincidentes'],
+            'listadoLimit' => $payload['listadoLimit'],
             'inventarioSyncIntervalSeconds' => $interval,
             'hoyOperacion' => $this->consultaSirt->fechaHoyOperacion(),
             'inventarioSyncMeta' => $syncMeta,
@@ -118,10 +120,16 @@ class InventarioLenguasController extends Controller
                 'limite' => $outcome['limite'] ?? null,
                 'html' => view('inventario-lenguas._listado', [
                     'rows' => $payload['rows'],
-                    'importMessage' => $outcome['success'] ? $outcome['message'] : null,
-                    'importError' => $outcome['success'] ? null : $outcome['message'],
+                    'filters' => $payload['filters'],
+                    'importOk' => (bool) ($outcome['success'] ?? false),
+                    'importadosSync' => (int) ($outcome['importados'] ?? 0),
+                    'importHitLimit' => (bool) ($outcome['hit_limit'] ?? false),
+                    'importLimite' => $outcome['limite'] ?? null,
+                    'importError' => $outcome['success'] ? null : ($outcome['message'] ?? 'No se pudo sincronizar.'),
                     'filtrosActivos' => $payload['filtrosActivos'],
                     'listadoEmptyHint' => $payload['listadoEmptyHint'],
+                    'totalCoincidentes' => $payload['totalCoincidentes'],
+                    'listadoLimit' => $payload['listadoLimit'],
                     'inventarioSyncMeta' => $this->synchronizer->meta(),
                 ])->render(),
             ]);
@@ -158,7 +166,9 @@ class InventarioLenguasController extends Controller
         if ($outcome['success']) {
             return redirect()
                 ->route('inventario.lenguas', $queryFiltros)
-                ->with('import_message', $outcome['message']);
+                ->with('importados_sync', (int) ($outcome['importados'] ?? 0))
+                ->with('import_hit_limit', (bool) ($outcome['hit_limit'] ?? false))
+                ->with('import_limite', $outcome['limite'] ?? null);
         }
 
         return redirect()
@@ -182,6 +192,8 @@ class InventarioLenguasController extends Controller
      *     },
      *     filtrosActivos: bool,
      *     listadoEmptyHint: 'validation'|'filtered'|'global',
+     *     totalCoincidentes: int,
+     *     listadoLimit: int,
      *     validator: ValidatorInstance
      * }
      */
@@ -198,24 +210,27 @@ class InventarioLenguasController extends Controller
         $fechaDesdeTrim = $fechas['desde'];
         $fechaHastaTrim = $fechas['hasta'];
 
-        // Compatibilidad: ?todos=1 ya no acota; se ignora (el default es stock completo).
-        // Alertas de vida útil: no mezclar con rango de ref. turno.
-        if ($porVencer || $vencidas) {
-            $fechaDesdeTrim = '';
-            $fechaHastaTrim = '';
-        }
-
         $adicionales = strtolower(substr($request->string('adicionales')->trim()->toString(), 0, 8));
         if (! in_array($adicionales, ['si', 'no'], true)) {
             $adicionales = '';
         }
 
+        $idProducto = substr($request->string('id_producto')->trim()->toString(), 0, 80);
+        $propietario = substr($request->string('propietario')->trim()->toString(), 0, 200);
+        $destino = substr($request->string('destino')->trim()->toString(), 0, 200);
+
+        // Alertas de vida útil: stock completo (sin acotar ref. turno).
+        if ($porVencer || $vencidas) {
+            $fechaDesdeTrim = '';
+            $fechaHastaTrim = '';
+        }
+
         $filters = [
             'fecha_desde' => $fechaDesdeTrim,
             'fecha_hasta' => $fechaHastaTrim,
-            'id_producto' => substr($request->string('id_producto')->trim()->toString(), 0, 80),
-            'propietario' => substr($request->string('propietario')->trim()->toString(), 0, 200),
-            'destino' => substr($request->string('destino')->trim()->toString(), 0, 200),
+            'id_producto' => $idProducto,
+            'propietario' => $propietario,
+            'destino' => $destino,
             'adicionales' => $adicionales,
             'vida_util' => substr($request->string('vida_util')->trim()->toString(), 0, 32),
             'por_vencer' => $porVencer,
@@ -232,6 +247,7 @@ class InventarioLenguasController extends Controller
             || $porVencer
             || $vencidas;
 
+        $listadoLimit = 2000;
         $validator = $this->buildInventarioValidator($fechaDesdeTrim, $fechaHastaTrim, $filters);
 
         if ($validator->fails()) {
@@ -240,11 +256,13 @@ class InventarioLenguasController extends Controller
                 'filters' => $filters,
                 'filtrosActivos' => $filtrosActivos,
                 'listadoEmptyHint' => 'validation',
+                'totalCoincidentes' => 0,
+                'listadoLimit' => $listadoLimit,
                 'validator' => $validator,
             ];
         }
 
-        $rows = $this->ejecutarConsultaInventario(
+        $consulta = $this->ejecutarConsultaInventario(
             $fechaDesdeTrim,
             $fechaHastaTrim,
             $filters['id_producto'],
@@ -254,18 +272,21 @@ class InventarioLenguasController extends Controller
             $filters['vida_util'],
             $porVencer,
             $vencidas,
+            $listadoLimit,
         );
 
         $listadoEmptyHint = 'global';
-        if ($rows->isEmpty()) {
+        if ($consulta['rows']->isEmpty()) {
             $listadoEmptyHint = $filtrosActivos ? 'filtered' : 'global';
         }
 
         return [
-            'rows' => $rows,
+            'rows' => $consulta['rows'],
             'filters' => $filters,
             'filtrosActivos' => $filtrosActivos,
             'listadoEmptyHint' => $listadoEmptyHint,
+            'totalCoincidentes' => $consulta['total'],
+            'listadoLimit' => $listadoLimit,
             'validator' => $validator,
         ];
     }
@@ -337,6 +358,9 @@ class InventarioLenguasController extends Controller
         return ['desde' => $desde, 'hasta' => $hasta];
     }
 
+    /**
+     * @return array{rows: Collection<int, IngresoLenguaLocal>, total: int}
+     */
     private function ejecutarConsultaInventario(
         string $fechaDesdeTrim,
         string $fechaHastaTrim,
@@ -347,7 +371,8 @@ class InventarioLenguasController extends Controller
         string $vidaUtilTrim,
         bool $porVencer = false,
         bool $vencidas = false,
-    ): Collection {
+        int $listadoLimit = 2000,
+    ): array {
         $op = $this->likeOperator();
         $patId = '%'.$idProducto.'%';
         $patProp = '%'.$propietario.'%';
@@ -396,13 +421,18 @@ class InventarioLenguasController extends Controller
                 } else {
                     $q->whereRaw("({$castDiasTexto}) like ?", [$hoyYmd, $needle]);
                 }
-            })
+            });
+
+        $total = (clone $q)->count();
+
+        $rows = (clone $q)
             ->orderByDesc('es_adicional')
             ->orderByDesc('imported_at')
             ->orderByDesc('id')
-            ->limit(2000);
+            ->limit($listadoLimit)
+            ->get();
 
-        return $q->get();
+        return ['rows' => $rows, 'total' => $total];
     }
 
     /**

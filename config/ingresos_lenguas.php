@@ -71,6 +71,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ventana de sync del inventario (días hacia atrás)
+    |--------------------------------------------------------------------------
+    |
+    | Cuando sync / inventario:sync-lenguas / importar-hoy no reciben rango
+    | explícito, se importa desde (hoy_operación − N) hasta hoy_operación.
+    | Default 1 = desde ayer (incluye turno de emergencia y faena del día previo).
+    | 0 = solo el día de operación.
+    */
+    'inventario_sync_dias_atras' => max(0, (int) env('INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS', 1)),
+
+    /*
+    |--------------------------------------------------------------------------
     | Sync con la vista abierta (polling del navegador)
     |--------------------------------------------------------------------------
     |

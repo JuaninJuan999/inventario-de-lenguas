@@ -452,7 +452,6 @@
             @php
                 $viendoPorVencer = ! empty($filters['por_vencer']);
                 $viendoVencidas = ! empty($filters['vencidas']);
-                $viendoDisponible = ! $viendoPorVencer && ! $viendoVencidas;
                 $tieneFechasAvanzadas = ($filters['fecha_desde'] ?? '') !== '' || ($filters['fecha_hasta'] ?? '') !== '';
                 $chipQueryBase = array_filter([
                     'id_producto' => $filters['id_producto'] ?? '',
@@ -566,7 +565,7 @@
                         </div>
                     </div>
                     <p class="muted" style="margin: 0.45rem 0 0; font-size: 0.76rem">
-                        Vacío = todo el stock disponible. Si indica solo una fecha, se usa ese mismo día como rango.
+                        Por defecto se lista todo el stock disponible. Si indica solo una fecha, se usa ese mismo día como rango.
                     </p>
                 </details>
 
@@ -578,12 +577,7 @@
                         formaction="{{ route('inventario.lenguas.excel') }}"
                         formmethod="get"
                     >Excel</button>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Quitar filtros y ver stock disponible">Limpiar</a>
-                    <a
-                        class="btn-clear {{ $viendoDisponible && ! $tieneFechasAvanzadas && ($filters['id_producto'] ?? '') === '' && ($filters['propietario'] ?? '') === '' && ($filters['destino'] ?? '') === '' && ($filters['adicionales'] ?? '') === '' ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase) }}"
-                        aria-current="{{ $viendoDisponible && ! $tieneFechasAvanzadas ? 'page' : 'false' }}"
-                    >Disponible</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Quitar filtros y ver todo el stock">Limpiar</a>
                     <a
                         class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
                         href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1]) }}"
@@ -622,10 +616,16 @@
             <div id="inv-listado">
                 @include('inventario-lenguas._listado', [
                     'rows' => $rows,
-                    'importMessage' => session('import_message'),
+                    'filters' => $filters,
+                    'importOk' => session()->has('importados_sync'),
+                    'importadosSync' => session('importados_sync'),
+                    'importHitLimit' => session('import_hit_limit'),
+                    'importLimite' => session('import_limite'),
                     'importError' => session('import_error'),
                     'filtrosActivos' => $filtrosActivos,
                     'listadoEmptyHint' => $listadoEmptyHint,
+                    'totalCoincidentes' => $totalCoincidentes ?? $rows->count(),
+                    'listadoLimit' => $listadoLimit ?? 2000,
                     'inventarioSyncMeta' => $inventarioSyncMeta ?? null,
                 ])
             </div>

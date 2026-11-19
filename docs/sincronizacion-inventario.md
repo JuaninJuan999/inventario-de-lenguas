@@ -17,7 +17,8 @@ Complementa los comentarios en `config/ingresos_lenguas.php`, `routes/console.ph
 
 Flujo de importación:
 
-1. Se consulta SIRT (día de operación o rango de ref. turno).
+1. Se consulta SIRT (rango de ref. turno). Sin fechas explícitas, la ventana
+   por defecto es **desde ayer hasta hoy** (`INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS=1`).
 2. Por cada fila con `insensibilizacion_id` se hace `updateOrCreate` en `ingreso_lenguas_locales`.
 3. El listado de inventario muestra filas con `despachado_at` nulo (disponibles).
 
@@ -120,42 +121,112 @@ Definidas en `.env` / documentadas en `.env.example` y `config/ingresos_lenguas.
 | `INGRESOS_LENGUAS_ID_PARTE_PRODUCTO` | Filtro de parte producto en destino (default 4). |
 | `INVENTARIO_LENGUAS_SYNC_INTERVAL` | Polling del navegador en segundos (`0` = solo al abrir). |
 | `INVENTARIO_LENGUAS_SCHEDULE_MINUTES` | Minutos entre sync de fondo (`0` = no programar). |
+| `INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS` | Días hacia atrás en la sync sin rango explícito. **Default `1` = desde ayer hasta hoy.** `0` = solo el día de operación. |
 | `POSTGRES_*` / `COLBEEF_DB_*` | Credenciales de la conexión PostgreSQL SIRT. |
 
 También hace falta que la app pueda conectar a SIRT (`POSTGRES_HOST` o flags `POSTGRES_ENABLED` / `COLBEEF_DB_ENABLED` según `IngresosLenguasConsultaSirt::externalPostgresEnabled()`).
+
+En el `.env` del servidor conviene dejar explícito (aunque el default ya es 1):
+
+```env
+INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS=1
+```
+
+Luego: `php artisan config:clear`.
 
 ---
 
 ## 5. Comportamiento del inventario en pantalla
 
-- Al abrir **Inventario de Lenguas** sin fechas, el listado usa por defecto el **día de operación** (alineado con la sync del día).
-- Botón **Ver todos** (`?todos=1`): lista disponibles sin forzar ese default de fechas.
-- Botón **Solo hoy (ref. turno)**: fuerza el día de operación.
-- Si la última sync tocó el tope SIRT, aparece una alerta en la vista (meta en caché: `inventario_lenguas.sync.meta`).
+- Al abrir **Inventario de Lenguas** sin fechas, el listado muestra **todo el stock disponible** en la réplica local (sin acotar “ayer + hoy” en la UI).
+- Chips útiles: **Por vencer**, **Vencidas**, **Solo hoy** (ref. turno = día de operación). Fechas opcionales en Avanzado.
+- Tras una sync automática/manual, el aviso muestra solo el **total disponible** (sin conteos técnicos de SIRT).
+- Si la última sync tocó el tope de filas, aparece una alerta operativa (meta en caché: `inventario_lenguas.sync.meta`).
+
+**Nota:** la ventana “desde ayer” aplica a la **importación** desde SIRT, no a un filtro forzado del listado. Si la réplica local todavía tiene histórico antiguo, hay que limpiarla (sección 6).
 
 ---
 
-## 6. Checklist de puesta en marcha (servidor)
+## 6. Alinear el servidor “desde ayer en adelante” (como en desarrollo)
+
+Cuando el servidor tiene histórico viejo en `ingreso_lenguas_locales` (o datos de prueba en despacho/desposte/decomisos) y se quiere dejar la BD local igual que el entorno limpio de desarrollo:
+
+### Qué borra / qué no toca
+
+| Borra (local) | No toca |
+|---------------|---------|
+| `ingreso_lenguas_locales` (réplica) | Consultas / BD SIRT |
+| `despachos`, `despostes`, `decomisos_manuales` | `users` |
+| `despacho_operador_placas`, `modulo_accesos` | `modulos`, `role_modulo` |
+
+### Comando recomendado (una sola vez tras el pull)
+
+```bash
+php artisan config:clear
+php artisan inventario:limpiar-operativo --force
+```
+
+Eso:
+
+1. Vacía los datos operativos locales listados arriba.
+2. Limpia la meta de sync en caché.
+3. Reimporta con la ventana por defecto (**ayer → hoy**, salvo que pases `--desde` / `--hasta`).
+
+Variantes:
+
+```bash
+# Solo vaciar réplica e importar; conservar despachos/despostes/decomisos
+php artisan inventario:limpiar-operativo --solo-inventario --force
+
+# Rango explícito
+php artisan inventario:limpiar-operativo --desde=2026-11-17 --hasta=2026-11-18 --force
+
+# Solo reimportar sin borrar (histórico local se mantiene; upsert)
+php artisan inventario:sync-lenguas
+```
+
+> `inventario:sync-lenguas` **no elimina** filas antiguas: solo crea/actualiza. Para “empezar desde ayer” hace falta `inventario:limpiar-operativo` (o borrar a mano lo anterior a ayer).
+
+### Checklist rápido post-`git pull`
+
+```bash
+git pull
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan modulos:sync-matriz
+php artisan config:clear
+php artisan view:clear
+# Opcional, si quieren la BD local limpia desde ayer:
+php artisan inventario:limpiar-operativo --force
+# Si no limpian, al menos forzar sync:
+# php artisan inventario:sync-lenguas
+```
+
+---
+
+## 7. Checklist de puesta en marcha (servidor nuevo)
 
 1. Copiar `.env` desde `.env.example` y completar `POSTGRES_*` / conexión Colbeef.
-2. `php artisan migrate`
-3. Confirmar `INVENTARIO_LENGUAS_SCHEDULE_MINUTES=10` (o el valor acordado).
-4. Activar el despertador del schedule:
+2. Confirmar `INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS=1`.
+3. `php artisan migrate`
+4. Confirmar `INVENTARIO_LENGUAS_SCHEDULE_MINUTES=10` (o el valor acordado).
+5. Activar el despertador del schedule:
    - Linux: cron `* * * * * … schedule:run`
    - Windows/Laragon: `scripts\start-schedule.bat` o servicio equivalente con `schedule:work`
-5. `php artisan schedule:list` → debe verse `inventario:sync-lenguas`
-6. `php artisan inventario:sync-lenguas` → debe importar sin error
-7. Abrir Inventario en el navegador y verificar listado / mensaje de sync
+6. `php artisan schedule:list` → debe verse `inventario:sync-lenguas`
+7. `php artisan inventario:limpiar-operativo --force` (o `inventario:sync-lenguas` si la BD ya está vacía)
+8. Abrir Inventario en el navegador y verificar el total disponible
 
 ---
 
-## 7. Archivos de código a revisar
+## 8. Archivos de código a revisar
 
 | Archivo | Contenido |
 |---------|-----------|
-| `config/ingresos_lenguas.php` | Defaults y comentarios de ENV |
+| `config/ingresos_lenguas.php` | Defaults y comentarios de ENV (`inventario_sync_dias_atras`) |
 | `routes/console.php` | Registro `Schedule::command('inventario:sync-lenguas')` |
 | `app/Console/Commands/SyncInventarioLenguasCommand.php` | CLI `inventario:sync-lenguas` |
+| `app/Console/Commands/LimpiarOperativoInventarioCommand.php` | CLI `inventario:limpiar-operativo` |
 | `app/Services/Inventario/InventarioLenguasSynchronizer.php` | Upsert local, watermark, catch-up, meta |
 | `app/Services/IngresosLenguas/IngresosLenguasConsultaSirt.php` | SQL a SIRT |
 | `scripts/start-schedule.bat` | Arranque de `schedule:work` en Windows |
@@ -163,7 +234,7 @@ También hace falta que la app pueda conectar a SIRT (`POSTGRES_HOST` o flags `P
 
 ---
 
-## 8. Qué no hace este diseño (a propósito)
+## 9. Qué no hace este diseño (a propósito)
 
 - No escribe decomisos/despachos de vuelta a SIRT.
 - No sustituye la sync al abrir la vista: ambas pueden coexistir.

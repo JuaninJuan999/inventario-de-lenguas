@@ -17,8 +17,8 @@ use Illuminate\Console\Command;
 class SyncInventarioLenguasCommand extends Command
 {
     protected $signature = 'inventario:sync-lenguas
-                            {--desde= : Fecha turno desde (Y-m-d); por defecto día de operación}
-                            {--hasta= : Fecha turno hasta (Y-m-d); por defecto igual a --desde o día de operación}';
+                            {--desde= : Fecha turno desde (Y-m-d); por defecto hoy − INVENTARIO_LENGUAS_SYNC_DIAS_ATRAS}
+                            {--hasta= : Fecha turno hasta (Y-m-d); por defecto día de operación}';
 
     protected $description = 'Sincroniza la réplica local de inventario de lenguas desde SIRT/Colbeef (ver docs/sincronizacion-inventario.md)';
 
@@ -30,12 +30,8 @@ class SyncInventarioLenguasCommand extends Command
         $desde = is_string($desde) && trim($desde) !== '' ? trim($desde) : null;
         $hasta = is_string($hasta) && trim($hasta) !== '' ? trim($hasta) : null;
 
-        if ($desde === null && $hasta === null) {
-            // Día de operación (primeraCarga dentro del synchronizer).
-            $result = $synchronizer->sync();
-        } else {
-            $result = $synchronizer->sync($desde, $hasta);
-        }
+        // Sin flags: el synchronizer aplica la ventana (default: desde ayer hasta hoy).
+        $result = $synchronizer->sync($desde, $hasta);
 
         if (! $result['success']) {
             $this->error($result['message']);
