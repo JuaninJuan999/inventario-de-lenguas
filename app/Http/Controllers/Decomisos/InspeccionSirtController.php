@@ -262,20 +262,17 @@ class InspeccionSirtController extends Controller
     public function sugerenciasProducto(Request $request): JsonResponse
     {
         if (! $request->user()?->canRegistrarDecomisoManual()) {
-            return response()->json(['items' => []], 403);
+            return response()->json(['items' => [], 'motivo' => 'sin_permiso'], 403);
         }
 
-        $q = substr($request->string('q')->trim()->toString(), 0, 80);
+        $q = DespachoInventarioMatch::normalizarGuionesIdProducto(
+            substr($request->string('q')->trim()->toString(), 0, 80),
+        );
         if (mb_strlen($q) < 2) {
-            return response()->json(['items' => []]);
+            return response()->json(['items' => [], 'motivo' => 'corto']);
         }
 
-        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
-        $pat = '%'.$q.'%';
-
-        $rows = IngresoLenguaLocal::query()
-            ->sinDespachar()
-            ->where('id_producto', $op, $pat)
+        $rows = $this->buscarInventarioParaSugerencia($q, true)
             ->orderByDesc('fecha_registro')
             ->orderByDesc('id')
             ->limit(15)
@@ -300,7 +297,67 @@ class InspeccionSirtController extends Controller
             ];
         })->values()->all();
 
-        return response()->json(['items' => $items]);
+        if ($items !== []) {
+            return response()->json(['items' => $items, 'motivo' => null])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        // Misma coincidencia pero ya retirada: mensaje claro (no “no existe”).
+        $retirado = $this->buscarInventarioParaSugerencia($q, false)
+            ->whereNotNull('despachado_at')
+            ->orderByDesc('id')
+            ->first(['id_producto', 'despachado_at']);
+
+        if ($retirado !== null) {
+            return response()->json([
+                'items' => [],
+                'motivo' => 'retirado',
+                'id_producto' => (string) $retirado->id_producto,
+            ])->header('Cache-Control', 'no-store');
+        }
+
+        return response()->json([
+            'items' => [],
+            'motivo' => 'no_en_inventario_local',
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Búsqueda flexible de id_producto (parcial, variantes con/sin guion, solo dígitos).
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<IngresoLenguaLocal>
+     */
+    private function buscarInventarioParaSugerencia(string $q, bool $soloDisponibles)
+    {
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $keys = DespachoInventarioMatch::matchKeysForProductId($q);
+        $compact = preg_replace('/\D+/', '', $q) ?? '';
+
+        $query = IngresoLenguaLocal::query();
+        if ($soloDisponibles) {
+            $query->sinDespachar();
+        }
+
+        return $query->where(function ($w) use ($op, $q, $keys, $compact): void {
+            $w->where('id_producto', $op, '%'.$q.'%');
+            foreach ($keys as $key) {
+                $w->orWhere('id_producto', $key)
+                    ->orWhere('id_producto', $op, '%'.$key.'%');
+            }
+            if (strlen($compact) >= 4) {
+                if (DB::getDriverName() === 'pgsql') {
+                    $w->orWhereRaw(
+                        "regexp_replace(COALESCE(id_producto, ''), '[^0-9]', '', 'g') LIKE ?",
+                        ['%'.$compact.'%'],
+                    );
+                } else {
+                    $w->orWhereRaw(
+                        "REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(id_producto, ''), '-', ''), ' ', ''), '/', ''), '_', '') LIKE ?",
+                        ['%'.$compact.'%'],
+                    );
+                }
+            }
+        });
     }
 
     public function storeManual(Request $request): RedirectResponse

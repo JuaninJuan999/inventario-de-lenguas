@@ -768,7 +768,27 @@
                                 return;
                             }
                             items = Array.isArray(data.items) ? data.items : [];
-                            render();
+                            if (items.length) {
+                                render();
+                                return;
+                            }
+                            const motivo = data && data.motivo ? String(data.motivo) : '';
+                            if (motivo === 'retirado') {
+                                const cod = data.id_producto ? String(data.id_producto) : q;
+                                renderEmpty(
+                                    '«' +
+                                        cod +
+                                        '» ya no está disponible (despachado o decomisado). Revise historial/decomisos.',
+                                );
+                                return;
+                            }
+                            if (motivo === 'no_en_inventario_local') {
+                                renderEmpty(
+                                    'No está en el inventario local disponible. Ábralo en Inventario de Lenguas o sincronice/importe el código en este server.',
+                                );
+                                return;
+                            }
+                            renderEmpty('Sin coincidencias en inventario disponible.');
                         })
                         .catch(function () {
                             if (seq === reqSeq) {

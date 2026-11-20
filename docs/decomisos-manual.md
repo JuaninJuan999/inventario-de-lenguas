@@ -44,12 +44,15 @@ Si en el server **Aplicar** no filtra (o salta a `127.0.0.1`):
 3. Tras Aplicar, la URL debe ser `http://192.168.20.205:8007/decomisos-de-lenguas?q=...` (o con fechas)
 4. `.env` del server: `APP_URL=http://192.168.20.205:8007`
 
-Si no aparecen sugerencias en el server:
+Si no aparecen sugerencias / sale “Sin coincidencias” o “No está en el inventario local”:
 
 1. `git pull` + `route:clear` + `view:clear`
-2. Sesión con rol que pueda registrar manual
-3. Inventario local con stock (códigos disponibles)
-4. Consola del navegador: la URL debe ser same-origin (`192.168.20.205:8007/...`), no `127.0.0.1`
+2. Sesión con rol que pueda registrar manual (calidad/admin, no solo lectura)
+3. El código debe existir en **Inventario de Lenguas del mismo server** y **sin despachar**  
+   (Ingresos SIRT ≠ réplica local: si solo está en SIRT, sincronice o importe)
+4. Si el mensaje dice **ya no está disponible**, ese id ya tiene `despachado_at` (despacho/decomiso previo)
+5. Probar en Inventario filtrando el mismo fragmento (p. ej. `05097`) en `http://192.168.20.205:8007/inventario-de-lenguas`
+6. Consola del navegador → Network → `sugerencias-producto?q=...` debe ser **200** JSON same-origin
 
 ### 2. Dictamen por defecto
 
