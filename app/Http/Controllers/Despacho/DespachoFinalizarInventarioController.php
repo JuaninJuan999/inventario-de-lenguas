@@ -9,6 +9,7 @@ use App\Services\Despacho\DespachoParteProductoVehiculoConsulta;
 use App\Support\DespachoInventarioMatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -90,9 +91,10 @@ class DespachoFinalizarInventarioController extends Controller
 
         $notFound = [];
         $removed = 0;
+        $despachoId = null;
 
         try {
-            DB::transaction(function () use ($validated, $codigosParaBaja, $request, &$notFound, &$removed, $idVa): void {
+            DB::transaction(function () use ($validated, $codigosParaBaja, $request, &$notFound, &$removed, &$despachoId, $idVa): void {
                 $realizadoAt = now();
                 $despacho = Despacho::query()->create([
                     'user_id' => $request->user()?->id,
@@ -120,6 +122,8 @@ class DespachoFinalizarInventarioController extends Controller
 
                 if ($removed === 0) {
                     $despacho->delete();
+                } else {
+                    $despachoId = (int) $despacho->id;
                 }
             });
         } catch (Throwable $e) {
@@ -152,11 +156,32 @@ class DespachoFinalizarInventarioController extends Controller
             }
         }
 
+        if ($despachoId) {
+            $despachoAvisado = Despacho::query()->find($despachoId);
+            // Consecutivo = cuántos despachos hay actualmente (no el id autoincremental).
+            $numero = (int) Despacho::query()->where('id', '<=', $despachoId)->count();
+            Cache::put('despacho.conformidad.aviso', [
+                'id' => $despachoId,
+                'numero' => $numero,
+                'placa' => (string) ($despachoAvisado?->placa ?? ''),
+                'conductor' => (string) ($despachoAvisado?->conductor ?? ''),
+                'pdf_url' => route('entrega.conformidad.pdf', $despachoId),
+                'realizado_at' => now()->timezone(config('app.timezone'))->format('H:i:s'),
+                'ts' => now()->getTimestamp(),
+            ], now()->addHours(6));
+        }
+
         return response()->json([
             'ok' => true,
             'removed' => $removed,
             'not_found' => $notFound,
             'message' => $message,
+            'despacho_id' => $despachoId,
+            'conformidad_pdf_url' => $despachoId
+                ? route('entrega.conformidad.pdf', $despachoId)
+                : null,
+            'conformidad_url' => route('entrega.conformidad'),
+            // Checklist / placas: volver al alistamiento; el aviso sonoro es para Auxiliar en Entrega.
             'redirect_url' => $idVa > 0 ? route('despacho.lenguas') : null,
         ]);
     }

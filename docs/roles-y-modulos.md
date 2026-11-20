@@ -45,7 +45,7 @@ Campos locales en `ingreso_lenguas_locales` (independientes de SIRT):
 | `supervisor` | Responsable de turno / planta | Operación de piso (inventario, ingresos, despacho, desposte, historial, entrega); **sin** Destinos y etiquetas; **decomisos solo lectura** |
 | `gerencia` | Consulta gerencial | Dashboard, inventario, ingresos, historial, decomisos (lectura) — **sin** destinos/etiquetas ni despacho |
 | `logistico` / `operador` | Operación de salida | Inventario, despacho, desposte, historial |
-| `auxiliar` / `user` | Apoyo | Inventario, historial, entrega, decomisos (lectura) |
+| `auxiliar` / `user` | Apoyo | Inventario, historial, entrega, decomisos (lectura). Recibe aviso sonoro + toast al cerrarse un despacho (ver `docs/aviso-despacho-auxiliar.md`) |
 | `planillaje` | Planillas | Inventario + decomisos (lectura) |
 | `calidad` | Calidad | Inventario + decomisos (escritura) |
 

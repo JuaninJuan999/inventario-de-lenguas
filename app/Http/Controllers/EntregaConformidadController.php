@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -101,6 +102,129 @@ class EntregaConformidadController extends Controller
             'num_destinos' => $payload['num_destinos'],
             'filas' => $payload['filas'],
         ]);
+    }
+
+    /**
+     * Avisos de despachos nuevos para el rol Auxiliar (sonido + sacar conformidad).
+     * Otros roles reciben lista vacía.
+     */
+    public function avisosNuevos(Request $request): JsonResponse
+    {
+        $role = (string) ($request->user()?->role ?? '');
+        if (! in_array($role, ['auxiliar', 'user'], true)) {
+            return response()->json([
+                'enabled' => false,
+                'avisos' => [],
+                'latest_id' => 0,
+            ]);
+        }
+
+        $afterId = max(0, (int) $request->query('after_id', 0));
+        $latestId = (int) (Despacho::query()->max('id') ?? 0);
+        $cacheAviso = Cache::get('despacho.conformidad.aviso');
+        if (is_array($cacheAviso) && (int) ($cacheAviso['id'] ?? 0) > $latestId) {
+            $latestId = (int) $cacheAviso['id'];
+        }
+
+        // Primera carga: si hay aviso reciente en caché (< 3 min), devolverlo para no perderlo.
+        if ($afterId <= 0) {
+            $avisosInicial = [];
+            if (is_array($cacheAviso)) {
+                $cacheId = (int) ($cacheAviso['id'] ?? 0);
+                $ts = (int) ($cacheAviso['ts'] ?? 0);
+                if ($cacheId > 0 && $ts > 0 && (now()->getTimestamp() - $ts) <= 180) {
+                    $avisosInicial[] = $this->formatearAvisoDespacho(
+                        $cacheId,
+                        (string) ($cacheAviso['placa'] ?? ''),
+                        (string) ($cacheAviso['conductor'] ?? ''),
+                        (string) ($cacheAviso['pdf_url'] ?? ''),
+                        (string) ($cacheAviso['realizado_at'] ?? ''),
+                        isset($cacheAviso['numero']) ? (int) $cacheAviso['numero'] : null,
+                    );
+                }
+            }
+
+            return response()->json([
+                'enabled' => true,
+                'avisos' => $avisosInicial,
+                'latest_id' => $latestId,
+            ]);
+        }
+
+        $rows = Despacho::query()
+            ->where('id', '>', $afterId)
+            ->orderBy('id')
+            ->limit(15)
+            ->get(['id', 'placa', 'conductor', 'realizado_at']);
+
+        $avisos = $rows->map(function (Despacho $d): array {
+            return $this->formatearAvisoDespacho(
+                (int) $d->id,
+                (string) ($d->placa ?? ''),
+                (string) ($d->conductor ?? ''),
+                route('entrega.conformidad.pdf', $d),
+                optional($d->realizado_at)?->timezone(config('app.timezone'))->format('H:i:s') ?? '',
+                null,
+            );
+        })->values()->all();
+
+        // Refuerzo: aviso en caché del último despacho (por si el poll coincide justo al cerrar).
+        if (is_array($cacheAviso)) {
+            $cacheId = (int) ($cacheAviso['id'] ?? 0);
+            if ($cacheId > $afterId) {
+                $ya = false;
+                foreach ($avisos as $a) {
+                    if ((int) ($a['id'] ?? 0) === $cacheId) {
+                        $ya = true;
+                        break;
+                    }
+                }
+                if (! $ya) {
+                    $avisos[] = $this->formatearAvisoDespacho(
+                        $cacheId,
+                        (string) ($cacheAviso['placa'] ?? ''),
+                        (string) ($cacheAviso['conductor'] ?? ''),
+                        (string) ($cacheAviso['pdf_url'] ?? ''),
+                        (string) ($cacheAviso['realizado_at'] ?? ''),
+                        isset($cacheAviso['numero']) ? (int) $cacheAviso['numero'] : null,
+                    );
+                }
+            }
+        }
+
+        return response()->json([
+            'enabled' => true,
+            'avisos' => $avisos,
+            'latest_id' => max($latestId, $afterId),
+        ]);
+    }
+
+    /**
+     * @return array{id: int, numero: int, placa: string, conductor: string, pdf_url: string, realizado_at: string}
+     */
+    private function formatearAvisoDespacho(
+        int $id,
+        string $placa,
+        string $conductor,
+        string $pdfUrl,
+        string $realizadoAt,
+        ?int $numero = null,
+    ): array {
+        if ($numero === null || $numero <= 0) {
+            $numero = (int) Despacho::query()->where('id', '<=', $id)->count();
+            if ($numero <= 0) {
+                $numero = (int) Despacho::query()->count();
+            }
+        }
+
+        return [
+            'id' => $id,
+            'numero' => $numero,
+            'placa' => $placa,
+            'conductor' => $conductor,
+            'pdf_url' => $pdfUrl !== '' ? $pdfUrl : route('entrega.conformidad.pdf', $id),
+            'realizado_at' => $realizadoAt,
+        ];
     }
 
     /**

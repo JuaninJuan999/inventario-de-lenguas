@@ -2090,7 +2090,8 @@
                             alert(errMsg);
                             return;
                         }
-                        alert(json.message || 'Despacho finalizado.');
+                        // Logístico / operación: cerrar y seguir alistamiento (sin sonido ni PDF).
+                        // El Auxiliar escucha el aviso en Entrega de conformidad.
                         if (json.redirect_url) {
                             window.location.href = json.redirect_url;
                             return;

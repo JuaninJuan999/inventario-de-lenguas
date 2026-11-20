@@ -38,3 +38,5 @@
     </picture>
 </div>
 @include('partials.credito-desarrollador')
+{{-- Aviso toast + sonido de despacho nuevo (solo auxiliar), en todos los módulos. --}}
+@include('partials.aviso-despacho-auxiliar')

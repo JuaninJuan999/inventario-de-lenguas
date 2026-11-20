@@ -127,6 +127,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:entrega')->group(function () {
         Route::get('/entrega-de-conformidad', [EntregaConformidadController::class, 'index'])->name('entrega.conformidad');
+        Route::get('/entrega-de-conformidad/avisos', [EntregaConformidadController::class, 'avisosNuevos'])
+            ->name('entrega.conformidad.avisos');
         Route::get('/entrega-de-conformidad/{despacho}/pdf', [EntregaConformidadController::class, 'pdf'])
             ->name('entrega.conformidad.pdf');
         Route::get('/entrega-de-conformidad/{despacho}/destinos', [EntregaConformidadController::class, 'destinosManifest'])
