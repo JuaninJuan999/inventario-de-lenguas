@@ -469,7 +469,7 @@
             id="inv-sheet"
             class="sheet"
             aria-label="Inventario de lenguas"
-            data-import-url="{{ route('inventario.lenguas.importar_hoy', [], false) }}"
+            data-import-url="/inventario-de-lenguas/importar-hoy"
             data-sync-interval="{{ (int) $inventarioSyncIntervalSeconds }}"
         >
             <div class="toolbar">
@@ -512,7 +512,7 @@
                 id="inv-filters"
                 class="filters"
                 method="get"
-                action="{{ route('inventario.lenguas', [], false) }}"
+                action=""
                 aria-label="Criterios de consulta del inventario de lenguas"
                 @if ($viendoPorVencer) data-por-vencer="1" @endif
                 @if ($viendoVencidas) data-vencidas="1" @endif
@@ -619,10 +619,10 @@
                     <button
                         class="btn-excel"
                         type="submit"
-                        formaction="{{ route('inventario.lenguas.excel', [], false) }}"
+                        formaction="/inventario-de-lenguas/excel"
                         formmethod="get"
                     >Excel</button>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas', [], false) }}" title="Quitar filtros y ver todo el stock">Limpiar</a>
+                    <a class="btn-clear" href="/inventario-de-lenguas" title="Quitar filtros y ver todo el stock">Limpiar</a>
                     @php
                         $nAdi = (int) ($conteoAdicionales ?? 0);
                         $nSal = (int) ($conteoSalidas ?? 0);
@@ -630,7 +630,7 @@
                     <a
                         id="inv-chip-adicionales"
                         class="btn-clear {{ $viendoAdicionales ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['adicionales' => 'si'], false) }}"
+                        href="/inventario-de-lenguas?{{ http_build_query($chipQueryBase + ['adicionales' => 'si']) }}"
                         title="Solo lenguas etiquetadas como Adicional (ADI.): {{ $nAdi }} disponible(s)"
                         aria-current="{{ $viendoAdicionales ? 'page' : 'false' }}"
                         aria-label="Adicionales, {{ $nAdi }} disponible{{ $nAdi === 1 ? '' : 's' }}"
@@ -645,7 +645,7 @@
                     <a
                         id="inv-chip-salidas"
                         class="btn-clear btn-clear--salidas {{ $viendoSalidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['salidas' => 1], false) }}"
+                        href="/inventario-de-lenguas?{{ http_build_query($chipQueryBase + ['salidas' => 1]) }}"
                         title="Solo lenguas etiquetadas como Salida (SAL.): {{ $nSal }} disponible(s)"
                         aria-current="{{ $viendoSalidas ? 'page' : 'false' }}"
                         aria-label="Salidas, {{ $nSal }} disponible{{ $nSal === 1 ? '' : 's' }}"
@@ -659,19 +659,19 @@
                     </a>
                     <a
                         class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1], false) }}"
+                        href="/inventario-de-lenguas?{{ http_build_query($chipQueryBase + ['por_vencer' => 1]) }}"
                         title="Lenguas que vencen hoy o mañana (vida útil 4 días desde fecha de registro)"
                         aria-current="{{ $viendoPorVencer ? 'page' : 'false' }}"
                     >Por vencer</a>
                     <a
                         class="btn-clear {{ $viendoVencidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['vencidas' => 1], false) }}"
+                        href="/inventario-de-lenguas?{{ http_build_query($chipQueryBase + ['vencidas' => 1]) }}"
                         title="Lenguas que ya superaron la fecha de vencimiento en stock"
                         aria-current="{{ $viendoVencidas ? 'page' : 'false' }}"
                     >Vencidas</a>
                     <a
                         class="btn-clear {{ ! $viendoPorVencer && ! $viendoVencidas && ! $viendoAdicionales && ! $viendoSalidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion], false) }}"
+                        href="/inventario-de-lenguas?{{ http_build_query($chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
                         title="Acotar por ref. turno del día de operación"
                     >Solo hoy</a>
                 </div>
@@ -711,6 +711,35 @@
         </section>
         <script>
             (function () {
+                // Filtros: same-origin siempre (no depender de APP_URL / route absoluto).
+                const filterForm = document.getElementById('inv-filters');
+                if (filterForm) {
+                    filterForm.addEventListener('submit', function (ev) {
+                        const submitter = ev.submitter;
+                        const excelPath =
+                            (submitter && submitter.getAttribute('data-excel-path')) ||
+                            (submitter && submitter.getAttribute('formaction')) ||
+                            '';
+                        const isExcel =
+                            submitter &&
+                            (submitter.classList.contains('btn-excel') ||
+                                (excelPath && excelPath.indexOf('/excel') !== -1));
+                        const params = new URLSearchParams();
+                        const fd = new FormData(filterForm);
+                        fd.forEach(function (value, key) {
+                            const v = String(value == null ? '' : value).trim();
+                            if (v === '') {
+                                return;
+                            }
+                            params.set(key, v);
+                        });
+                        const qs = params.toString();
+                        const path = isExcel ? '/inventario-de-lenguas/excel' : '/inventario-de-lenguas';
+                        ev.preventDefault();
+                        window.location.assign(qs ? path + '?' + qs : path);
+                    });
+                }
+
                 const sheet = document.getElementById('inv-sheet');
                 const target = document.getElementById('inv-listado');
                 const line1 = document.getElementById('inv-sync-line1');
@@ -722,7 +751,7 @@
                     return;
                 }
 
-                const importUrl = sheet.getAttribute('data-import-url') || '';
+                const importUrl = '/inventario-de-lenguas/importar-hoy';
                 const intervalSec = parseInt(sheet.getAttribute('data-sync-interval') || '0', 10);
                 const intervalMs = intervalSec > 0 ? intervalSec * 1000 : 0;
 
@@ -805,8 +834,8 @@
                     syncInFlight = true;
                     setLine1('Ejecutando actualización de la réplica local…');
                     target.querySelector('.alert--err.js-ajax-error')?.remove();
-                    const filterForm = document.getElementById('inv-filters');
-                    const syncUrl = new URL(importUrl, window.location.href);
+                    const syncUrl = new URL(importUrl, window.location.origin);
+                    const urlParams = new URLSearchParams(window.location.search);
                     const filterNames = [
                         'fecha_desde',
                         'fecha_hasta',
@@ -818,9 +847,18 @@
                         'por_vencer',
                         'vencidas',
                     ];
-                    filterNames.forEach(function (name) {
+                    function filterValue(name) {
                         const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
-                        if (!el || el.value === '') {
+                        const fromForm = el && String(el.value || '').trim() !== '' ? String(el.value).trim() : '';
+                        if (fromForm !== '') {
+                            return fromForm;
+                        }
+                        const fromUrl = urlParams.get(name);
+                        return fromUrl && String(fromUrl).trim() !== '' ? String(fromUrl).trim() : '';
+                    }
+                    filterNames.forEach(function (name) {
+                        const val = filterValue(name);
+                        if (val === '') {
                             if (
                                 name === 'por_vencer' ||
                                 name === 'vencidas' ||
@@ -829,27 +867,30 @@
                             ) {
                                 return;
                             }
-                            syncUrl.searchParams.set(name, '');
                             return;
                         }
-                        syncUrl.searchParams.set(name, el.value);
+                        syncUrl.searchParams.set(name, val);
                     });
                     const pagePorVencer =
-                        filterForm && filterForm.getAttribute('data-por-vencer') === '1'
+                        (filterForm && filterForm.getAttribute('data-por-vencer') === '1') ||
+                        filterValue('por_vencer') === '1'
                             ? '1'
-                            : new URLSearchParams(window.location.search).get('por_vencer');
+                            : '';
                     const pageVencidas =
-                        filterForm && filterForm.getAttribute('data-vencidas') === '1'
+                        (filterForm && filterForm.getAttribute('data-vencidas') === '1') ||
+                        filterValue('vencidas') === '1'
                             ? '1'
-                            : new URLSearchParams(window.location.search).get('vencidas');
-                    const pageAdicionales =
-                        filterForm && filterForm.getAttribute('data-adicionales') === '1'
-                            ? '1'
-                            : new URLSearchParams(window.location.search).get('adicionales');
+                            : '';
+                    const pageAdicionalesRaw =
+                        (filterForm && filterForm.getAttribute('data-adicionales') === '1'
+                            ? 'si'
+                            : '') || filterValue('adicionales');
+                    const pageAdicionales = pageAdicionalesRaw === '1' || pageAdicionalesRaw === 'si' ? 'si' : '';
                     const pageSalidas =
-                        filterForm && filterForm.getAttribute('data-salidas') === '1'
+                        (filterForm && filterForm.getAttribute('data-salidas') === '1') ||
+                        filterValue('salidas') === '1'
                             ? '1'
-                            : new URLSearchParams(window.location.search).get('salidas');
+                            : '';
                     if (pageVencidas === '1') {
                         syncUrl.searchParams.set('vencidas', '1');
                         syncUrl.searchParams.delete('por_vencer');
@@ -857,7 +898,7 @@
                         syncUrl.searchParams.set('por_vencer', '1');
                         syncUrl.searchParams.delete('vencidas');
                     }
-                    if (pageAdicionales === '1' || pageAdicionales === 'si') {
+                    if (pageAdicionales === 'si') {
                         syncUrl.searchParams.set('adicionales', 'si');
                         syncUrl.searchParams.delete('salidas');
                     } else if (pageSalidas === '1') {
@@ -867,41 +908,31 @@
                     const body = new FormData();
                     body.append('_token', csrfToken());
                     filterNames.forEach(function (name) {
-                        const el = filterForm ? filterForm.querySelector('[name="' + name + '"]') : null;
                         if (name === 'vencidas') {
-                            if (pageVencidas === '1' || (el && el.value === '1')) {
+                            if (pageVencidas === '1') {
                                 body.append('vencidas', '1');
                             }
                             return;
                         }
                         if (name === 'por_vencer') {
-                            if (pageVencidas !== '1' && (pagePorVencer === '1' || (el && el.value === '1'))) {
+                            if (pageVencidas !== '1' && pagePorVencer === '1') {
                                 body.append('por_vencer', '1');
                             }
                             return;
                         }
                         if (name === 'adicionales') {
-                            if (
-                                pageSalidas !== '1' &&
-                                (pageAdicionales === '1' ||
-                                    pageAdicionales === 'si' ||
-                                    (el && el.value === 'si'))
-                            ) {
+                            if (pageSalidas !== '1' && pageAdicionales === 'si') {
                                 body.append('adicionales', 'si');
                             }
                             return;
                         }
                         if (name === 'salidas') {
-                            if (
-                                pageAdicionales !== '1' &&
-                                pageAdicionales !== 'si' &&
-                                (pageSalidas === '1' || (el && el.value === '1'))
-                            ) {
+                            if (pageAdicionales !== 'si' && pageSalidas === '1') {
                                 body.append('salidas', '1');
                             }
                             return;
                         }
-                        body.append(name, el ? el.value : '');
+                        body.append(name, filterValue(name));
                     });
                     try {
                         const res = await fetch(syncUrl.toString(), {

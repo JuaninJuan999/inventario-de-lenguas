@@ -43,8 +43,9 @@ Entrar siempre por: `http://192.168.20.205:8007/`
 1. `http://192.168.20.205:8007/inventario-de-lenguas`
 2. ID producto → **Aplicar**
 3. La URL debe ser `http://192.168.20.205:8007/inventario-de-lenguas?id_producto=...`
-4. Si sigue yendo a `127.0.0.1`, falta el `git pull` o el `APP_URL` / `config:clear`
+4. Si solo “recarga” y no filtra (o salta a `127.0.0.1`), ver `docs/inventario/filtro-id-producto-server.md`
 
 ## Relacionado
 
-Checklist completo: `docs/inventario/checklist-server.md`
+- Checklist: `docs/inventario/checklist-server.md`
+- Filtro Id producto: `docs/inventario/filtro-id-producto-server.md`

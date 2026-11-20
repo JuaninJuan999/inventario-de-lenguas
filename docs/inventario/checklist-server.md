@@ -27,7 +27,7 @@ APP_URL=http://192.168.20.205:8007
 
 No uses `http://127.0.0.1:8000` ni la IP de otro PC (p. ej. `.11`). Si `APP_URL` apunta a localhost, al pulsar **Aplicar** / chips / Excel el navegador puede ir a una URL incorrecta y los filtros “no funcionan”.
 
-Además, Inventario genera esas acciones con rutas **relativas** (commit `5efcffe`) para que no dependan tanto de `APP_URL`.
+Además, Inventario ya no depende de `route()` absoluto para **Aplicar** / chips / Excel / sync: usa `action=""` + paths `/inventario-de-lenguas...` y un submit JS same-origin (ver `docs/inventario/filtro-id-producto-server.md`).
 
 Tras editar `.env`:
 
@@ -36,7 +36,7 @@ php artisan config:clear
 php artisan view:clear
 ```
 
-Comprobar: abrir `http://192.168.20.205:8007/inventario-de-lenguas`, filtrar por un ID producto y **Aplicar** — la barra de dirección debe seguir en `192.168.20.205:8007` con `?id_producto=...`.
+Comprobar: abrir `http://192.168.20.205:8007/inventario-de-lenguas`, filtrar por un ID producto y **Aplicar** — la barra de dirección debe seguir en `192.168.20.205:8007` con `?id_producto=...` y el listado acotado.
 
 ---
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Services\IngresosLenguas\IngresosLenguasConsultaSirt;
 use App\Services\Inventario\InventarioLenguasSynchronizer;
+use App\Support\DespachoInventarioMatch;
 use App\Support\PesoFormatter;
 use App\Support\SimpleXlsxWriter;
 use App\Support\VencimientoLengua;
@@ -412,8 +413,15 @@ class InventarioLenguasController extends Controller
             ->when($fechaDesdeTrim !== '' && $fechaHastaTrim !== '', function ($q) use ($fechaDesdeTrim, $fechaHastaTrim): void {
                 $q->whereBetween('fecha_turno_referencia', [$fechaDesdeTrim, $fechaHastaTrim]);
             })
-            ->when($idProducto !== '', function ($q) use ($op, $patId): void {
-                $q->where('id_producto', $op, $patId);
+            ->when($idProducto !== '', function ($q) use ($op, $patId, $idProducto): void {
+                // LIKE parcial + variantes (con/sin guion), igual que historial de despacho.
+                $keys = DespachoInventarioMatch::matchKeysForProductId($idProducto);
+                $q->where(function ($w) use ($op, $patId, $keys): void {
+                    $w->where('id_producto', $op, $patId);
+                    if ($keys !== []) {
+                        $w->orWhereIn('id_producto', $keys);
+                    }
+                });
             })
             ->when($propietario !== '', function ($q) use ($op, $patProp): void {
                 $q->where('propietario', $op, $patProp);
