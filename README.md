@@ -203,6 +203,7 @@ docs/
   sincronizacion-inventario.md
   roles-y-modulos.md
   inventario/checklist-server.md
+  inventario/deploy-server-205.md
   inventario/reiniciar-desde-excel.md
   inventario/depurar-vencidos.md
   inventario/importar-excel-adicionales.md

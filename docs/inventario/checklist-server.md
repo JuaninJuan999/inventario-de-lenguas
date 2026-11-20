@@ -11,18 +11,32 @@ php artisan route:clear
 php artisan modulos:sync-matriz
 ```
 
-### `APP_URL` en el server
+### `APP_URL` y filtros de Inventario (ajuste crítico)
 
-En `.env` del server, `APP_URL` debe ser la URL pública real (no `http://127.0.0.1:8000`).
-Si queda en localhost, formularios con `route()` absoluto (filtros, etc.) pueden fallar al aplicar.
+**URL de acceso al programa en el server:**
 
-Tras cambiarlo:
+```text
+http://192.168.20.205:8007/
+```
+
+En el `.env` **del server** (no el de Laragon local):
+
+```env
+APP_URL=http://192.168.20.205:8007
+```
+
+No uses `http://127.0.0.1:8000` ni la IP de otro PC (p. ej. `.11`). Si `APP_URL` apunta a localhost, al pulsar **Aplicar** / chips / Excel el navegador puede ir a una URL incorrecta y los filtros “no funcionan”.
+
+Además, Inventario genera esas acciones con rutas **relativas** (commit `5efcffe`) para que no dependan tanto de `APP_URL`.
+
+Tras editar `.env`:
 
 ```bash
 php artisan config:clear
+php artisan view:clear
 ```
 
-Los filtros de Inventario usan rutas **relativas** (a partir de este fix) para no depender de `APP_URL`.
+Comprobar: abrir `http://192.168.20.205:8007/inventario-de-lenguas`, filtrar por un ID producto y **Aplicar** — la barra de dirección debe seguir en `192.168.20.205:8007` con `?id_producto=...`.
 
 ---
 
