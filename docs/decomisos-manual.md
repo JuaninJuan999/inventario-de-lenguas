@@ -30,6 +30,16 @@ Comprobar: `php artisan route:list --name=decomisos`
 - Solo roles con permiso de **escritura** en decomisos (p. ej. calidad, admin). Lectura → 403 / lista vacía.
 - Flechas / Enter para elegir; muestra código + fecha de beneficio + propietario.
 
+### Filtros de búsqueda (Aplicar / Limpiar / Excel)
+
+Igual que Inventario: el formulario ya **no** usa `route()` absoluto. Submit JS same-origin a `/decomisos-de-lenguas?...`.
+
+Si en el server **Aplicar** solo recarga y no filtra (o salta a `127.0.0.1`):
+
+1. `git pull origin main` + `php artisan view:clear`
+2. Tras Aplicar, la URL debe ser `http://192.168.20.205:8007/decomisos-de-lenguas?q=...` (o con fechas)
+3. Revisar `APP_URL=http://192.168.20.205:8007` en `.env` del server
+
 Si no aparecen sugerencias en el server:
 
 1. `git pull` + `route:clear` + `view:clear`

@@ -191,8 +191,9 @@ class InspeccionSirtController extends Controller
         $resolved = $this->resolverListadoDecomisos($request);
 
         if ($resolved['validator']->fails()) {
-            return redirect()
-                ->route('decomisos.lenguas', $request->query())
+            $qs = http_build_query($request->query());
+
+            return redirect('/decomisos-de-lenguas'.($qs !== '' ? '?'.$qs : ''))
                 ->withErrors($resolved['validator']);
         }
 
@@ -306,8 +307,7 @@ class InspeccionSirtController extends Controller
     {
         $actor = $request->user();
         if ($actor === null || ! $actor->canRegistrarDecomisoManual()) {
-            return redirect()
-                ->route('decomisos.lenguas')
+            return redirect('/decomisos-de-lenguas')
                 ->with('decomiso_manual_error', 'Su rol solo puede visualizar decomisos; no puede registrar altas manuales.');
         }
 
@@ -384,8 +384,7 @@ class InspeccionSirtController extends Controller
                 ->withErrors(['id_producto' => 'No se pudo registrar el decomiso manual ni retirar del inventario.']);
         }
 
-        return redirect()
-            ->route('decomisos.lenguas')
+        return redirect('/decomisos-de-lenguas')
             ->with('decomiso_manual_ok', "Decomiso manual registrado y retirado del inventario: {$idProducto}.");
     }
 

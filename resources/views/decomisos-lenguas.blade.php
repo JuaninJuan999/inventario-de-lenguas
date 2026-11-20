@@ -433,7 +433,7 @@
             @if (! empty($puedeRegistrarDecomisoManual))
             <div class="manual-box">
                 <h2>Decomiso manual</h2>
-                <form method="post" action="{{ route('decomisos.lenguas.manual') }}" aria-label="Registrar decomiso manual">
+                <form method="post" action="/decomisos-de-lenguas/manual" aria-label="Registrar decomiso manual">
                     @csrf
                     <div class="manual-grid">
                         <div class="filter-field">
@@ -450,7 +450,7 @@
                                     autocomplete="off"
                                     aria-autocomplete="list"
                                     aria-controls="m-id-producto-suggest"
-                                    data-suggest-url="{{ url('/decomisos-de-lenguas/sugerencias-producto') }}"
+                                    data-suggest-url="/decomisos-de-lenguas/sugerencias-producto"
                                 />
                                 <ul
                                     id="m-id-producto-suggest"
@@ -502,7 +502,7 @@
                 </p>
             @endif
 
-            <form id="filtros-decomisos" class="filters" method="get" action="{{ route('decomisos.lenguas') }}" aria-label="Filtros de búsqueda">
+            <form id="filtros-decomisos" class="filters" method="get" action="" aria-label="Filtros de búsqueda">
                 <div class="filters-row">
                     <div class="filter-field filter-field--grow">
                         <label for="f-q">Búsqueda libre</label>
@@ -545,7 +545,7 @@
                     </div>
                     <div class="filter-actions">
                         <button class="btn-apply" type="submit">Aplicar</button>
-                        <a class="btn-clear" href="{{ route('decomisos.lenguas') }}">Limpiar</a>
+                        <a class="btn-clear" href="/decomisos-de-lenguas">Limpiar</a>
                     </div>
                 </div>
             </form>
@@ -563,7 +563,7 @@
                         class="btn-excel"
                         type="submit"
                         form="filtros-decomisos"
-                        formaction="{{ route('decomisos.lenguas.excel') }}"
+                        formaction="/decomisos-de-lenguas/excel"
                         formmethod="get"
                     >Descargar Excel</button>
                 </div>
@@ -625,6 +625,36 @@
                 </div>
             @endif
         </section>
+        <script>
+            (function () {
+                // Filtros same-origin (no depender de APP_URL / route absoluto en el server).
+                const filterForm = document.getElementById('filtros-decomisos');
+                if (filterForm) {
+                    filterForm.addEventListener('submit', function (ev) {
+                        const submitter = ev.submitter;
+                        const formaction =
+                            (submitter && submitter.getAttribute('formaction')) || '';
+                        const isExcel =
+                            submitter &&
+                            (submitter.classList.contains('btn-excel') ||
+                                formaction.indexOf('/excel') !== -1);
+                        const params = new URLSearchParams();
+                        const fd = new FormData(filterForm);
+                        fd.forEach(function (value, key) {
+                            const v = String(value == null ? '' : value).trim();
+                            if (v === '') {
+                                return;
+                            }
+                            params.set(key, v);
+                        });
+                        const qs = params.toString();
+                        const path = isExcel ? '/decomisos-de-lenguas/excel' : '/decomisos-de-lenguas';
+                        ev.preventDefault();
+                        window.location.assign(qs ? path + '?' + qs : path);
+                    });
+                }
+            })();
+        </script>
         @if (! empty($puedeRegistrarDecomisoManual))
         <script>
             (function () {
@@ -633,7 +663,7 @@
                 if (!input || !list || typeof window.fetch !== 'function') {
                     return;
                 }
-                const suggestUrl = input.getAttribute('data-suggest-url') || '/decomisos-de-lenguas/sugerencias-producto';
+                const suggestUrl = '/decomisos-de-lenguas/sugerencias-producto';
                 let timer = null;
                 let activeIdx = -1;
                 let items = [];
