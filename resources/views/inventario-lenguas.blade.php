@@ -512,7 +512,7 @@
                 id="inv-filters"
                 class="filters"
                 method="get"
-                action="{{ route('inventario.lenguas') }}"
+                action="{{ route('inventario.lenguas', [], false) }}"
                 aria-label="Criterios de consulta del inventario de lenguas"
                 @if ($viendoPorVencer) data-por-vencer="1" @endif
                 @if ($viendoVencidas) data-vencidas="1" @endif
@@ -619,10 +619,10 @@
                     <button
                         class="btn-excel"
                         type="submit"
-                        formaction="{{ route('inventario.lenguas.excel') }}"
+                        formaction="{{ route('inventario.lenguas.excel', [], false) }}"
                         formmethod="get"
                     >Excel</button>
-                    <a class="btn-clear" href="{{ route('inventario.lenguas') }}" title="Quitar filtros y ver todo el stock">Limpiar</a>
+                    <a class="btn-clear" href="{{ route('inventario.lenguas', [], false) }}" title="Quitar filtros y ver todo el stock">Limpiar</a>
                     @php
                         $nAdi = (int) ($conteoAdicionales ?? 0);
                         $nSal = (int) ($conteoSalidas ?? 0);
@@ -630,7 +630,7 @@
                     <a
                         id="inv-chip-adicionales"
                         class="btn-clear {{ $viendoAdicionales ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['adicionales' => 'si']) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['adicionales' => 'si'], false) }}"
                         title="Solo lenguas etiquetadas como Adicional (ADI.): {{ $nAdi }} disponible(s)"
                         aria-current="{{ $viendoAdicionales ? 'page' : 'false' }}"
                         aria-label="Adicionales, {{ $nAdi }} disponible{{ $nAdi === 1 ? '' : 's' }}"
@@ -645,7 +645,7 @@
                     <a
                         id="inv-chip-salidas"
                         class="btn-clear btn-clear--salidas {{ $viendoSalidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['salidas' => 1]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['salidas' => 1], false) }}"
                         title="Solo lenguas etiquetadas como Salida (SAL.): {{ $nSal }} disponible(s)"
                         aria-current="{{ $viendoSalidas ? 'page' : 'false' }}"
                         aria-label="Salidas, {{ $nSal }} disponible{{ $nSal === 1 ? '' : 's' }}"
@@ -659,19 +659,19 @@
                     </a>
                     <a
                         class="btn-clear {{ $viendoPorVencer ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['por_vencer' => 1], false) }}"
                         title="Lenguas que vencen hoy o mañana (vida útil 4 días desde fecha de registro)"
                         aria-current="{{ $viendoPorVencer ? 'page' : 'false' }}"
                     >Por vencer</a>
                     <a
                         class="btn-clear {{ $viendoVencidas ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['vencidas' => 1]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['vencidas' => 1], false) }}"
                         title="Lenguas que ya superaron la fecha de vencimiento en stock"
                         aria-current="{{ $viendoVencidas ? 'page' : 'false' }}"
                     >Vencidas</a>
                     <a
                         class="btn-clear {{ ! $viendoPorVencer && ! $viendoVencidas && ! $viendoAdicionales && ! $viendoSalidas && ($filters['fecha_desde'] ?? '') === $hoyOperacion && ($filters['fecha_hasta'] ?? '') === $hoyOperacion ? 'is-active' : '' }}"
-                        href="{{ route('inventario.lenguas', $chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion]) }}"
+                        href="{{ route('inventario.lenguas', $chipQueryBase + ['fecha_desde' => $hoyOperacion, 'fecha_hasta' => $hoyOperacion], false) }}"
                         title="Acotar por ref. turno del día de operación"
                     >Solo hoy</a>
                 </div>

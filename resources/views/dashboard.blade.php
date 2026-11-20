@@ -316,6 +316,45 @@
                 opacity: 0.75;
                 min-height: 1.1rem;
             }
+            .ingresos-head {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 0.75rem;
+                margin: 0 0 0.55rem;
+            }
+            .ingresos-head h2 {
+                margin: 0;
+            }
+            .ingresos-total {
+                font-size: 1.35rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                color: var(--brand-green);
+            }
+            .ingresos-total span {
+                display: block;
+                font-size: 0.68rem;
+                font-weight: 600;
+                opacity: 0.72;
+                letter-spacing: 0;
+                color: var(--text);
+            }
+            .chart--ingresos {
+                height: 8.2rem;
+                gap: 0.35rem;
+            }
+            .chart--ingresos .chart-bar {
+                background: linear-gradient(
+                    180deg,
+                    color-mix(in srgb, var(--brand-rose) 55%, var(--brand-green)),
+                    color-mix(in srgb, var(--brand-green) 70%, #0a2e20)
+                );
+            }
+            .chart--ingresos a.chart-col {
+                text-decoration: none;
+                color: inherit;
+            }
             .filtros-act {
                 display: flex;
                 flex-wrap: wrap;
@@ -616,23 +655,39 @@
             </article>
 
             <article class="panel span-4">
-                <h2>Sync inventario</h2>
-                @if (! empty($syncMeta['last_sync_at']))
-                    <p class="sync-line">
-                        Última sync:
-                        <strong>{{ \Illuminate\Support\Carbon::parse($syncMeta['last_sync_at'])->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</strong>
+                @php
+                    $maxIngresos = max(1, collect($serieIngresos)->max('total'));
+                @endphp
+                <div class="ingresos-head">
+                    <h2>Ingresos · 5 días</h2>
+                    <p class="ingresos-total">
+                        <span class="js-count" data-target="{{ (int) $ingresosCincoDiasTotal }}">0</span>
+                        <span>lenguas registradas</span>
                     </p>
-                    <p class="sync-line" style="margin-top:0.45rem">
-                        Importados en ese ciclo: <strong>{{ (int) ($syncMeta['importados'] ?? 0) }}</strong>
-                        @if (! empty($syncMeta['hit_limit']))
-                            · <span style="color: var(--danger); font-weight: 700">Tope SIRT alcanzado</span>
-                        @endif
-                    </p>
-                @else
-                    <p class="empty">Aún no hay meta de sincronización. Abra Inventario o ejecute <code>inventario:sync-lenguas</code>.</p>
-                @endif
-                <p style="margin:0.85rem 0 0">
-                    <a class="btn" href="{{ route('inventario.lenguas') }}">Ir a inventario</a>
+                </div>
+                <div class="chart chart--ingresos" role="list" aria-label="Ingresos de lenguas por día">
+                    @foreach ($serieIngresos as $punto)
+                        @php
+                            $hIng = (int) round(($punto['total'] / $maxIngresos) * 100);
+                        @endphp
+                        <a
+                            class="chart-col"
+                            role="listitem"
+                            href="{{ route('inventario.lenguas', ['fecha_desde' => $punto['fecha'], 'fecha_hasta' => $punto['fecha']]) }}"
+                            data-height="{{ max(2, $hIng) }}"
+                            title="{{ $punto['etiqueta'] }}: {{ $punto['total'] }} ingreso(s)"
+                        >
+                            <span class="chart-val">{{ $punto['total'] }}</span>
+                            <div class="chart-bar-wrap">
+                                <div class="chart-bar js-bar-h"></div>
+                            </div>
+                            <span class="chart-label">{{ $punto['etiqueta'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+                <p class="chart-hint">Por fecha de registro. Clic en un día para ver el detalle.</p>
+                <p style="margin:0.65rem 0 0">
+                    <a class="btn" href="{{ route('ingresos.lenguas') }}">Ver ingresos →</a>
                 </p>
             </article>
 

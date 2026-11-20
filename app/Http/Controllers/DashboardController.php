@@ -6,7 +6,6 @@ use App\Models\DecomisoManual;
 use App\Models\Despacho;
 use App\Models\Desposte;
 use App\Models\IngresoLenguaLocal;
-use App\Services\Inventario\InventarioLenguasSynchronizer;
 use App\Support\VencimientoLengua;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +16,7 @@ use Throwable;
 
 class DashboardController extends Controller
 {
-    public function __invoke(InventarioLenguasSynchronizer $synchronizer): View
+    public function __invoke(): View
     {
         $tz = VencimientoLengua::zona();
         $hoy = Carbon::now($tz)->startOfDay();
@@ -55,6 +54,8 @@ class DashboardController extends Controller
             : 0;
 
         $serieDespachos = $this->serieDespachosUltimosDias(7, $tz);
+        $serieIngresos = $this->serieIngresosUltimosDias(5, $tz);
+        $ingresosCincoDiasTotal = collect($serieIngresos)->sum('total');
         $ultimosDespachos = Despacho::query()
             ->with('user')
             ->withCount('ingresos as lenguas_count')
@@ -81,8 +82,9 @@ class DashboardController extends Controller
             'decomisosSirtMes' => $decomisos['sirt_mes'],
             'decomisosSirtOk' => $decomisos['sirt_ok'],
             'serieDespachos' => $serieDespachos,
+            'serieIngresos' => $serieIngresos,
+            'ingresosCincoDiasTotal' => $ingresosCincoDiasTotal,
             'ultimosDespachos' => $ultimosDespachos,
-            'syncMeta' => $synchronizer->meta(),
             'accesos' => $accesos,
         ]);
     }
@@ -212,6 +214,49 @@ SQL;
                 'fecha' => $key,
                 'etiqueta' => $d->copy()->locale('es')->translatedFormat('D d'),
                 'total' => (int) ($counts[$key] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Lenguas registradas (ingresos) por fecha_registro en los últimos N días.
+     *
+     * @return list<array{fecha: string, etiqueta: string, total: int}>
+     */
+    private function serieIngresosUltimosDias(int $dias, string $tz): array
+    {
+        $fin = Carbon::now($tz)->startOfDay();
+        $inicio = $fin->copy()->subDays($dias - 1);
+        $inicioYmd = $inicio->toDateString();
+        $finYmd = $fin->toDateString();
+
+        $raw = IngresoLenguaLocal::query()
+            ->whereNotNull('fecha_registro')
+            ->whereBetween('fecha_registro', [$inicioYmd, $finYmd])
+            ->selectRaw('fecha_registro as dia, COUNT(*) as total')
+            ->groupBy('fecha_registro')
+            ->pluck('total', 'dia');
+
+        $out = [];
+        for ($i = 0; $i < $dias; $i++) {
+            $d = $inicio->copy()->addDays($i);
+            $key = $d->format('Y-m-d');
+            $total = 0;
+            foreach ($raw as $dia => $n) {
+                $diaStr = $dia instanceof \DateTimeInterface
+                    ? $dia->format('Y-m-d')
+                    : substr((string) $dia, 0, 10);
+                if ($diaStr === $key) {
+                    $total = (int) $n;
+                    break;
+                }
+            }
+            $out[] = [
+                'fecha' => $key,
+                'etiqueta' => $d->copy()->locale('es')->translatedFormat('D d'),
+                'total' => $total,
             ];
         }
 

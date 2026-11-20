@@ -11,6 +11,19 @@ php artisan route:clear
 php artisan modulos:sync-matriz
 ```
 
+### `APP_URL` en el server
+
+En `.env` del server, `APP_URL` debe ser la URL pública real (no `http://127.0.0.1:8000`).
+Si queda en localhost, formularios con `route()` absoluto (filtros, etc.) pueden fallar al aplicar.
+
+Tras cambiarlo:
+
+```bash
+php artisan config:clear
+```
+
+Los filtros de Inventario usan rutas **relativas** (a partir de este fix) para no depender de `APP_URL`.
+
 ---
 
 ## 1. Baseline inicial (solo si aún no se hizo)
