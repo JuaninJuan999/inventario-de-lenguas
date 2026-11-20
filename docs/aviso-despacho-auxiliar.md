@@ -14,7 +14,7 @@ El logístico **no** oye el tono ni ve el toast: cierra el despacho y vuelve al 
 | Pieza | Rol |
 |-------|-----|
 | `DespachoFinalizarInventarioController` | Al cerrar OK, guarda aviso en caché (`despacho.conformidad.aviso`) con `id`, `numero`, placa, PDF. |
-| `GET entrega-de-conformidad/avisos` | Solo roles `auxiliar` / `user`. Devuelve despachos nuevos desde `after_id`. |
+| `GET entrega-de-conformidad/avisos` | Roles `auxiliar` / `user` / `super_admin`. Devuelve despachos nuevos desde `after_id`. |
 | `partials/aviso-despacho-auxiliar.blade.php` | Poll cada 2 s + toast + audio. |
 | `partials/logo-institucional.blade.php` | Incluye el partial → el aviso corre en **cualquier módulo** del auxiliar. |
 
@@ -59,7 +59,7 @@ Si el servidor usa `php artisan config:cache` / `route:cache` / `view:cache`, re
 Ver `docs/roles-y-modulos.md`:
 
 - `logistico` / `operador`: despacho, desposte, historial (sin `entrega`)
-- `auxiliar` / `user`: entrega + aviso sonoro global
+- `auxiliar` / `user` / `super_admin`: aviso sonoro + toast global al cerrarse un despacho
 
 Tras cambiar `config/modulos_por_rol.php` en el server: `php artisan modulos:sync-matriz`.
 

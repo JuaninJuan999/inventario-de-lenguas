@@ -40,7 +40,7 @@ Campos locales en `ingreso_lenguas_locales` (independientes de SIRT):
 
 | Rol | Perfil | Módulos (resumen) |
 |-----|--------|-------------------|
-| `super_admin` | Control total | Todos, incl. usuarios y observatorio |
+| `super_admin` | Control total | Todos, incl. usuarios y observatorio; aviso sonoro + toast de despacho nuevo (como auxiliar) |
 | `admin` | Administración operativa | Todo lo operativo (sin usuarios/observatorio); decomisos con escritura |
 | `supervisor` | Responsable de turno / planta | Operación de piso (inventario, ingresos, despacho, desposte, historial, entrega); **sin** Destinos y etiquetas; **decomisos solo lectura** |
 | `gerencia` | Consulta gerencial | Dashboard, inventario, ingresos, historial, decomisos (lectura) — **sin** destinos/etiquetas ni despacho |

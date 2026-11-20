@@ -111,7 +111,7 @@ class EntregaConformidadController extends Controller
     public function avisosNuevos(Request $request): JsonResponse
     {
         $role = (string) ($request->user()?->role ?? '');
-        if (! in_array($role, ['auxiliar', 'user'], true)) {
+        if (! in_array($role, ['auxiliar', 'user', 'super_admin'], true)) {
             return response()->json([
                 'enabled' => false,
                 'avisos' => [],

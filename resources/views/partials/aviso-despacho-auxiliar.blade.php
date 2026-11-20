@@ -1,7 +1,7 @@
-{{-- Toast informativo + sound.mp3 al aparecer (solo auxiliar/user). --}}
+{{-- Toast informativo + sound.mp3 al aparecer (auxiliar/user/super_admin). --}}
 @php
     $rolAviso = (string) (auth()->user()?->role ?? '');
-    $activarAvisoDespachoAuxiliar = in_array($rolAviso, ['auxiliar', 'user'], true);
+    $activarAvisoDespachoAuxiliar = in_array($rolAviso, ['auxiliar', 'user', 'super_admin'], true);
 @endphp
 @once
 @if ($activarAvisoDespachoAuxiliar)
