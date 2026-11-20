@@ -2,7 +2,7 @@
 
 Cuando el logístico termina un despacho, el **auxiliar** recibe en vivo:
 
-1. Tono `public/song/pacman.mp3`
+1. Tono `public/song/sound.mp3`
 2. Toast informativo (~7 s) con consecutivo real, placa y enlace al PDF
 
 El logístico **no** oye el tono ni ve el toast: cierra el despacho y vuelve al alistamiento de placas. Tampoco tiene el módulo Entrega de conformidad.
@@ -36,7 +36,7 @@ php artisan modulos:sync-matriz
 Comprobar que exista el audio:
 
 ```text
-public/song/pacman.mp3
+public/song/sound.mp3
 ```
 
 Si el servidor usa `php artisan config:cache` / `route:cache` / `view:cache`, regenerarlos tras el pull.
@@ -74,4 +74,4 @@ Tras cambiar `config/modulos_por_rol.php` en el server: `php artisan modulos:syn
 | `routes/web.php` | `entrega.conformidad.avisos` |
 | `resources/views/partials/aviso-despacho-auxiliar.blade.php` | UI + poll + sonido |
 | `resources/views/partials/logo-institucional.blade.php` | Inclusión global |
-| `public/song/pacman.mp3` | Tono de notificación |
+| `public/song/sound.mp3` | Tono de notificación |

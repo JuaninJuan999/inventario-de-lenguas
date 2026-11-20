@@ -1,4 +1,4 @@
-{{-- Toast informativo + pacman.mp3 al aparecer (solo auxiliar/user). --}}
+{{-- Toast informativo + sound.mp3 al aparecer (solo auxiliar/user). --}}
 @php
     $rolAviso = (string) (auth()->user()?->role ?? '');
     $activarAvisoDespachoAuxiliar = in_array($rolAviso, ['auxiliar', 'user'], true);
@@ -38,13 +38,13 @@
         }
     </style>
 
-    <audio id="aviso-despacho-tono" preload="auto" playsinline src="{{ asset('song/pacman.mp3') }}"></audio>
+    <audio id="aviso-despacho-tono" preload="auto" playsinline src="{{ asset('song/sound.mp3') }}"></audio>
     <div class="aviso-despacho-toast" id="aviso-despacho-nuevo" role="status" aria-live="polite" hidden></div>
 
     <script>
         (function () {
             var avisosUrl = @json(route('entrega.conformidad.avisos', [], false));
-            var tonoUrl = @json(asset('song/pacman.mp3'));
+            var tonoUrl = @json(asset('song/sound.mp3'));
             var storageKey = 'inv_aviso_despacho_after_id';
             var toast = document.getElementById('aviso-despacho-nuevo');
             var tonoEl = document.getElementById('aviso-despacho-tono');
