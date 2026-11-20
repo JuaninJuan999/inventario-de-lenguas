@@ -502,7 +502,13 @@
                 </p>
             @endif
 
-            <form id="filtros-decomisos" class="filters" method="get" action="" aria-label="Filtros de búsqueda">
+            <form
+                id="filtros-decomisos"
+                class="filters"
+                method="get"
+                action="/decomisos-de-lenguas"
+                aria-label="Filtros de búsqueda"
+            >
                 <div class="filters-row">
                     <div class="filter-field filter-field--grow">
                         <label for="f-q">Búsqueda libre</label>
@@ -512,7 +518,7 @@
                             name="q"
                             value="{{ $filters['q'] ?? '' }}"
                             maxlength="200"
-                            placeholder="Id, dictamen o enfermedad…"
+                            placeholder="Id, dictamen o enfermedad… (decomisos ya registrados)"
                             autocomplete="off"
                         />
                         @error('q')
@@ -555,7 +561,18 @@
             @endif
 
             @if (count($rows) === 0)
-                <p class="muted">No hay filas para los filtros indicados (máx. 500 por consulta).</p>
+                @php
+                    $qBusqueda = trim((string) ($filters['q'] ?? ''));
+                @endphp
+                @if ($qBusqueda !== '')
+                    <p class="muted">
+                        Ningún decomiso coincide con «{{ $qBusqueda }}».
+                        La búsqueda libre filtra decomisos ya registrados (SIRT/manual), no el inventario.
+                        Para decomisar un código disponible, úselo en <strong>Id producto</strong> arriba (sugerencias al escribir).
+                    </p>
+                @else
+                    <p class="muted">No hay filas para los filtros indicados (máx. 500 por consulta).</p>
+                @endif
             @else
                 <div class="listado-meta">
                     <p class="muted">{{ count($rows) }} registro(s).</p>
@@ -625,36 +642,6 @@
                 </div>
             @endif
         </section>
-        <script>
-            (function () {
-                // Filtros same-origin (no depender de APP_URL / route absoluto en el server).
-                const filterForm = document.getElementById('filtros-decomisos');
-                if (filterForm) {
-                    filterForm.addEventListener('submit', function (ev) {
-                        const submitter = ev.submitter;
-                        const formaction =
-                            (submitter && submitter.getAttribute('formaction')) || '';
-                        const isExcel =
-                            submitter &&
-                            (submitter.classList.contains('btn-excel') ||
-                                formaction.indexOf('/excel') !== -1);
-                        const params = new URLSearchParams();
-                        const fd = new FormData(filterForm);
-                        fd.forEach(function (value, key) {
-                            const v = String(value == null ? '' : value).trim();
-                            if (v === '') {
-                                return;
-                            }
-                            params.set(key, v);
-                        });
-                        const qs = params.toString();
-                        const path = isExcel ? '/decomisos-de-lenguas/excel' : '/decomisos-de-lenguas';
-                        ev.preventDefault();
-                        window.location.assign(qs ? path + '?' + qs : path);
-                    });
-                }
-            })();
-        </script>
         @if (! empty($puedeRegistrarDecomisoManual))
         <script>
             (function () {
@@ -663,7 +650,11 @@
                 if (!input || !list || typeof window.fetch !== 'function') {
                     return;
                 }
-                const suggestUrl = '/decomisos-de-lenguas/sugerencias-producto';
+                // Siempre same-origin (evita APP_URL=127.0.0.1 u otra IP en el server).
+                const suggestUrl = new URL(
+                    '/decomisos-de-lenguas/sugerencias-producto',
+                    window.location.origin,
+                ).pathname;
                 let timer = null;
                 let activeIdx = -1;
                 let items = [];
@@ -687,10 +678,24 @@
                     input.setAttribute('aria-expanded', 'true');
                 }
 
+                function renderEmpty(msg) {
+                    list.innerHTML = '';
+                    const li = document.createElement('li');
+                    const span = document.createElement('span');
+                    span.className = 'suggest-meta';
+                    span.style.display = 'block';
+                    span.style.padding = '0.5rem 0.7rem';
+                    span.textContent = msg;
+                    li.appendChild(span);
+                    list.appendChild(li);
+                    openList();
+                    activeIdx = -1;
+                }
+
                 function render() {
                     list.innerHTML = '';
                     if (!items.length) {
-                        closeList();
+                        renderEmpty('Sin coincidencias en inventario disponible.');
                         return;
                     }
                     items.forEach(function (item, idx) {
@@ -767,7 +772,10 @@
                         })
                         .catch(function () {
                             if (seq === reqSeq) {
-                                closeList();
+                                items = [];
+                                renderEmpty(
+                                    'No se pudo buscar (sesión o ruta). En el server: git pull + php artisan route:clear && view:clear.',
+                                );
                             }
                         });
                 }

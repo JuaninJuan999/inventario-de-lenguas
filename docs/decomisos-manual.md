@@ -32,13 +32,17 @@ Comprobar: `php artisan route:list --name=decomisos`
 
 ### Filtros de búsqueda (Aplicar / Limpiar / Excel)
 
-Igual que Inventario: el formulario ya **no** usa `route()` absoluto. Submit JS same-origin a `/decomisos-de-lenguas?...`.
+El formulario usa `action="/decomisos-de-lenguas"` (GET nativo, sin `route()` absoluto ni JS que bloquee el submit).
 
-Si en el server **Aplicar** solo recarga y no filtra (o salta a `127.0.0.1`):
+**Importante:** la **Búsqueda libre** filtra decomisos **ya registrados** (SIRT/manual), no el inventario.  
+Para localizar un código disponible y decomisarlo, escriba en **Id producto** del cuadro “Decomiso manual” (sugerencias).
 
-1. `git pull origin main` + `php artisan view:clear`
-2. Tras Aplicar, la URL debe ser `http://192.168.20.205:8007/decomisos-de-lenguas?q=...` (o con fechas)
-3. Revisar `APP_URL=http://192.168.20.205:8007` en `.env` del server
+Si en el server **Aplicar** no filtra (o salta a `127.0.0.1`):
+
+1. `git pull origin main`
+2. `php artisan view:clear && php artisan route:clear`
+3. Tras Aplicar, la URL debe ser `http://192.168.20.205:8007/decomisos-de-lenguas?q=...` (o con fechas)
+4. `.env` del server: `APP_URL=http://192.168.20.205:8007`
 
 Si no aparecen sugerencias en el server:
 
