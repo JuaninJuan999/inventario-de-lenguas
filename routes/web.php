@@ -140,6 +140,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:decomisos')->group(function () {
         Route::get('/decomisos-de-lenguas', [InspeccionSirtController::class, 'index'])->name('decomisos.lenguas');
         Route::get('/decomisos-de-lenguas/excel', [InspeccionSirtController::class, 'exportExcel'])->name('decomisos.lenguas.excel');
+        Route::get('/decomisos-de-lenguas/sugerencias-producto', [InspeccionSirtController::class, 'sugerenciasProducto'])
+            ->name('decomisos.lenguas.sugerencias_producto');
         Route::post('/decomisos-de-lenguas/manual', [InspeccionSirtController::class, 'storeManual'])->name('decomisos.lenguas.manual');
     });
 });

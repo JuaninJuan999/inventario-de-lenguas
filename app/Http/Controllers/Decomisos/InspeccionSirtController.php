@@ -9,6 +9,7 @@ use App\Support\DespachoCodigoBarras;
 use App\Support\DespachoInventarioMatch;
 use App\Support\SimpleXlsxWriter;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -128,21 +129,7 @@ class InspeccionSirtController extends Controller
             ]));
         }
 
-        $sql = <<<'SQL'
-SELECT
-    i.id_producto,
-    i.fecha_registro,
-    i.hora_registro,
-    d.nombre AS nombre_dictamen,
-    e.nombre AS nombre_enfermedad
-FROM sai.inspeccion i
-JOIN sai.dictamen d ON i.id_dictamen = d.id
-LEFT JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
-LEFT JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
-WHERE i.id_parte_producto = ?
-  AND i.id_dictamen = ?
-SQL;
-
+        $sql = $this->sqlListadoDecomisosSirt();
         $bindings = [$idParte, $idDictamen];
 
         $q = str_replace(['%', '_'], '', $filters['q']);
@@ -185,6 +172,8 @@ SQL;
             ]));
         }
 
+        $sirtRows = $this->adjuntarFechaBeneficioDesdeInsensibilizacion($sirtRows);
+
         $sync = $this->retirarInventarioLocalPorIdsDecomisosSirt($sirtRows);
 
         $rows = $this->fusionarRows($manualRows, $sirtRows);
@@ -209,6 +198,7 @@ SQL;
 
         $headers = [
             'Id producto',
+            'Fecha de beneficio',
             'Fecha registro',
             'Hora registro',
             'Nombre dictamen',
@@ -235,10 +225,18 @@ SQL;
                 $fechaTxt = $fecha !== null && $fecha !== '' ? (string) $fecha : '';
             }
 
+            $fechaBeneficio = $r['fecha_beneficio'] ?? $r['fecha_ingreso'] ?? null;
+            if ($fechaBeneficio instanceof \DateTimeInterface) {
+                $fechaBeneficioTxt = $fechaBeneficio->format('Y-m-d');
+            } else {
+                $fechaBeneficioTxt = $fechaBeneficio !== null && $fechaBeneficio !== '' ? (string) $fechaBeneficio : '';
+            }
+
             $origen = strtolower((string) ($r['origen'] ?? 'sirt')) === 'manual' ? 'Manual' : 'SIRT';
 
             $excelRows[] = [
                 $idProd,
+                $fechaBeneficioTxt,
                 $fechaTxt,
                 $horaTxt,
                 isset($r['nombre_dictamen']) ? (string) $r['nombre_dictamen'] : '',
@@ -255,6 +253,53 @@ SQL;
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Sugerencias de id_producto disponibles en inventario local (decomiso manual).
+     */
+    public function sugerenciasProducto(Request $request): JsonResponse
+    {
+        if (! $request->user()?->canRegistrarDecomisoManual()) {
+            return response()->json(['items' => []], 403);
+        }
+
+        $q = substr($request->string('q')->trim()->toString(), 0, 80);
+        if (mb_strlen($q) < 2) {
+            return response()->json(['items' => []]);
+        }
+
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $pat = '%'.$q.'%';
+
+        $rows = IngresoLenguaLocal::query()
+            ->sinDespachar()
+            ->where('id_producto', $op, $pat)
+            ->orderByDesc('fecha_registro')
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get([
+                'id_producto',
+                'propietario',
+                'destino',
+                'fecha_registro',
+                'fecha_turno_referencia',
+            ]);
+
+        $items = $rows->map(static function (IngresoLenguaLocal $row): array {
+            $fechaBeneficio = $row->fecha_turno_referencia?->format('Y-m-d')
+                ?? $row->fecha_registro?->format('Y-m-d')
+                ?? null;
+
+            return [
+                'id_producto' => (string) $row->id_producto,
+                'propietario' => $row->propietario !== null ? (string) $row->propietario : null,
+                'destino' => $row->destino !== null ? (string) $row->destino : null,
+                'fecha_beneficio' => $fechaBeneficio,
+            ];
+        })->values()->all();
+
+        return response()->json(['items' => $items]);
     }
 
     public function storeManual(Request $request): RedirectResponse
@@ -426,6 +471,13 @@ SQL,
         $dictamenes = collect($dictamenes)->unique(static fn (string $s): string => mb_strtolower($s))->sort()->values()->all();
         $enfermedades = collect($enfermedades)->unique(static fn (string $s): string => mb_strtolower($s))->sort()->values()->all();
 
+        // Preferido en altas manuales: siempre disponible y primero en la lista.
+        $dictamenes = collect($dictamenes)
+            ->reject(static fn (string $s): bool => mb_strtolower($s) === 'decomisado')
+            ->values()
+            ->all();
+        array_unshift($dictamenes, 'Decomisado');
+
         return [
             'dictamenes' => $dictamenes,
             'enfermedades' => $enfermedades,
@@ -504,21 +556,7 @@ SQL,
             return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
         }
 
-        $sql = <<<'SQL'
-SELECT
-    i.id_producto,
-    i.fecha_registro,
-    i.hora_registro,
-    d.nombre AS nombre_dictamen,
-    e.nombre AS nombre_enfermedad
-FROM sai.inspeccion i
-JOIN sai.dictamen d ON i.id_dictamen = d.id
-LEFT JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
-LEFT JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
-WHERE i.id_parte_producto = ?
-  AND i.id_dictamen = ?
-SQL;
-
+        $sql = $this->sqlListadoDecomisosSirt();
         $bindings = [$idParte, $idDictamen];
 
         $q = str_replace(['%', '_'], '', $filters['q']);
@@ -556,11 +594,111 @@ SQL;
             return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
         }
 
+        $sirtRows = $this->adjuntarFechaBeneficioDesdeInsensibilizacion($sirtRows);
+
         return [
             'filters' => $filters,
             'rows' => $this->fusionarRows($manualRows, $sirtRows),
             'validator' => $validator,
         ];
+    }
+
+    /**
+     * Listado SIRT de decomisos (fecha de beneficio se completa aparte desde Animal Insensibilizado).
+     */
+    private function sqlListadoDecomisosSirt(): string
+    {
+        return <<<'SQL'
+SELECT
+    i.id_producto,
+    i.fecha_registro,
+    i.hora_registro,
+    d.nombre AS nombre_dictamen,
+    e.nombre AS nombre_enfermedad
+FROM sai.inspeccion i
+JOIN sai.dictamen d ON i.id_dictamen = d.id
+LEFT JOIN sai.enfermedad_detectada ed ON i.id = ed.id_inspeccion
+LEFT JOIN sai.enfermedad e ON ed.id_enfermedad = e.id
+WHERE i.id_parte_producto = ?
+  AND i.id_dictamen = ?
+SQL;
+    }
+
+    /**
+     * Fecha de beneficio = fecha_registro de Animal Insensibilizado (trazabilidad_proceso.insensibilizacion).
+     *
+     * @param  array<int, object>  $sirtRows
+     * @return array<int, object>
+     */
+    private function adjuntarFechaBeneficioDesdeInsensibilizacion(array $sirtRows): array
+    {
+        if ($sirtRows === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($sirtRows as $row) {
+            $r = (array) $row;
+            $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+            $id = trim($raw);
+            if ($id !== '') {
+                $ids[$id] = true;
+            }
+        }
+
+        $mapa = [];
+        if ($ids !== []) {
+            $connection = (string) config('decomisos.sirt_connection');
+            if ($connection !== '') {
+                try {
+                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                    $found = DB::connection($connection)->select(
+                        <<<SQL
+SELECT DISTINCT ON (ins.id_producto)
+    ins.id_producto::text AS id_producto,
+    (ins.fecha_registro)::date AS fecha_beneficio
+FROM trazabilidad_proceso.insensibilizacion ins
+WHERE ins.id_producto::text IN ({$placeholders})
+ORDER BY ins.id_producto, ins.id DESC
+SQL,
+                        array_keys($ids),
+                    );
+                    foreach ($found as $f) {
+                        $pid = trim((string) ($f->id_producto ?? ''));
+                        $fb = $f->fecha_beneficio ?? null;
+                        if ($pid === '' || $fb === null || $fb === '') {
+                            continue;
+                        }
+                        $mapa[$pid] = $fb instanceof \DateTimeInterface
+                            ? $fb->format('Y-m-d')
+                            : (string) $fb;
+                        foreach (DespachoInventarioMatch::matchKeysForProductId($pid) as $alias) {
+                            $mapa[$alias] = $mapa[$alias] ?? $mapa[$pid];
+                        }
+                    }
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        }
+
+        return array_map(static function (object $row) use ($mapa): object {
+            $r = (array) $row;
+            $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+            $fecha = null;
+            foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
+                if (isset($mapa[$key])) {
+                    $fecha = $mapa[$key];
+                    break;
+                }
+            }
+            if ($fecha === null && isset($mapa[trim($raw)])) {
+                $fecha = $mapa[trim($raw)];
+            }
+            $r['fecha_beneficio'] = $fecha;
+
+            return (object) $r;
+        }, $sirtRows);
     }
 
     /**
@@ -588,9 +726,16 @@ SQL;
             }
         }
 
-        return $query->limit(500)->get()->map(static function (DecomisoManual $row): object {
+        $mapped = $query->with('ingreso')->limit(500)->get()->map(static function (DecomisoManual $row): object {
+            $ingreso = $row->ingreso;
+            // Manual: ref. turno (beneficio) o fecha de registro en inventario local.
+            $fechaBeneficio = $ingreso?->fecha_turno_referencia?->format('Y-m-d')
+                ?? $ingreso?->fecha_registro?->format('Y-m-d')
+                ?? null;
+
             return (object) [
                 'id_producto' => $row->id_producto,
+                'fecha_beneficio' => $fechaBeneficio,
                 'fecha_registro' => $row->fecha_registro,
                 'hora_registro' => $row->hora_registro,
                 'nombre_dictamen' => $row->nombre_dictamen,
@@ -598,6 +743,8 @@ SQL;
                 'origen' => 'manual',
             ];
         })->all();
+
+        return $this->enriquecerFechaBeneficio($mapped);
     }
 
     /**
@@ -610,11 +757,89 @@ SQL;
         $taggedSirt = array_map(static function (object $row): object {
             $r = (array) $row;
             $r['origen'] = 'sirt';
+            $fb = $r['fecha_beneficio'] ?? null;
+            if ($fb instanceof \DateTimeInterface) {
+                $r['fecha_beneficio'] = $fb->format('Y-m-d');
+            } elseif ($fb !== null && $fb !== '') {
+                $r['fecha_beneficio'] = (string) $fb;
+            } else {
+                $r['fecha_beneficio'] = null;
+            }
 
             return (object) $r;
         }, $sirtRows);
 
-        return array_values(array_merge($manualRows, $taggedSirt));
+        return $this->enriquecerFechaBeneficio(array_values(array_merge($manualRows, $taggedSirt)));
+    }
+
+    /**
+     * Completa fecha_beneficio faltante desde inventario local (ref. turno / registro).
+     *
+     * @param  list<object>  $rows
+     * @return list<object>
+     */
+    private function enriquecerFechaBeneficio(array $rows): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $r = (array) $row;
+            if (! empty($r['fecha_beneficio'])) {
+                continue;
+            }
+            $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+            $id = DespachoCodigoBarras::normalizarIdProducto(trim($raw));
+            if ($id !== '') {
+                $ids[$id] = true;
+            }
+            foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
+                $ids[$key] = true;
+            }
+        }
+
+        $mapa = [];
+        if ($ids !== []) {
+            $locales = IngresoLenguaLocal::query()
+                ->whereIn('id_producto', array_keys($ids))
+                ->orderByDesc('id')
+                ->get(['id_producto', 'fecha_registro', 'fecha_turno_referencia']);
+
+            foreach ($locales as $local) {
+                $key = DespachoInventarioMatch::normalizarGuionesIdProducto((string) $local->id_producto);
+                if (isset($mapa[$key])) {
+                    continue;
+                }
+                $fecha = $local->fecha_turno_referencia?->format('Y-m-d')
+                    ?? $local->fecha_registro?->format('Y-m-d')
+                    ?? null;
+                if ($fecha !== null) {
+                    $mapa[$key] = $fecha;
+                    foreach (DespachoInventarioMatch::matchKeysForProductId((string) $local->id_producto) as $alias) {
+                        $mapa[$alias] = $mapa[$alias] ?? $fecha;
+                    }
+                }
+            }
+        }
+
+        return array_map(static function (object $row) use ($mapa): object {
+            $r = (array) $row;
+            if (empty($r['fecha_beneficio'])) {
+                $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+                $fecha = null;
+                foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
+                    if (isset($mapa[$key])) {
+                        $fecha = $mapa[$key];
+                        break;
+                    }
+                }
+                $r['fecha_beneficio'] = $fecha;
+            }
+
+            return (object) $r;
+        }, $rows);
     }
 
     /**

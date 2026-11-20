@@ -36,6 +36,7 @@ Entrar siempre por: `http://192.168.20.205:8007/`
 |------|----------------|
 | Filtros Inventario (rutas relativas) | Este ajuste + `APP_URL` correcto |
 | Dashboard: ingresos últimos 5 días | Panel en dashboard (reemplaza “Importados sync”) |
+| Decomisos: sugerencias, Decomisado default, fecha beneficio | `docs/decomisos-manual.md` |
 | Baseline Excel / v2 / vencidos / aviso auxiliar | `docs/inventario/checklist-server.md` |
 
 ## 4. Validar filtros
@@ -45,7 +46,15 @@ Entrar siempre por: `http://192.168.20.205:8007/`
 3. La URL debe ser `http://192.168.20.205:8007/inventario-de-lenguas?id_producto=...`
 4. Si solo “recarga” y no filtra (o salta a `127.0.0.1`), ver `docs/inventario/filtro-id-producto-server.md`
 
+## 5. Validar decomisos (tras pull)
+
+1. `http://192.168.20.205:8007/decomisos-de-lenguas`
+2. Dictamen en **Decomisado**; escribir código → sugerencias
+3. Tabla con **Fecha de beneficio** (SIRT desde Animal Insensibilizado)
+4. Detalle: `docs/decomisos-manual.md`
+
 ## Relacionado
 
 - Checklist: `docs/inventario/checklist-server.md`
 - Filtro Id producto: `docs/inventario/filtro-id-producto-server.md`
+- Decomisos manual: `docs/decomisos-manual.md`

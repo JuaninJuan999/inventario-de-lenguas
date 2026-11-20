@@ -208,6 +208,7 @@ docs/
   inventario/reiniciar-desde-excel.md
   inventario/depurar-vencidos.md
   inventario/importar-excel-adicionales.md
+  decomisos-manual.md
   aviso-despacho-auxiliar.md
 resources/views/        # UI verde / rosa del sistema
 scripts/

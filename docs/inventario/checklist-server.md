@@ -38,6 +38,16 @@ php artisan view:clear
 
 Comprobar: abrir `http://192.168.20.205:8007/inventario-de-lenguas`, filtrar por un ID producto y **Aplicar** — la barra de dirección debe seguir en `192.168.20.205:8007` con `?id_producto=...` y el listado acotado.
 
+### Decomisos (sugerencias + fecha de beneficio)
+
+Tras el pull, limpiar rutas/vistas (arriba) y validar:
+
+→ `docs/decomisos-manual.md`
+
+- Ruta `decomisos.lenguas.sugerencias_producto`
+- Dictamen default **Decomisado**
+- Columna **Fecha de beneficio** (SIRT = Animal Insensibilizado)
+
 ---
 
 ## 1. Baseline inicial (solo si aún no se hizo)

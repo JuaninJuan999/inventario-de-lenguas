@@ -315,6 +315,57 @@
                 font-size: 0.9rem;
                 font-family: inherit;
             }
+            .suggest-wrap {
+                position: relative;
+            }
+            .suggest-list {
+                display: none;
+                position: absolute;
+                z-index: 40;
+                left: 0;
+                right: 0;
+                top: calc(100% + 0.25rem);
+                margin: 0;
+                padding: 0.25rem 0;
+                list-style: none;
+                max-height: 14rem;
+                overflow: auto;
+                border-radius: 0.55rem;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 45%, transparent);
+                background: rgba(6, 18, 14, 0.96);
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+            }
+            .suggest-list.is-open {
+                display: block;
+            }
+            .suggest-list li {
+                margin: 0;
+            }
+            .suggest-list button {
+                display: block;
+                width: 100%;
+                text-align: left;
+                border: 0;
+                background: transparent;
+                color: var(--text);
+                font: inherit;
+                padding: 0.45rem 0.7rem;
+                cursor: pointer;
+            }
+            .suggest-list button:hover,
+            .suggest-list button.is-active {
+                background: color-mix(in srgb, var(--brand-green) 18%, transparent);
+            }
+            .suggest-list .suggest-code {
+                font-weight: 700;
+                letter-spacing: 0.02em;
+            }
+            .suggest-list .suggest-meta {
+                display: block;
+                margin-top: 0.15rem;
+                font-size: 0.72rem;
+                opacity: 0.78;
+            }
             .manual-grid .filter-field select:focus {
                 outline: 2px solid var(--brand-green);
                 outline-offset: 1px;
@@ -356,7 +407,7 @@
 
         <section class="sheet" aria-labelledby="tabla-decomisos">
             <p id="tabla-decomisos" class="meta">
-                Columnas: id producto · fecha registro · hora registro · dictamen · enfermedad
+                Columnas: id producto · fecha de beneficio · fecha registro · hora registro · dictamen · enfermedad
             </p>
 
             @if (session('decomiso_manual_ok'))
@@ -387,26 +438,40 @@
                     <div class="manual-grid">
                         <div class="filter-field">
                             <label for="m-id-producto">Id producto</label>
-                            <input
-                                id="m-id-producto"
-                                type="text"
-                                name="id_producto"
-                                value="{{ old('id_producto') }}"
-                                maxlength="80"
-                                required
-                                placeholder="Código en inventario…"
-                                autocomplete="off"
-                            />
+                            <div class="suggest-wrap">
+                                <input
+                                    id="m-id-producto"
+                                    type="text"
+                                    name="id_producto"
+                                    value="{{ old('id_producto') }}"
+                                    maxlength="80"
+                                    required
+                                    placeholder="Código en inventario…"
+                                    autocomplete="off"
+                                    aria-autocomplete="list"
+                                    aria-controls="m-id-producto-suggest"
+                                    data-suggest-url="{{ url('/decomisos-de-lenguas/sugerencias-producto') }}"
+                                />
+                                <ul
+                                    id="m-id-producto-suggest"
+                                    class="suggest-list"
+                                    role="listbox"
+                                    aria-hidden="true"
+                                ></ul>
+                            </div>
                             @error('id_producto')
                                 <p class="err">{{ $message }}</p>
                             @enderror
                         </div>
                         <div class="filter-field">
                             <label for="m-dictamen">Nombre dictamen</label>
+                            @php
+                                $dictamenSeleccionado = old('nombre_dictamen', 'Decomisado');
+                            @endphp
                             <select id="m-dictamen" name="nombre_dictamen" required>
                                 <option value="">Seleccione…</option>
                                 @foreach ($opcionesDictamen ?? [] as $opt)
-                                    <option value="{{ $opt }}" @selected(old('nombre_dictamen') === $opt)>{{ $opt }}</option>
+                                    <option value="{{ $opt }}" @selected($dictamenSeleccionado === $opt)>{{ $opt }}</option>
                                 @endforeach
                             </select>
                             @error('nombre_dictamen')
@@ -507,6 +572,7 @@
                         <thead>
                             <tr>
                                 <th>Id producto</th>
+                                <th title="Fecha de beneficio (Animal Insensibilizado / ref. turno)">Fecha de beneficio</th>
                                 <th>Fecha registro</th>
                                 <th>Hora registro</th>
                                 <th>Nombre dictamen</th>
@@ -531,11 +597,18 @@
                                     } else {
                                         $fechaTxt = $fecha !== null && $fecha !== '' ? (string) $fecha : '—';
                                     }
+                                    $fechaBeneficio = $r['fecha_beneficio'] ?? $r['fecha_ingreso'] ?? null;
+                                    if ($fechaBeneficio instanceof \DateTimeInterface) {
+                                        $fechaBeneficioTxt = $fechaBeneficio->format('Y-m-d');
+                                    } else {
+                                        $fechaBeneficioTxt = $fechaBeneficio !== null && $fechaBeneficio !== '' ? (string) $fechaBeneficio : '—';
+                                    }
                                     $origen = strtolower((string) ($r['origen'] ?? 'sirt'));
                                     $esManual = $origen === 'manual';
                                 @endphp
                                 <tr>
                                     <td>{{ $idProd !== '' ? $idProd : '—' }}</td>
+                                    <td>{{ $fechaBeneficioTxt }}</td>
                                     <td>{{ $fechaTxt }}</td>
                                     <td>{{ $horaTxt }}</td>
                                     <td>{{ $r['nombre_dictamen'] ?? '—' }}</td>
@@ -552,5 +625,162 @@
                 </div>
             @endif
         </section>
+        @if (! empty($puedeRegistrarDecomisoManual))
+        <script>
+            (function () {
+                const input = document.getElementById('m-id-producto');
+                const list = document.getElementById('m-id-producto-suggest');
+                if (!input || !list || typeof window.fetch !== 'function') {
+                    return;
+                }
+                const suggestUrl = input.getAttribute('data-suggest-url') || '/decomisos-de-lenguas/sugerencias-producto';
+                let timer = null;
+                let activeIdx = -1;
+                let items = [];
+                let reqSeq = 0;
+
+                function closeList() {
+                    list.classList.remove('is-open');
+                    list.setAttribute('aria-hidden', 'true');
+                    list.innerHTML = '';
+                    activeIdx = -1;
+                    items = [];
+                    input.setAttribute('aria-expanded', 'false');
+                }
+
+                function openList() {
+                    if (!list.children.length) {
+                        return;
+                    }
+                    list.classList.add('is-open');
+                    list.setAttribute('aria-hidden', 'false');
+                    input.setAttribute('aria-expanded', 'true');
+                }
+
+                function render() {
+                    list.innerHTML = '';
+                    if (!items.length) {
+                        closeList();
+                        return;
+                    }
+                    items.forEach(function (item, idx) {
+                        const li = document.createElement('li');
+                        li.setAttribute('role', 'option');
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.id = 'm-sug-' + idx;
+                        const code = document.createElement('span');
+                        code.className = 'suggest-code';
+                        code.textContent = item.id_producto || '';
+                        btn.appendChild(code);
+                        const metaBits = [];
+                        if (item.fecha_beneficio) {
+                            metaBits.push('Beneficio ' + item.fecha_beneficio);
+                        }
+                        if (item.propietario) {
+                            metaBits.push(item.propietario);
+                        }
+                        if (item.destino) {
+                            metaBits.push(item.destino);
+                        }
+                        if (metaBits.length) {
+                            const meta = document.createElement('span');
+                            meta.className = 'suggest-meta';
+                            meta.textContent = metaBits.join(' · ');
+                            btn.appendChild(meta);
+                        }
+                        btn.addEventListener('mousedown', function (ev) {
+                            ev.preventDefault();
+                            pick(item);
+                        });
+                        li.appendChild(btn);
+                        list.appendChild(li);
+                    });
+                    activeIdx = 0;
+                    highlight();
+                    openList();
+                }
+
+                function highlight() {
+                    const buttons = list.querySelectorAll('button');
+                    buttons.forEach(function (btn, i) {
+                        btn.classList.toggle('is-active', i === activeIdx);
+                    });
+                }
+
+                function pick(item) {
+                    input.value = item.id_producto || '';
+                    closeList();
+                    input.focus();
+                }
+
+                function fetchSuggestions(q) {
+                    const seq = ++reqSeq;
+                    const url = new URL(suggestUrl, window.location.origin);
+                    url.searchParams.set('q', q);
+                    fetch(url.toString(), {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (res) {
+                            if (!res.ok) {
+                                throw new Error('suggest');
+                            }
+                            return res.json();
+                        })
+                        .then(function (data) {
+                            if (seq !== reqSeq) {
+                                return;
+                            }
+                            items = Array.isArray(data.items) ? data.items : [];
+                            render();
+                        })
+                        .catch(function () {
+                            if (seq === reqSeq) {
+                                closeList();
+                            }
+                        });
+                }
+
+                input.addEventListener('input', function () {
+                    const q = String(input.value || '').trim();
+                    if (timer) {
+                        clearTimeout(timer);
+                    }
+                    if (q.length < 2) {
+                        closeList();
+                        return;
+                    }
+                    timer = setTimeout(function () {
+                        fetchSuggestions(q);
+                    }, 220);
+                });
+
+                input.addEventListener('keydown', function (ev) {
+                    if (!list.classList.contains('is-open') || !items.length) {
+                        return;
+                    }
+                    if (ev.key === 'ArrowDown') {
+                        ev.preventDefault();
+                        activeIdx = (activeIdx + 1) % items.length;
+                        highlight();
+                    } else if (ev.key === 'ArrowUp') {
+                        ev.preventDefault();
+                        activeIdx = (activeIdx - 1 + items.length) % items.length;
+                        highlight();
+                    } else if (ev.key === 'Enter' && activeIdx >= 0 && activeIdx < items.length) {
+                        ev.preventDefault();
+                        pick(items[activeIdx]);
+                    } else if (ev.key === 'Escape') {
+                        closeList();
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    setTimeout(closeList, 140);
+                });
+            })();
+        </script>
+        @endif
     </body>
 </html>
