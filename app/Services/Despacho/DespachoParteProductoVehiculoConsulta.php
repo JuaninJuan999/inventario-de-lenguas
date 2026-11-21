@@ -62,10 +62,39 @@ class DespachoParteProductoVehiculoConsulta
         return max(1, (int) config('despacho.id_parte_producto_vehiculo', 4));
     }
 
-    /** Valor booleano enlazado a SQL: `AND ppv.producto_entregado = ?`. */
+    /**
+     * Filtro SQL de producto_entregado: true/false para igualdad, null = sin filtro (any).
+     */
+    protected function productoEntregadoFiltroSql(): ?bool
+    {
+        $modo = strtolower(trim((string) config('despacho.ppv_producto_entregado_modo', 'any')));
+        if (in_array($modo, ['any', 'ambos', 'all', '*'], true)) {
+            return null;
+        }
+        if (in_array($modo, ['false', '0', 'no', 'off'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** @deprecated Preferir productoEntregadoFiltroSql(); true si el modo no es false. */
     protected function valorProductoEntregadoSql(): bool
     {
-        return (bool) config('despacho.ppv_producto_entregado_valor', true);
+        return $this->productoEntregadoFiltroSql() !== false;
+    }
+
+    /**
+     * @param  list<mixed>  $bindings
+     */
+    protected function anexarSqlProductoEntregado(string &$sql, array &$bindings): void
+    {
+        $filtro = $this->productoEntregadoFiltroSql();
+        if ($filtro === null) {
+            return;
+        }
+        $sql .= ' AND ppv.producto_entregado = ?';
+        $bindings[] = $filtro;
     }
 
     /**
@@ -302,13 +331,11 @@ SELECT DISTINCT va.id, ppv.id_producto
 FROM trazabilidad_proceso.parte_producto_vehiculo ppv
 INNER JOIN trazabilidad_proceso.vehiculo_asignado va ON ppv.id_vehiculo_asignado = va.id
 WHERE ppv.id_parte_producto = ?
-  AND ppv.producto_entregado = ?
 SQL;
 
-        $bindings = [$idParte, $this->valorProductoEntregadoSql()];
-
+        $bindings = [$idParte];
+        $this->anexarSqlProductoEntregado($inner, $bindings);
         $this->anexarSqlFiltroUsuarioAsignacion($inner, $bindings, $usernameOverride);
-
         $this->anexarSqlFechaRegistroHoy($inner, $bindings);
 
         $sql = 'SELECT COUNT(*)::int AS c FROM ('.$inner.') AS sub';
@@ -361,6 +388,7 @@ SQL;
             'filtro_username_sql_columna' => $this->usernameColbeefFiltraPorParteProducto() ? 'ppv.user_name' : 'va.user_name',
             'va_user_name_efectivo' => $usernameOverride ?? $this->usernameFiltroVehiculo(),
             'solo_fecha_registro_hoy' => $this->debeFiltrarFechaRegistroHoy(),
+            'ppv_producto_entregado_modo' => (string) config('despacho.ppv_producto_entregado_modo', 'any'),
             'ppv_producto_entregado_valor' => $this->valorProductoEntregadoSql(),
             'solo_inventario_local' => $this->debeFiltrarSoloInventarioLocal(),
             'filtra_catalogo_placas_config' => $filtraCatalogoCfg,
@@ -401,16 +429,15 @@ SELECT
 FROM trazabilidad_proceso.parte_producto_vehiculo ppv
 INNER JOIN trazabilidad_proceso.vehiculo_asignado va ON ppv.id_vehiculo_asignado = va.id
 WHERE ppv.id_parte_producto = ?
-  AND ppv.producto_entregado = ?
 SQL;
 
-        $bindings = [$idParte, $this->valorProductoEntregadoSql()];
-
+        $bindings = [$idParte];
+        $this->anexarSqlProductoEntregado($sql, $bindings);
         $this->anexarSqlFiltroUsuarioAsignacion($sql, $bindings, $usernameOverride);
-
         $this->anexarSqlFechaRegistroHoy($sql, $bindings);
 
-        $sql .= ' ORDER BY va.placa_vehiculo ASC, ppv.id ASC';
+        // Viajes abiertos (sin salida) primero; luego placa.
+        $sql .= ' ORDER BY (va.fecha_salida IS NULL) DESC, va.placa_vehiculo ASC, ppv.id ASC';
 
         try {
             $rows = DB::connection($conn)->select($sql, $bindings);
@@ -510,14 +537,12 @@ LEFT JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
 LEFT JOIN a_organizaciones.a_empresa_persona ep ON p.id = ep.id_persona
 LEFT JOIN a_organizaciones.a_empresa e ON ep.id_empresa = e.id
 WHERE ppv.id_parte_producto = ?
-  AND ppv.producto_entregado = ?
   AND ppv.id_vehiculo_asignado = ?
 SQL;
 
-        $bindings = [$idParte, $this->valorProductoEntregadoSql(), $idVehiculoAsignado];
-
+        $bindings = [$idParte, $idVehiculoAsignado];
+        $this->anexarSqlProductoEntregado($sql, $bindings);
         $this->anexarSqlFiltroUsuarioAsignacion($sql, $bindings, $usernameOverride);
-
         $this->anexarSqlFechaRegistroHoy($sql, $bindings);
 
         $sql .= ' ORDER BY ppv.id ASC';

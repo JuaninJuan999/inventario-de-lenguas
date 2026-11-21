@@ -150,19 +150,44 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Valor de ppv.producto_entregado en las consultas Colbeef de despacho
+    | Filtro ppv.producto_entregado en consultas Colbeef de despacho
     |--------------------------------------------------------------------------
     |
-    | true = solo filas con producto_entregado true (p. ej. alineado a su SELECT en pgAdmin).
-    | false = solo filas con producto_entregado false (listado histórico de “pendientes”).
-    | El listado de placas y el checklist deduplican por (vehículo, id_producto): una fila,
-    | la de ppv.id más alto entre las que cumplen el filtro.
+    | DESPACHO_PPV_PRODUCTO_ENTREGADO:
+    |   true  = solo filas ya marcadas entregadas en Colbeef
+    |   false = solo filas aún no marcadas entregadas
+    |   any   = ambas (recomendado): el alistamiento ve el viaje en carga aunque
+    |           Colbeef aún no haya pasado producto_entregado a true
+    |
+    | El listado y el checklist deduplican por (vehículo, id_producto).
     |
     */
 
-    'ppv_producto_entregado_valor' => filter_var(
-        env('DESPACHO_PPV_PRODUCTO_ENTREGADO', true),
-        FILTER_VALIDATE_BOOLEAN
+    'ppv_producto_entregado_modo' => (static function (): string {
+        $raw = env('DESPACHO_PPV_PRODUCTO_ENTREGADO', 'any');
+        if (is_bool($raw)) {
+            return $raw ? 'true' : 'false';
+        }
+        $v = strtolower(trim((string) $raw));
+        if (in_array($v, ['any', 'ambos', 'all', '*'], true)) {
+            return 'any';
+        }
+        if (in_array($v, ['false', '0', 'no', 'off'], true)) {
+            return 'false';
+        }
+        if (in_array($v, ['true', '1', 'yes', 'on'], true)) {
+            return 'true';
+        }
+
+        // Compat: filter_var legacy / vacío → any (listar validable en inventario).
+        return 'any';
+    })(),
+
+    /** @deprecated Use ppv_producto_entregado_modo; se mantiene por lecturas antiguas. */
+    'ppv_producto_entregado_valor' => ! in_array(
+        strtolower(trim((string) env('DESPACHO_PPV_PRODUCTO_ENTREGADO', 'any'))),
+        ['false', '0', 'no', 'off'],
+        true
     ),
 
 ];
