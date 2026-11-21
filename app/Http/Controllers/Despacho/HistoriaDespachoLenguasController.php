@@ -170,10 +170,16 @@ class HistoriaDespachoLenguasController extends Controller
             || $operadorFiltro !== null
             || $codigo !== '';
 
+        $codigoSinHistorialHint = null;
+        if ($codigo !== '' && $movimientos->total() === 0) {
+            $codigoSinHistorialHint = $this->resolverCodigoSinHistorialHint($codigo);
+        }
+
         return view('historia-despacho-lenguas', [
             'movimientos' => $movimientos,
             'operadoresLista' => $operadoresLista,
             'filtrosActivos' => $filtrosActivos,
+            'codigoSinHistorialHint' => $codigoSinHistorialHint,
             'filtros' => [
                 'desde' => $desde,
                 'hasta' => $hasta,
@@ -185,23 +191,59 @@ class HistoriaDespachoLenguasController extends Controller
     }
 
     /**
+     * Cuando el filtro por código no lista movimientos: distingue inexistente /
+     * aún en inventario / filtrado por fecha|tipo|operador.
+     *
+     * @return 'inexistente'|'disponible_en_inventario'|'con_otros_filtros'
+     */
+    private function resolverCodigoSinHistorialHint(string $codigo): string
+    {
+        $base = $this->queryIngresosPorCodigo($codigo);
+
+        $existeEnInventario = (clone $base)->exists();
+        if (! $existeEnInventario) {
+            return 'inexistente';
+        }
+
+        $tieneMovimientos = (clone $base)
+            ->where(function ($q): void {
+                $q->whereNotNull('despacho_id')->orWhereNotNull('desposte_id');
+            })
+            ->exists();
+
+        if (! $tieneMovimientos) {
+            return 'disponible_en_inventario';
+        }
+
+        return 'con_otros_filtros';
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<IngresoLenguaLocal>
+     */
+    private function queryIngresosPorCodigo(string $codigo)
+    {
+        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $needle = '%'.addcslashes($codigo, '%_\\').'%';
+        $keys = DespachoInventarioMatch::matchKeysForProductId($codigo);
+
+        return IngresoLenguaLocal::query()
+            ->where(function ($q) use ($op, $needle, $keys): void {
+                $q->where('id_producto', $op, $needle);
+                if ($keys !== []) {
+                    $q->orWhereIn('id_producto', $keys);
+                }
+            });
+    }
+
+    /**
      * Localiza despachos / despostes que contienen el código de producto (parcial o exacto).
      *
      * @return array{despacho_ids: list<int>, desposte_ids: list<int>}
      */
     private function idsMovimientosPorCodigo(string $codigo): array
     {
-        $op = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
-        $needle = '%'.addcslashes($codigo, '%_\\').'%';
-
-        $rows = IngresoLenguaLocal::query()
-            ->where(function ($q) use ($op, $needle, $codigo): void {
-                $q->where('id_producto', $op, $needle);
-                $keys = DespachoInventarioMatch::matchKeysForProductId($codigo);
-                if ($keys !== []) {
-                    $q->orWhereIn('id_producto', $keys);
-                }
-            })
+        $rows = $this->queryIngresosPorCodigo($codigo)
             ->where(function ($q): void {
                 $q->whereNotNull('despacho_id')->orWhereNotNull('desposte_id');
             })

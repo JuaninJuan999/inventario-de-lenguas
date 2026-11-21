@@ -74,6 +74,50 @@
                 font-size: 0.85rem;
                 color: color-mix(in srgb, var(--text) 68%, transparent);
             }
+            .alert {
+                margin: 0 0 1rem;
+                padding: 0.85rem 1rem;
+                border-radius: 0.65rem;
+                font-size: 0.9rem;
+                font-weight: 600;
+                line-height: 1.45;
+            }
+            .alert--err {
+                border: 1px solid color-mix(in srgb, #ffb4b4 55%, transparent);
+                background: color-mix(in srgb, #5c1a1a 55%, rgba(0, 0, 0, 0.35));
+                color: #ffe4e4;
+            }
+            .alert--info {
+                border: 1px solid color-mix(in srgb, var(--brand-green) 50%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 14%, rgba(0, 0, 0, 0.35));
+                color: var(--text);
+            }
+            .alert--warn {
+                border: 1px solid color-mix(in srgb, #f5d78e 55%, transparent);
+                background: color-mix(in srgb, #5c4a1a 50%, rgba(0, 0, 0, 0.35));
+                color: #fff3d0;
+            }
+            .alert a {
+                color: inherit;
+                font-weight: 800;
+                text-decoration: underline;
+                text-underline-offset: 2px;
+            }
+            .alert .alert__cta {
+                display: inline-block;
+                margin-top: 0.55rem;
+                padding: 0.4rem 0.85rem;
+                border-radius: 9999px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 55%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 18%, transparent);
+                color: var(--brand-green);
+                font-weight: 700;
+                font-size: 0.82rem;
+                text-decoration: none;
+            }
+            .alert .alert__cta:hover {
+                background: color-mix(in srgb, var(--brand-green) 28%, transparent);
+            }
             .filtros-form {
                 margin: 0 0 1.15rem;
                 padding: 1rem 1rem 1.05rem;
@@ -501,23 +545,43 @@
             </form>
 
             @if ($movimientos->isEmpty())
-                <p class="muted">
-                    @if ($filtrosActivos ?? false)
-                        @if (($filtros['codigo'] ?? '') !== '')
-                            No hay despacho ni desposte con el código <strong>{{ $filtros['codigo'] }}</strong>
-                            @if (($filtros['desde'] ?? null) || ($filtros['hasta'] ?? null) || ($filtros['tipo'] ?? '') !== '' || ($filtros['operador'] ?? '') !== '')
-                                bajo los demás filtros aplicados
-                            @endif
-                            . Verifique el código o quite filtros de fecha / tipo.
-                        @else
-                            No hay movimientos que coincidan con los filtros indicados. Pruebe ampliar fechas o cambiar tipo / operador.
-                        @endif
-                    @else
+                @php
+                    $hintCodigo = $codigoSinHistorialHint ?? null;
+                    $codigoMostrar = (string) ($filtros['codigo'] ?? '');
+                @endphp
+                @if (($filtros['codigo'] ?? '') !== '' && $hintCodigo === 'inexistente')
+                    <div class="alert alert--err" role="alert">
+                        El código <strong>{{ $codigoMostrar }}</strong> no está en el inventario local.
+                        Verifique el código o revise si falta importar desde SIRT.
+                    </div>
+                @elseif (($filtros['codigo'] ?? '') !== '' && $hintCodigo === 'disponible_en_inventario')
+                    <div class="alert alert--info" role="status">
+                        El código <strong>{{ $codigoMostrar }}</strong> está disponible en inventario
+                        (aún no se ha despachado ni enviado a desposte). Vaya al módulo de
+                        <strong>Inventario de Lenguas</strong> para verlo.
+                        <div>
+                            <a
+                                class="alert__cta"
+                                href="/inventario-de-lenguas?id_producto={{ urlencode($codigoMostrar) }}"
+                            >Abrir en Inventario de Lenguas →</a>
+                        </div>
+                    </div>
+                @elseif (($filtros['codigo'] ?? '') !== '' && $hintCodigo === 'con_otros_filtros')
+                    <div class="alert alert--warn" role="status">
+                        El código <strong>{{ $codigoMostrar }}</strong> sí tiene movimientos, pero ninguno
+                        coincide con los demás filtros. Pruebe ampliar fechas o quitar el filtro de tipo/operador.
+                    </div>
+                @elseif ($filtrosActivos ?? false)
+                    <p class="muted">
+                        No hay movimientos que coincidan con los filtros indicados. Pruebe ampliar fechas o cambiar tipo / operador.
+                    </p>
+                @else
+                    <p class="muted">
                         Aún no hay movimientos en el historial. Aparecen al usar <strong>Terminar despacho</strong> en
                         despacho de lenguas o <strong>Registrar movimiento a Planta de Desposte</strong> en Lenguas
                         Desposte.
-                    @endif
-                </p>
+                    </p>
+                @endif
             @else
                 <p class="muted">
                     Se muestran <strong>{{ $movimientos->total() }}</strong> movimiento(s){{ ($filtrosActivos ?? false) ? ' con los filtros aplicados' : ' en total' }}
