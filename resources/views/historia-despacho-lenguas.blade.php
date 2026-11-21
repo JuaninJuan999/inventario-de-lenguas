@@ -430,7 +430,13 @@
         </header>
 
         <section class="sheet">
-            <form class="filtros-form" method="get" action="{{ route('historia.despacho.lenguas') }}" aria-labelledby="filtros-historial-heading">
+            <form
+                id="hist-filters"
+                class="filtros-form"
+                method="get"
+                action=""
+                aria-labelledby="filtros-historial-heading"
+            >
                 <h2 id="filtros-historial-heading" class="filtros-form__title">Filtros del historial</h2>
                 <div class="filtros-grid">
                     <div class="filtros-field">
@@ -478,7 +484,7 @@
                 <div class="filtros-actions">
                     <button type="submit" class="btn-filtrar">Aplicar filtros</button>
                     @if ($filtrosActivos ?? false)
-                        <a class="link-limpiar" href="{{ route('historia.despacho.lenguas') }}">Quitar filtros</a>
+                        <a class="link-limpiar" href="/historia-despacho-lenguas">Quitar filtros</a>
                     @endif
                 </div>
                 @if (($filtros['codigo'] ?? '') !== '')
@@ -599,6 +605,27 @@
 
         <script>
             (function () {
+                // Filtros same-origin (no depender de APP_URL / route absoluto en el server).
+                var filterForm = document.getElementById('hist-filters');
+                if (filterForm) {
+                    filterForm.addEventListener('submit', function (ev) {
+                        var params = new URLSearchParams();
+                        var fd = new FormData(filterForm);
+                        fd.forEach(function (value, key) {
+                            var v = String(value == null ? '' : value).trim();
+                            if (v === '') {
+                                return;
+                            }
+                            params.set(key, v);
+                        });
+                        var qs = params.toString();
+                        ev.preventDefault();
+                        window.location.assign(
+                            qs ? '/historia-despacho-lenguas?' + qs : '/historia-despacho-lenguas',
+                        );
+                    });
+                }
+
                 var backdrop = document.getElementById('hist-backdrop');
                 var bodyEl = document.getElementById('hist-dialog-body');
                 var closeBtn = document.getElementById('hist-dialog-close');

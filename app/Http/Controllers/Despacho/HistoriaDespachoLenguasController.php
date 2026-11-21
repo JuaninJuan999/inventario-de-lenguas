@@ -157,7 +157,8 @@ class HistoriaDespachoLenguasController extends Controller
             $porPagina,
             $pagina,
             [
-                'path' => request()->url(),
+                // Path root-relativo: no depender de APP_URL (mismo problema que filtros Inventario).
+                'path' => '/historia-despacho-lenguas',
                 'pageName' => 'page',
             ],
         );
