@@ -208,6 +208,26 @@
             .empty-state__actions a:hover {
                 background: color-mix(in srgb, var(--brand-green) 26%, transparent);
             }
+            .listado-resumen {
+                margin: 0 0 0.85rem;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: baseline;
+                gap: 0.35rem 1rem;
+                font-size: 0.9rem;
+                font-weight: 600;
+                color: color-mix(in srgb, var(--text) 90%, transparent);
+            }
+            .listado-resumen strong {
+                color: var(--brand-green);
+                font-weight: 800;
+                font-size: 1.05rem;
+            }
+            .listado-resumen__meta {
+                font-size: 0.8rem;
+                font-weight: 500;
+                color: color-mix(in srgb, var(--text) 65%, transparent);
+            }
             @media (max-width: 640px) {
                 .page-bar {
                     flex-direction: column;
@@ -370,6 +390,14 @@
                     </div>
                 </div>
             @elseif ($placas !== [])
+                @php
+                    $totalPlacas = count($placas);
+                    $totalPendientes = (int) collect($placas)->sum(static fn ($p) => (int) ($p->pendientes ?? 0));
+                @endphp
+                <p class="listado-resumen" role="status">
+                    <span>Placas listadas: <strong>{{ $totalPlacas }}</strong></span>
+                    <span class="listado-resumen__meta">· {{ $totalPendientes }} código(s) pendiente(s) en total</span>
+                </p>
                 <div class="table-wrap">
                     <table class="data">
                         <thead>
