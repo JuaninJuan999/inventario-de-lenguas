@@ -172,7 +172,7 @@ class InspeccionSirtController extends Controller
             ]));
         }
 
-        $sirtRows = $this->adjuntarFechaBeneficioDesdeInsensibilizacion($sirtRows);
+        $sirtRows = $this->adjuntarDatosComplementariosSirt($sirtRows);
 
         $sync = $this->retirarInventarioLocalPorIdsDecomisosSirt($sirtRows);
 
@@ -658,7 +658,7 @@ SQL,
             return ['filters' => $filters, 'rows' => $manualRows, 'validator' => $validator];
         }
 
-        $sirtRows = $this->adjuntarFechaBeneficioDesdeInsensibilizacion($sirtRows);
+        $sirtRows = $this->adjuntarDatosComplementariosSirt($sirtRows);
 
         return [
             'filters' => $filters,
@@ -689,12 +689,13 @@ SQL;
     }
 
     /**
-     * Fecha de beneficio = fecha_registro de Animal Insensibilizado (trazabilidad_proceso.insensibilizacion).
+     * Completa desde SIRT: fecha de beneficio (Animal Insensibilizado) y propietario (producto_empresa).
+     * Filas solo-SIRT suelen no estar (o ya no) en inventario local → sin esto el propietario queda «—».
      *
      * @param  array<int, object>  $sirtRows
      * @return array<int, object>
      */
-    private function adjuntarFechaBeneficioDesdeInsensibilizacion(array $sirtRows): array
+    private function adjuntarDatosComplementariosSirt(array $sirtRows): array
     {
         if ($sirtRows === []) {
             return [];
@@ -710,14 +711,16 @@ SQL;
             }
         }
 
+        /** @var array<string, array{fecha: ?string, propietario: ?string}> $mapa */
         $mapa = [];
-        if ($ids !== []) {
-            $connection = (string) config('decomisos.sirt_connection');
-            if ($connection !== '') {
-                try {
-                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                    $found = DB::connection($connection)->select(
-                        <<<SQL
+        $connection = (string) config('decomisos.sirt_connection');
+        if ($ids !== [] && $connection !== '') {
+            $idList = array_keys($ids);
+            $placeholders = implode(',', array_fill(0, count($idList), '?'));
+
+            try {
+                $foundFechas = DB::connection($connection)->select(
+                    <<<SQL
 SELECT DISTINCT ON (ins.id_producto)
     ins.id_producto::text AS id_producto,
     (ins.fecha_registro)::date AS fecha_beneficio
@@ -725,41 +728,88 @@ FROM trazabilidad_proceso.insensibilizacion ins
 WHERE ins.id_producto::text IN ({$placeholders})
 ORDER BY ins.id_producto, ins.id DESC
 SQL,
-                        array_keys($ids),
-                    );
-                    foreach ($found as $f) {
-                        $pid = trim((string) ($f->id_producto ?? ''));
-                        $fb = $f->fecha_beneficio ?? null;
-                        if ($pid === '' || $fb === null || $fb === '') {
-                            continue;
-                        }
-                        $mapa[$pid] = $fb instanceof \DateTimeInterface
-                            ? $fb->format('Y-m-d')
-                            : (string) $fb;
-                        foreach (DespachoInventarioMatch::matchKeysForProductId($pid) as $alias) {
-                            $mapa[$alias] = $mapa[$alias] ?? $mapa[$pid];
+                    $idList,
+                );
+                foreach ($foundFechas as $f) {
+                    $pid = trim((string) ($f->id_producto ?? ''));
+                    if ($pid === '') {
+                        continue;
+                    }
+                    $fb = $f->fecha_beneficio ?? null;
+                    $fecha = null;
+                    if ($fb instanceof \DateTimeInterface) {
+                        $fecha = $fb->format('Y-m-d');
+                    } elseif ($fb !== null && $fb !== '') {
+                        $fecha = (string) $fb;
+                    }
+                    $mapa[$pid] = ['fecha' => $fecha, 'propietario' => $mapa[$pid]['propietario'] ?? null];
+                    foreach (DespachoInventarioMatch::matchKeysForProductId($pid) as $alias) {
+                        $mapa[$alias] = $mapa[$alias] ?? $mapa[$pid];
+                        if ($fecha !== null && empty($mapa[$alias]['fecha'])) {
+                            $mapa[$alias]['fecha'] = $fecha;
                         }
                     }
-                } catch (Throwable $e) {
-                    report($e);
                 }
+            } catch (Throwable $e) {
+                report($e);
+            }
+
+            try {
+                // Misma idea que IngresosLenguasConsultaSirt (empresa vía producto_empresa).
+                $foundProps = DB::connection($connection)->select(
+                    <<<SQL
+SELECT DISTINCT ON (pe.id_producto)
+    pe.id_producto::text AS id_producto,
+    e.nombre AS propietario
+FROM trazabilidad_proceso.producto_empresa pe
+INNER JOIN organizaciones.empresa e ON e.id = pe.id_empresa
+WHERE pe.id_producto::text IN ({$placeholders})
+  AND e.nombre IS NOT NULL
+  AND TRIM(e.nombre) <> ''
+ORDER BY pe.id_producto, pe.fecha_registro DESC NULLS LAST, pe.hora_registro DESC NULLS LAST
+SQL,
+                    $idList,
+                );
+                foreach ($foundProps as $f) {
+                    $pid = trim((string) ($f->id_producto ?? ''));
+                    $prop = trim((string) ($f->propietario ?? ''));
+                    if ($pid === '' || $prop === '') {
+                        continue;
+                    }
+                    $mapa[$pid] = [
+                        'fecha' => $mapa[$pid]['fecha'] ?? null,
+                        'propietario' => $prop,
+                    ];
+                    foreach (DespachoInventarioMatch::matchKeysForProductId($pid) as $alias) {
+                        $prev = $mapa[$alias] ?? ['fecha' => null, 'propietario' => null];
+                        $mapa[$alias] = [
+                            'fecha' => $prev['fecha'],
+                            'propietario' => $prev['propietario'] ?? $prop,
+                        ];
+                    }
+                }
+            } catch (Throwable $e) {
+                report($e);
             }
         }
 
         return array_map(static function (object $row) use ($mapa): object {
             $r = (array) $row;
             $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
-            $fecha = null;
+            $hit = null;
             foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
                 if (isset($mapa[$key])) {
-                    $fecha = $mapa[$key];
+                    $hit = $mapa[$key];
                     break;
                 }
             }
-            if ($fecha === null && isset($mapa[trim($raw)])) {
-                $fecha = $mapa[trim($raw)];
+            if ($hit === null && isset($mapa[trim($raw)])) {
+                $hit = $mapa[trim($raw)];
             }
-            $r['fecha_beneficio'] = $fecha;
+            $r['fecha_beneficio'] = $hit['fecha'] ?? null;
+            if (empty($r['propietario']) && ! empty($hit['propietario'])) {
+                $r['propietario'] = $hit['propietario'];
+            }
 
             return (object) $r;
         }, $sirtRows);

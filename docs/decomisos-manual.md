@@ -70,7 +70,10 @@ Si no aparecen sugerencias / sale “Sin coincidencias” o “No está en el in
 |---------|--------|--------|
 | Fecha de beneficio | **SIRT** | `trazabilidad_proceso.insensibilizacion.fecha_registro` (Animal Insensibilizado) |
 | Fecha de beneficio | **Manual** | Inventario local: `fecha_turno_referencia` o `fecha_registro` del ingreso |
-| Propietario | Ambos | Inventario local (`ingreso_lenguas_locales.propietario`) por `id_producto` |
+| Propietario | **Manual** | Inventario local (`ingreso_lenguas_locales.propietario`) |
+| Propietario | **SIRT** | Inventario local si existe; si no, SIRT `producto_empresa` → `organizaciones.empresa` |
+
+Si una fila SIRT muestra propietario «—», ese código no está (o no estuvo) en la réplica local **y** no hubo empresa en `producto_empresa` para ese id.
 
 Ambas van también en el **Excel** de decomisos.
 
