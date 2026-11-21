@@ -406,7 +406,8 @@ class InventarioLenguasController extends Controller
 
         $hoyYmd = Carbon::now(VencimientoLengua::zona())->startOfDay()->format('Y-m-d');
         $castDiasTexto = $this->sqlCastDiasHastaVencimientoAsText();
-        $diasExpr = $this->sqlDiasHastaVencimientoColumn();
+        $rangoPorVencer = VencimientoLengua::rangoFechaRegistroPorVencer();
+        $vencidasAntesDe = VencimientoLengua::fechaRegistroVencidasAntesDe();
 
         $q = IngresoLenguaLocal::query()
             ->sinDespachar()
@@ -435,15 +436,16 @@ class InventarioLenguasController extends Controller
             ->when($soloSalidas, function ($q): void {
                 $q->where('es_salida', true);
             })
-            ->when($porVencer, function ($q) use ($diasExpr, $hoyYmd): void {
-                // Vencen hoy o mañana (0–1 días), igual que DashboardController::conteosVencimiento.
+            ->when($porVencer, function ($q) use ($rangoPorVencer): void {
+                // Vencen hoy o mañana (0–1 días): fecha_registro entre hoy−4 y hoy−3.
                 $q->whereNotNull('fecha_registro')
-                    ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd]);
+                    ->whereDate('fecha_registro', '>=', $rangoPorVencer['desde'])
+                    ->whereDate('fecha_registro', '<=', $rangoPorVencer['hasta']);
             })
-            ->when($vencidas, function ($q) use ($diasExpr, $hoyYmd): void {
+            ->when($vencidas, function ($q) use ($vencidasAntesDe): void {
                 // Ya superaron la fecha de vencimiento (< 0 días).
                 $q->whereNotNull('fecha_registro')
-                    ->whereRaw("({$diasExpr}) < 0", [$hoyYmd]);
+                    ->whereDate('fecha_registro', '<', $vencidasAntesDe);
             })
             ->when($vidaUtilTrim !== '' && ! $porVencer && ! $vencidas, function ($q) use ($castDiasTexto, $hoyYmd, $vidaUtilTrim, $op): void {
                 $needle = '%'.addcslashes($vidaUtilTrim, '%_\\').'%';

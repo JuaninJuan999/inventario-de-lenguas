@@ -7,7 +7,6 @@ use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
 use App\Support\DespachoInventarioMatch;
 use App\Support\VencimientoLengua;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,8 +41,7 @@ class CambiosDestinosController extends Controller
             $op = $this->likeOperator();
 
             $patProp = '%'.$propietario.'%';
-            $hoyYmd = Carbon::now(VencimientoLengua::zona())->startOfDay()->format('Y-m-d');
-            $diasExpr = $this->sqlDiasHastaVencimientoColumn();
+            $rangoPorVencer = VencimientoLengua::rangoFechaRegistroPorVencer();
 
             $query = IngresoLenguaLocal::query()
                 ->sinDespachar()
@@ -51,9 +49,12 @@ class CambiosDestinosController extends Controller
                 ->when($propietario !== '', fn ($q) => $q->where('propietario', $op, $patProp))
                 ->when($soloAdicionales, fn ($q) => $q->where('es_adicional', true))
                 ->when($soloSalidas, fn ($q) => $q->where('es_salida', true))
-                ->when($porVencer, function ($q) use ($diasExpr, $hoyYmd): void {
+                ->when($porVencer, function ($q) use ($rangoPorVencer): void {
+                    // Vencen hoy/mañana ≡ fecha_registro entre hoy−4 y hoy−3 (zona operación).
+                    // whereDate evita fallos de DATEDIFF/DATE_ADD por timezone de MySQL en el server.
                     $q->whereNotNull('fecha_registro')
-                        ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd]);
+                        ->whereDate('fecha_registro', '>=', $rangoPorVencer['desde'])
+                        ->whereDate('fecha_registro', '<=', $rangoPorVencer['hasta']);
                 });
 
             $totalCoincidencias = (clone $query)->count();
@@ -510,18 +511,6 @@ class CambiosDestinosController extends Controller
     private function likeOperator(): string
     {
         return DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
-    }
-
-    /**
-     * Días hasta vencimiento (fecha registro + 4), mismo criterio que Inventario / Dashboard.
-     */
-    private function sqlDiasHastaVencimientoColumn(): string
-    {
-        return match (DB::getDriverName()) {
-            'pgsql' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE ((fecha_registro + INTERVAL \'4 days\')::date - CAST(? AS date))::integer END)',
-            'sqlite' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE CAST(ROUND(julianday(date(fecha_registro, \'+4 days\')) - julianday(?)) AS INTEGER) END)',
-            default => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE DATEDIFF(DATE_ADD(fecha_registro, INTERVAL 4 DAY), ?) END)',
-        };
     }
 
     /**

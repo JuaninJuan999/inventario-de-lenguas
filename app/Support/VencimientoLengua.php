@@ -61,4 +61,30 @@ class VencimientoLengua
 
         return $n.' '.$palabra;
     }
+
+    /**
+     * Rango de fecha_registro (Y-m-d) para lenguas que vencen hoy o mañana
+     * (días hasta vencimiento 0–1 = registro hace 4 o 3 días).
+     *
+     * @return array{desde: string, hasta: string}
+     */
+    public static function rangoFechaRegistroPorVencer(?CarbonInterface $hoy = null): array
+    {
+        $hoy = ($hoy ?? Carbon::now(self::zona()))->copy()->timezone(self::zona())->startOfDay();
+
+        return [
+            'desde' => $hoy->copy()->subDays(4)->format('Y-m-d'),
+            'hasta' => $hoy->copy()->subDays(3)->format('Y-m-d'),
+        ];
+    }
+
+    /**
+     * fecha_registro estrictamente anterior a (hoy − 4 días) ⇒ ya vencidas.
+     */
+    public static function fechaRegistroVencidasAntesDe(?CarbonInterface $hoy = null): string
+    {
+        $hoy = ($hoy ?? Carbon::now(self::zona()))->copy()->timezone(self::zona())->startOfDay();
+
+        return $hoy->copy()->subDays(4)->format('Y-m-d');
+    }
 }

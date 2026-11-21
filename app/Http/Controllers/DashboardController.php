@@ -182,22 +182,21 @@ SQL;
      */
     private function conteosVencimiento(string $hoyYmd): array
     {
-        $diasExpr = match (DB::getDriverName()) {
-            'pgsql' => "((fecha_registro + INTERVAL '4 days')::date - CAST(? AS date))",
-            'sqlite' => 'CAST(ROUND(julianday(date(fecha_registro, \'+4 days\')) - julianday(?)) AS INTEGER)',
-            default => 'DATEDIFF(DATE_ADD(fecha_registro, INTERVAL 4 DAY), ?)',
-        };
+        $hoy = Carbon::parse($hoyYmd, VencimientoLengua::zona())->startOfDay();
+        $rangoPorVencer = VencimientoLengua::rangoFechaRegistroPorVencer($hoy);
+        $vencidasAntesDe = VencimientoLengua::fechaRegistroVencidasAntesDe($hoy);
 
         $base = IngresoLenguaLocal::query()
             ->sinDespachar()
             ->whereNotNull('fecha_registro');
 
         $porVencer = (clone $base)
-            ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd])
+            ->whereDate('fecha_registro', '>=', $rangoPorVencer['desde'])
+            ->whereDate('fecha_registro', '<=', $rangoPorVencer['hasta'])
             ->count();
 
         $vencidas = (clone $base)
-            ->whereRaw("({$diasExpr}) < 0", [$hoyYmd])
+            ->whereDate('fecha_registro', '<', $vencidasAntesDe)
             ->count();
 
         return [
