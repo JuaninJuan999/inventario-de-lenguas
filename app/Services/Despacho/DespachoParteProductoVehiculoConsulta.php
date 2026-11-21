@@ -391,23 +391,15 @@ SQL;
 
         $idParte = $this->idParteProducto();
 
+        // Listado de placas: sin JOINs a persona/empresa (multiplican filas y no se muestran aquí).
         $sql = <<<'SQL'
 SELECT
     ppv.id AS ppv_id,
     va.id AS id_vehiculo_asignado,
     va.placa_vehiculo,
-    COALESCE(e.nombre, '') AS empresa,
-    TRIM(BOTH FROM CONCAT_WS(
-        ' ',
-        NULLIF(TRIM(COALESCE(p.nombres, '')), ''),
-        NULLIF(TRIM(COALESCE(p.apellidos, '')), '')
-    )) AS conductor,
     ppv.id_producto AS id_producto
 FROM trazabilidad_proceso.parte_producto_vehiculo ppv
 INNER JOIN trazabilidad_proceso.vehiculo_asignado va ON ppv.id_vehiculo_asignado = va.id
-LEFT JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
-LEFT JOIN a_organizaciones.a_empresa_persona ep ON p.id = ep.id_persona
-LEFT JOIN a_organizaciones.a_empresa e ON ep.id_empresa = e.id
 WHERE ppv.id_parte_producto = ?
   AND ppv.producto_entregado = ?
 SQL;
@@ -431,6 +423,8 @@ SQL;
 
         $soloInv = $this->debeFiltrarSoloInventarioLocal();
         $catalogoPlacas = $this->catalogoPlacasLocalNormalizado();
+        // Una sola lectura de inventario local en lugar de findAvailableRow por cada código Colbeef.
+        $mapaInv = $soloInv ? DespachoInventarioMatch::mapaClavesDisponibles() : [];
         $acumulado = [];
 
         foreach ($rows as $row) {
@@ -445,7 +439,7 @@ SQL;
                     continue;
                 }
             }
-            if ($soloInv && DespachoInventarioMatch::findAvailableRow($producto) === null) {
+            if ($soloInv && ! DespachoInventarioMatch::codigoEnMapaDisponibles($producto, $mapaInv)) {
                 continue;
             }
 
@@ -454,27 +448,17 @@ SQL;
                 continue;
             }
 
-            $empresaRaw = isset($a['empresa']) ? trim((string) $a['empresa']) : '';
-            $conductorRaw = isset($a['conductor']) ? trim((string) $a['conductor']) : '';
-
             if (! isset($acumulado[$vid])) {
                 $acumulado[$vid] = (object) [
                     'id_vehiculo_asignado' => $vid,
                     'placa_vehiculo' => isset($a['placa_vehiculo']) ? (string) $a['placa_vehiculo'] : null,
-                    'empresa' => $empresaRaw !== '' ? $empresaRaw : null,
-                    'conductor' => $conductorRaw !== '' ? $conductorRaw : null,
+                    'empresa' => null,
+                    'conductor' => null,
                     'pendientes' => 0,
                 ];
             }
 
             $acumulado[$vid]->pendientes++;
-
-            if ($empresaRaw !== '' && $acumulado[$vid]->empresa === null) {
-                $acumulado[$vid]->empresa = $empresaRaw;
-            }
-            if ($conductorRaw !== '' && $acumulado[$vid]->conductor === null) {
-                $acumulado[$vid]->conductor = $conductorRaw;
-            }
         }
 
         $lista = array_values($acumulado);

@@ -68,6 +68,45 @@ final class DespachoInventarioMatch
     }
 
     /**
+     * Mapa de claves de id_producto disponibles (sin despachar) para chequeos en lote
+     * (alistamiento), evitando N+1 de findAvailableRow.
+     *
+     * @return array<string, true>
+     */
+    public static function mapaClavesDisponibles(): array
+    {
+        $mapa = [];
+        foreach (IngresoLenguaLocal::query()->sinDespachar()->pluck('id_producto') as $id) {
+            $id = trim((string) $id);
+            if ($id === '') {
+                continue;
+            }
+            foreach (self::matchKeysForProductId($id) as $key) {
+                $mapa[$key] = true;
+            }
+        }
+
+        return $mapa;
+    }
+
+    /**
+     * @param  array<string, true>  $mapa  Resultado de mapaClavesDisponibles().
+     */
+    public static function codigoEnMapaDisponibles(string $codigoLeido, array $mapa): bool
+    {
+        if ($mapa === []) {
+            return false;
+        }
+        foreach (self::matchKeysForProductId($codigoLeido) as $key) {
+            if (isset($mapa[$key])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Indica si el código corresponde a un producto ya decomisado (manual, baja local por SIRT o consulta SIRT).
      *
      * @return array{decomisado: bool, id_producto: string, nombre_dictamen: ?string, nombre_enfermedad: ?string, origen: ?string}|null

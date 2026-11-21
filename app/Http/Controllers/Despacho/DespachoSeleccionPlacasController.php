@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Despacho\Concerns\ResuelveUsuarioVehiculoDespacho;
 use App\Models\Despacho;
 use App\Services\Despacho\DespachoParteProductoVehiculoConsulta;
+use App\Services\Inventario\InventarioLenguasSynchronizer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,12 +16,23 @@ class DespachoSeleccionPlacasController extends Controller
 {
     use ResuelveUsuarioVehiculoDespacho;
 
+    public function __construct(
+        protected InventarioLenguasSynchronizer $inventarioSynchronizer,
+    ) {}
+
     public function __invoke(Request $request): View
     {
         $error = null;
         $placas = [];
 
         $username = $this->usernameVehiculoEfectivo($request);
+
+        // El alistamiento exige códigos disponibles en inventario local; sync breve si está viejo.
+        try {
+            $this->inventarioSynchronizer->syncIfDue($request->user()?->id);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         try {
             $consulta = app(DespachoParteProductoVehiculoConsulta::class);
