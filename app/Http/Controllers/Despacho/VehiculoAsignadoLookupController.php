@@ -96,7 +96,11 @@ SELECT
     va.id,
     va.placa_vehiculo,
     va.user_name AS usuario_registra,
-    p.nombres AS nombre_conductor,
+    TRIM(BOTH FROM CONCAT_WS(
+        ' ',
+        NULLIF(TRIM(COALESCE(p.nombres, '')), ''),
+        NULLIF(TRIM(COALESCE(p.apellidos, '')), '')
+    )) AS nombre_conductor,
     e.nombre AS empresa
 FROM trazabilidad_proceso.vehiculo_asignado va
 LEFT JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
@@ -154,7 +158,8 @@ SQL;
     }
 
     /**
-     * Conductores únicos por nombre (sin repetir por cada vehículo asignado).
+     * Conductores únicos por nombre completo (nombres + apellidos),
+     * sin repetir por cada vehículo asignado.
      */
     protected function lookupConductoresUnicos(
         string $connection,
@@ -162,30 +167,42 @@ SQL;
         string $search,
         string $focus,
     ): JsonResponse {
-        // DISTINCT ON: una fila por nombre normalizado; se queda con el va.id más reciente.
-        $sql = <<<'SQL'
-SELECT DISTINCT ON (LOWER(TRIM(COALESCE(p.nombres, ''))))
+        // Nombre completo: nombres + apellidos (SIRT a_persona).
+        $nombreCompletoExpr = <<<'SQL'
+TRIM(BOTH FROM CONCAT_WS(
+    ' ',
+    NULLIF(TRIM(COALESCE(p.nombres, '')), ''),
+    NULLIF(TRIM(COALESCE(p.apellidos, '')), '')
+))
+SQL;
+
+        // DISTINCT ON: una fila por nombre completo; se queda con el va.id más reciente.
+        $sql = <<<SQL
+SELECT DISTINCT ON (LOWER({$nombreCompletoExpr}))
     va.id,
     va.placa_vehiculo,
     va.user_name AS usuario_registra,
-    TRIM(p.nombres) AS nombre_conductor,
+    {$nombreCompletoExpr} AS nombre_conductor,
     e.nombre AS empresa
 FROM trazabilidad_proceso.vehiculo_asignado va
 INNER JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
 LEFT JOIN a_organizaciones.a_empresa_persona ep ON p.id = ep.id_persona
 LEFT JOIN a_organizaciones.a_empresa e ON ep.id_empresa = e.id
 WHERE va.user_name = ?
-  AND TRIM(COALESCE(p.nombres, '')) <> ''
+  AND {$nombreCompletoExpr} <> ''
 SQL;
 
         $bindings = [$userName];
 
         if ($search !== '') {
-            $sql .= ' AND COALESCE(p.nombres, \'\') ILIKE ?';
-            $bindings[] = '%'.$search.'%';
+            $sql .= ' AND (COALESCE(p.nombres, \'\') ILIKE ? OR COALESCE(p.apellidos, \'\') ILIKE ? OR '.$nombreCompletoExpr.' ILIKE ?)';
+            $like = '%'.$search.'%';
+            $bindings[] = $like;
+            $bindings[] = $like;
+            $bindings[] = $like;
         }
 
-        $sql .= ' ORDER BY LOWER(TRIM(COALESCE(p.nombres, \'\'))), va.id DESC LIMIT 200';
+        $sql .= ' ORDER BY LOWER('.$nombreCompletoExpr.'), va.id DESC LIMIT 200';
 
         try {
             $rows = DB::connection($connection)->select($sql, $bindings);

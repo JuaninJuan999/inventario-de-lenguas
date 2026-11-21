@@ -397,7 +397,11 @@ SELECT
     va.id AS id_vehiculo_asignado,
     va.placa_vehiculo,
     COALESCE(e.nombre, '') AS empresa,
-    COALESCE(p.nombres, '') AS conductor,
+    TRIM(BOTH FROM CONCAT_WS(
+        ' ',
+        NULLIF(TRIM(COALESCE(p.nombres, '')), ''),
+        NULLIF(TRIM(COALESCE(p.apellidos, '')), '')
+    )) AS conductor,
     ppv.id_producto AS id_producto
 FROM trazabilidad_proceso.parte_producto_vehiculo ppv
 INNER JOIN trazabilidad_proceso.vehiculo_asignado va ON ppv.id_vehiculo_asignado = va.id
@@ -511,7 +515,11 @@ SELECT
     va.id AS id_vehiculo_asignado,
     va.placa_vehiculo,
     COALESCE(e.nombre, '') AS empresa,
-    COALESCE(p.nombres, '') AS conductor
+    TRIM(BOTH FROM CONCAT_WS(
+        ' ',
+        NULLIF(TRIM(COALESCE(p.nombres, '')), ''),
+        NULLIF(TRIM(COALESCE(p.apellidos, '')), '')
+    )) AS conductor
 FROM trazabilidad_proceso.parte_producto_vehiculo ppv
 INNER JOIN trazabilidad_proceso.vehiculo_asignado va ON ppv.id_vehiculo_asignado = va.id
 LEFT JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
