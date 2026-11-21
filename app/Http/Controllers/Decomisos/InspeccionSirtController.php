@@ -202,6 +202,7 @@ class InspeccionSirtController extends Controller
             'Fecha de beneficio',
             'Fecha registro',
             'Hora registro',
+            'Propietario',
             'Nombre dictamen',
             'Nombre enfermedad',
             'Origen',
@@ -233,6 +234,10 @@ class InspeccionSirtController extends Controller
                 $fechaBeneficioTxt = $fechaBeneficio !== null && $fechaBeneficio !== '' ? (string) $fechaBeneficio : '';
             }
 
+            $propietario = isset($r['propietario']) && $r['propietario'] !== null && $r['propietario'] !== ''
+                ? (string) $r['propietario']
+                : '';
+
             $origen = strtolower((string) ($r['origen'] ?? 'sirt')) === 'manual' ? 'Manual' : 'SIRT';
 
             $excelRows[] = [
@@ -240,6 +245,7 @@ class InspeccionSirtController extends Controller
                 $fechaBeneficioTxt,
                 $fechaTxt,
                 $horaTxt,
+                $propietario,
                 isset($r['nombre_dictamen']) ? (string) $r['nombre_dictamen'] : '',
                 isset($r['nombre_enfermedad']) && $r['nombre_enfermedad'] !== null ? (string) $r['nombre_enfermedad'] : '',
                 $origen,
@@ -773,7 +779,10 @@ SQL,
             $query->where(function ($w) use ($like): void {
                 $w->where('id_producto', 'like', $like)
                     ->orWhere('nombre_dictamen', 'like', $like)
-                    ->orWhere('nombre_enfermedad', 'like', $like);
+                    ->orWhere('nombre_enfermedad', 'like', $like)
+                    ->orWhereHas('ingreso', function ($iq) use ($like): void {
+                        $iq->where('propietario', 'like', $like);
+                    });
             });
         } else {
             if (! empty($filters['fecha_desde'])) {
@@ -790,12 +799,16 @@ SQL,
             $fechaBeneficio = $ingreso?->fecha_turno_referencia?->format('Y-m-d')
                 ?? $ingreso?->fecha_registro?->format('Y-m-d')
                 ?? null;
+            $propietario = $ingreso?->propietario !== null && $ingreso->propietario !== ''
+                ? (string) $ingreso->propietario
+                : null;
 
             return (object) [
                 'id_producto' => $row->id_producto,
                 'fecha_beneficio' => $fechaBeneficio,
                 'fecha_registro' => $row->fecha_registro,
                 'hora_registro' => $row->hora_registro,
+                'propietario' => $propietario,
                 'nombre_dictamen' => $row->nombre_dictamen,
                 'nombre_enfermedad' => $row->nombre_enfermedad,
                 'origen' => 'manual',
@@ -831,7 +844,7 @@ SQL,
     }
 
     /**
-     * Completa fecha_beneficio faltante desde inventario local (ref. turno / registro).
+     * Completa fecha_beneficio y propietario faltantes desde inventario local.
      *
      * @param  list<object>  $rows
      * @return list<object>
@@ -845,7 +858,9 @@ SQL,
         $ids = [];
         foreach ($rows as $row) {
             $r = (array) $row;
-            if (! empty($r['fecha_beneficio'])) {
+            $needsFecha = empty($r['fecha_beneficio']);
+            $needsProp = empty($r['propietario']);
+            if (! $needsFecha && ! $needsProp) {
                 continue;
             }
             $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
@@ -858,12 +873,13 @@ SQL,
             }
         }
 
+        /** @var array<string, array{fecha: ?string, propietario: ?string}> $mapa */
         $mapa = [];
         if ($ids !== []) {
             $locales = IngresoLenguaLocal::query()
                 ->whereIn('id_producto', array_keys($ids))
                 ->orderByDesc('id')
-                ->get(['id_producto', 'fecha_registro', 'fecha_turno_referencia']);
+                ->get(['id_producto', 'fecha_registro', 'fecha_turno_referencia', 'propietario']);
 
             foreach ($locales as $local) {
                 $key = DespachoInventarioMatch::normalizarGuionesIdProducto((string) $local->id_producto);
@@ -873,27 +889,35 @@ SQL,
                 $fecha = $local->fecha_turno_referencia?->format('Y-m-d')
                     ?? $local->fecha_registro?->format('Y-m-d')
                     ?? null;
-                if ($fecha !== null) {
-                    $mapa[$key] = $fecha;
-                    foreach (DespachoInventarioMatch::matchKeysForProductId((string) $local->id_producto) as $alias) {
-                        $mapa[$alias] = $mapa[$alias] ?? $fecha;
-                    }
+                $prop = $local->propietario !== null && trim((string) $local->propietario) !== ''
+                    ? trim((string) $local->propietario)
+                    : null;
+                $entry = ['fecha' => $fecha, 'propietario' => $prop];
+                $mapa[$key] = $entry;
+                foreach (DespachoInventarioMatch::matchKeysForProductId((string) $local->id_producto) as $alias) {
+                    $mapa[$alias] = $mapa[$alias] ?? $entry;
                 }
             }
         }
 
         return array_map(static function (object $row) use ($mapa): object {
             $r = (array) $row;
-            if (empty($r['fecha_beneficio'])) {
-                $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
-                $fecha = null;
-                foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
-                    if (isset($mapa[$key])) {
-                        $fecha = $mapa[$key];
-                        break;
-                    }
+            $raw = isset($r['id_producto']) ? (string) $r['id_producto'] : (isset($r['ID_PRODUCTO']) ? (string) $r['ID_PRODUCTO'] : '');
+            $hit = null;
+            foreach (DespachoInventarioMatch::matchKeysForProductId($raw) as $key) {
+                if (isset($mapa[$key])) {
+                    $hit = $mapa[$key];
+                    break;
                 }
-                $r['fecha_beneficio'] = $fecha;
+            }
+            if (empty($r['fecha_beneficio']) && $hit !== null) {
+                $r['fecha_beneficio'] = $hit['fecha'];
+            }
+            if (empty($r['propietario']) && $hit !== null) {
+                $r['propietario'] = $hit['propietario'];
+            }
+            if (! array_key_exists('propietario', $r)) {
+                $r['propietario'] = null;
             }
 
             return (object) $r;

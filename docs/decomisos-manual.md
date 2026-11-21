@@ -64,15 +64,15 @@ Si no aparecen sugerencias / sale “Sin coincidencias” o “No está en el in
 
 - El select **Nombre dictamen** inicia en **Decomisado** (y esa opción siempre está en el catálogo).
 
-### 3. Columna **Fecha de beneficio**
+### 3. Columnas **Fecha de beneficio** y **Propietario**
 
-| Origen | Fuente |
-|--------|--------|
-| **SIRT** | `trazabilidad_proceso.insensibilizacion.fecha_registro` (Animal Insensibilizado), por `id_producto` |
-| **Manual** | Inventario local: `fecha_turno_referencia` o, si falta, `fecha_registro` del ingreso ligado |
-| Fallback | Misma lógica local si SIRT no devolvió fecha |
+| Columna | Origen | Fuente |
+|---------|--------|--------|
+| Fecha de beneficio | **SIRT** | `trazabilidad_proceso.insensibilizacion.fecha_registro` (Animal Insensibilizado) |
+| Fecha de beneficio | **Manual** | Inventario local: `fecha_turno_referencia` o `fecha_registro` del ingreso |
+| Propietario | Ambos | Inventario local (`ingreso_lenguas_locales.propietario`) por `id_producto` |
 
-También va en el **Excel** de decomisos.
+Ambas van también en el **Excel** de decomisos.
 
 **Fecha registro / Hora registro** siguen siendo las del decomiso (inspección SIRT o momento del alta manual), no la de beneficio.
 

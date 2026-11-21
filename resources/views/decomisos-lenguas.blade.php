@@ -407,7 +407,7 @@
 
         <section class="sheet" aria-labelledby="tabla-decomisos">
             <p id="tabla-decomisos" class="meta">
-                Columnas: id producto · fecha de beneficio · fecha registro · hora registro · dictamen · enfermedad
+                Columnas: id producto · fecha de beneficio · fecha registro · hora registro · propietario · dictamen · enfermedad
             </p>
 
             @if (session('decomiso_manual_ok'))
@@ -592,6 +592,7 @@
                                 <th title="Fecha de beneficio (Animal Insensibilizado / ref. turno)">Fecha de beneficio</th>
                                 <th>Fecha registro</th>
                                 <th>Hora registro</th>
+                                <th>Propietario</th>
                                 <th>Nombre dictamen</th>
                                 <th>Nombre enfermedad</th>
                                 <th>Origen</th>
@@ -620,6 +621,9 @@
                                     } else {
                                         $fechaBeneficioTxt = $fechaBeneficio !== null && $fechaBeneficio !== '' ? (string) $fechaBeneficio : '—';
                                     }
+                                    $propietarioTxt = isset($r['propietario']) && $r['propietario'] !== null && trim((string) $r['propietario']) !== ''
+                                        ? trim((string) $r['propietario'])
+                                        : '—';
                                     $origen = strtolower((string) ($r['origen'] ?? 'sirt'));
                                     $esManual = $origen === 'manual';
                                 @endphp
@@ -628,6 +632,7 @@
                                     <td>{{ $fechaBeneficioTxt }}</td>
                                     <td>{{ $fechaTxt }}</td>
                                     <td>{{ $horaTxt }}</td>
+                                    <td>{{ $propietarioTxt }}</td>
                                     <td>{{ $r['nombre_dictamen'] ?? '—' }}</td>
                                     <td>{{ $r['nombre_enfermedad'] ?? '—' }}</td>
                                     <td>
