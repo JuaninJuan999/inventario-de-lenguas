@@ -20,16 +20,12 @@ class DespachoSeleccionPlacasController extends Controller
         $error = null;
         $placas = [];
 
-        $diagnosticoSeleccion = null;
         $username = $this->usernameVehiculoEfectivo($request);
 
         try {
             $consulta = app(DespachoParteProductoVehiculoConsulta::class);
             $placas = $consulta->placasConPendientes($username);
             $placas = $this->excluirPlacasDespachadasHoy($placas);
-            if (config('app.debug')) {
-                $diagnosticoSeleccion = $consulta->diagnosticoSeleccionPlacas($username);
-            }
         } catch (Throwable $e) {
             report($e);
             $error = config('app.debug')
@@ -42,7 +38,6 @@ class DespachoSeleccionPlacasController extends Controller
             'error' => $error,
             'filtroUserName' => $username,
             'filtraPorUserName' => (bool) config('despacho.filtrar_ppv_por_user_name_vehiculo', false),
-            'diagnosticoSeleccion' => $diagnosticoSeleccion,
         ]);
     }
 

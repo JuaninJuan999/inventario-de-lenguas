@@ -164,35 +164,49 @@
                 outline: 2px solid var(--brand-green);
                 outline-offset: 2px;
             }
-            .debug-panel {
-                margin: 0 0 1rem;
-                padding: 0.65rem 0.85rem;
-                border-radius: 8px;
-                border: 1px dashed color-mix(in srgb, var(--brand-green) 55%, transparent);
-                background: rgba(0, 0, 0, 0.35);
-                font-size: 0.78rem;
-                line-height: 1.45;
+            .empty-state {
+                margin: 0.35rem 0 0;
+                padding: 1.15rem 1.2rem 1.25rem;
+                border-radius: 0.85rem;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 8%, rgba(0, 0, 0, 0.28));
+                text-align: center;
             }
-            .debug-panel summary {
-                cursor: pointer;
-                font-weight: 700;
+            .empty-state__title {
+                margin: 0 0 0.45rem;
+                font-size: 1.05rem;
+                font-weight: 800;
                 color: var(--brand-green);
-                margin-bottom: 0.35rem;
             }
-            .debug-panel pre {
-                margin: 0.35rem 0 0;
-                white-space: pre-wrap;
-                word-break: break-word;
-                font-size: 0.72rem;
-                opacity: 0.92;
+            .empty-state__text {
+                margin: 0;
+                font-size: 0.9rem;
+                line-height: 1.5;
+                color: color-mix(in srgb, var(--text) 88%, transparent);
+                font-weight: 500;
             }
-            .debug-hint {
-                margin: 0.35rem 0 0;
-                padding: 0.45rem 0.55rem;
-                border-radius: 6px;
-                background: color-mix(in srgb, var(--brand-rose) 12%, transparent);
-                border: 1px solid color-mix(in srgb, var(--brand-rose) 35%, transparent);
-                font-size: 0.74rem;
+            .empty-state__actions {
+                margin-top: 0.9rem;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                justify-content: center;
+            }
+            .empty-state__actions a {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.45rem 0.95rem;
+                border-radius: 9999px;
+                font-size: 0.82rem;
+                font-weight: 700;
+                text-decoration: none;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 50%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 16%, transparent);
+                color: var(--brand-green);
+            }
+            .empty-state__actions a:hover {
+                background: color-mix(in srgb, var(--brand-green) 26%, transparent);
             }
             @media (max-width: 640px) {
                 .page-bar {
@@ -228,14 +242,18 @@
                     font-size: 0.8rem;
                     padding: 0.55rem 0.75rem;
                 }
-                .debug-panel {
-                    padding: 0.55rem 0.75rem;
-                    font-size: 0.74rem;
+                .empty-state {
+                    padding: 1rem 0.85rem 1.1rem;
                 }
-                .debug-panel summary {
+                .empty-state__title {
+                    font-size: 0.98rem;
+                }
+                .empty-state__text {
+                    font-size: 0.84rem;
+                }
+                .empty-state__actions a {
                     min-height: 44px;
-                    display: flex;
-                    align-items: center;
+                    padding: 0.55rem 1rem;
                 }
             }
             /* Tarjetas por fila: mejor lectura y pulsación en pantallas estrechas */
@@ -340,65 +358,17 @@
             @endif
 
             @if (($error === null) && $placas === [])
-                <p class="muted">
-                    @if (config('despacho.ppv_modo_solo_consulta_colbeef'))
-                        Colbeef no devolvió ninguna fila para la parte configurada (<code>id_parte_producto</code>
-                        = {{ (int) config('despacho.id_parte_producto_vehiculo', 4) }}, <code>producto_entregado</code>
-                        = {{ config('despacho.ppv_producto_entregado_valor', true) ? 'true' : 'false' }}). Revise en pgAdmin si existen registros en
-                        <code>trazabilidad_proceso.parte_producto_vehiculo</code>.
-                    @else
-                        No hay placas que cumplan el criterio (catálogo local
-                        <code>despacho_operador_placas</code>, fecha de hoy en Colbeef e inventario local disponible).
-                        Si la tabla de placas está vacía, ejecute el seeder correspondiente o cargue registros en esa tabla.
-                        Para relajar filtros, revise las variables <code>DESPACHO_*</code> en la configuración (.env).
-                    @endif
-                </p>
-                @if (config('app.debug') && is_array($diagnosticoSeleccion ?? null))
-                    <details class="debug-panel" open>
-                        <summary>Diagnóstico de filtros (solo con APP_DEBUG=true)</summary>
-                        @if (! empty($diagnosticoSeleccion['error_consulta_sql']))
-                            <p class="alert" style="margin: 0 0 0.5rem">
-                                Error al contar filas SQL: {{ $diagnosticoSeleccion['error_consulta_sql'] }}
-                            </p>
-                        @endif
-                        <p class="debug-hint">
-                            @if (($diagnosticoSeleccion['filas_pp_colbeef_tras_sql'] ?? null) === 0)
-                                @if ($diagnosticoSeleccion['modo_solo_consulta_colbeef'] ?? false)
-                                    <strong>Colbeef no devolvió filas</strong> con la consulta mínima (solo parte de producto y
-                                    <code>producto_entregado</code> = {{ ($diagnosticoSeleccion['ppv_producto_entregado_valor'] ?? true) ? 'true' : 'false' }}).
-                                    No hay filas en esa tabla para ese <code>id_parte_producto</code> con ese criterio.
-                                @else
-                                    <strong>Colbeef no devolvió filas</strong> con los filtros SQL (parte de producto,
-                                    @if ($diagnosticoSeleccion['filtra_va_user_name_aplicado_sql'] ?? false)
-                                        usuario <code>{{ $diagnosticoSeleccion['va_user_name_efectivo'] ?? '—' }}</code>
-                                    @endif
-                                    @if ($diagnosticoSeleccion['solo_fecha_registro_hoy'] ?? false)
-                                        , <code>fecha_registro</code> =
-                                        <strong>{{ $diagnosticoSeleccion['fecha_registro_colbeef_como_hoy'] ?? '—' }}</strong>
-                                        (zona <code>{{ $diagnosticoSeleccion['app_timezone'] ?? '—' }}</code>)
-                                    @endif
-                                    ). Revise en pgAdmin fecha y <code>user_name</code>, o active
-                                    <code>DESPACHO_PPV_SOLO_CONSULTA_COLBEEF=true</code> para ver la consulta sin esos filtros.
-                                @endif
-                            @elseif (($diagnosticoSeleccion['filas_pp_colbeef_tras_sql'] ?? null) > 0)
-                                Colbeef devolvió
-                                <strong>{{ (int) $diagnosticoSeleccion['filas_pp_colbeef_tras_sql'] }}</strong>
-                                par(es) distintos (vehículo + <code>id_producto</code>) que pasan el SQL, pero <strong>ninguna placa llegó al listado</strong> tras
-                                filtrar en PHP por:
-                                @if ($diagnosticoSeleccion['catalogo_placas_filtra_efectivo'] ?? false)
-                                    catálogo local de placas;
-                                @endif
-                                @if ($diagnosticoSeleccion['solo_inventario_local'] ?? false)
-                                    inventario local (cada código debe tener fila sin despachar);
-                                @endif
-                                Revise <code>despacho_operador_placas</code> y el inventario importado/sincronizado.
-                            @else
-                                No se pudo obtener el conteo SQL (¿conexión Colbeef deshabilitada o no configurada?).
-                            @endif
-                        </p>
-                        <pre>{{ json_encode($diagnosticoSeleccion, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
-                    </details>
-                @endif
+                <div class="empty-state" role="status">
+                    <p class="empty-state__title">Alistamiento vacío</p>
+                    <p class="empty-state__text">
+                        No hay placas con códigos pendientes para despachar en este momento.
+                        Puede usar <strong>Despacho manual</strong> o revisar el inventario si espera ver vehículos asignados hoy.
+                    </p>
+                    <div class="empty-state__actions">
+                        <a href="{{ route('despacho.lenguas.manual') }}">Ir a despacho manual</a>
+                        <a href="/inventario-de-lenguas">Abrir inventario</a>
+                    </div>
+                </div>
             @elseif ($placas !== [])
                 <div class="table-wrap">
                     <table class="data">
