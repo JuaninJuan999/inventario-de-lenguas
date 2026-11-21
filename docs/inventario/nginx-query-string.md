@@ -53,17 +53,24 @@ Este archivo de Nginx **no** viene en el `git pull`; hay que editarlo **en cada 
 
 ## Mitigación en el código (sí viene con `git pull`)
 
-Las sugerencias de decomiso llaman:
+1. Middleware `RepairNginxDoubleQuestionQueryString`: si `QUERY_STRING` llega como `?por_vencer=1`, lo repara a `por_vencer=1` (cubre Cambios de destinos, inventario, etc.).
+2. Decomiso / botones críticos usan `?_=1&...` como primer parámetro (p. ej. `?_=1&por_vencer=1`).
 
-`/decomisos-de-lenguas/sugerencias-producto?_=1&busca=...`
+Aun así **hay que corregir Nginx** en el 205 (y en el .11 si aplica):
 
-Así no dependen de `q` como primer parámetro. Aun así **hay que corregir Nginx** para filtros y otras pantallas que usen `?q=`.
+- `inventario-de-lenguas.conf`
+- `despachos-lenguas.conf` (si existe)
+
+```nginx
+try_files $uri $uri/ /index.php$is_args$args;
+```
 
 ## Validar en el 205
 
 1. `http://192.168.20.205:8007/decomisos-de-lenguas`
 2. Escribir `2611` en Id producto → listado de códigos
 3. Network → `sugerencias-producto?_=1&busca=2611` → JSON con `items` no vacío
-4. Opcional: `sugerencias-producto?q=2611` también debe devolver items tras el fix de Nginx
+4. `http://192.168.20.205:8007/cambios-de-destinos?por_vencer=1` → debe listar próximas a vencer
+5. Opcional: `sugerencias-producto?q=2611` también debe devolver items tras el fix de Nginx
 
 Guía de pull: `docs/inventario/PULL-EN-SERVER-205.md`

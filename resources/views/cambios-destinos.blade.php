@@ -802,7 +802,7 @@
                     <button type="submit" class="btn-filtrar">Buscar en inventario</button>
                     <a
                         class="btn-por-vencer{{ ! empty($filters['por_vencer']) ? ' is-active' : '' }}"
-                        href="/cambios-de-destinos?por_vencer=1"
+                        href="/cambios-de-destinos?_=1&por_vencer=1"
                         title="Lista lenguas disponibles que vencen hoy o mañana (vida útil 4 días)"
                     >
                         Próximas a vencer

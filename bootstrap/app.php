@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureCanManageUsers;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ForceRootUrlFromRequest;
+use App\Http\Middleware\RepairNginxDoubleQuestionQueryString;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectUsersTo('/menu');
+        $middleware->web(prepend: [
+            RepairNginxDoubleQuestionQueryString::class,
+        ]);
         $middleware->web(append: [
             ForceRootUrlFromRequest::class,
             EnsureUserIsActive::class,
