@@ -85,6 +85,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/cambios-de-destinos', [CambiosDestinosController::class, 'index'])->name('cambios.destinos');
         Route::patch('/cambios-de-destinos/{ingreso}', [CambiosDestinosController::class, 'update'])->name('cambios.destinos.update');
         Route::post('/cambios-de-destinos/masivo', [CambiosDestinosController::class, 'bulkUpdate'])->name('cambios.destinos.bulk');
+        Route::post('/cambios-de-destinos/guardar', [CambiosDestinosController::class, 'guardarCambios'])
+            ->name('cambios.destinos.guardar');
         Route::post('/cambios-de-destinos/marcar-adicional', [CambiosDestinosController::class, 'marcarAdicional'])
             ->name('cambios.destinos.marcar_adicional');
         Route::post('/cambios-de-destinos/adicionales-masivo', [CambiosDestinosController::class, 'bulkAdicionales'])

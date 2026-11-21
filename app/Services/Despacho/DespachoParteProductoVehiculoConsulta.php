@@ -4,6 +4,7 @@ namespace App\Services\Despacho;
 
 use App\Models\DespachoOperadorPlaca;
 use App\Support\DespachoInventarioMatch;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
@@ -269,6 +270,28 @@ SQL;
         $bindings[] = $this->fechaRegistroReferenciaHoy();
     }
 
+    /**
+     * Restringe ppv a una ventana de días (fecha_registro entre desde y día operativo).
+     * Útil para compromisos: códigos asignados ayer que aún están en inventario.
+     *
+     * @param  list<mixed>  $bindings
+     */
+    protected function anexarSqlFechaRegistroVentana(string &$sql, array &$bindings, int $diasAtras): void
+    {
+        $diasAtras = max(0, $diasAtras);
+        $hasta = $this->fechaRegistroReferenciaHoy();
+        $tz = (string) config('app.timezone', 'America/Bogota');
+        $desde = Carbon::parse($hasta, $tz)->subDays($diasAtras)->toDateString();
+
+        $sql .= <<<'SQL'
+ AND ppv.fecha_registro IS NOT NULL
+ AND DATE(ppv.fecha_registro) >= CAST(? AS DATE)
+ AND DATE(ppv.fecha_registro) <= CAST(? AS DATE)
+SQL;
+        $bindings[] = $desde;
+        $bindings[] = $hasta;
+    }
+
     /** vehiculo → va.user_name; parte_producto → ppv.user_name */
     protected function usernameColbeefFiltraPorParteProducto(): bool
     {
@@ -400,18 +423,56 @@ SQL;
     }
 
     /**
-     * Placas con al menos una lengua pendiente de validación física.
+     * Placas con al menos una lengua pendiente de validación física (día operativo / config).
      *
      * @return list<object{
      *     id_vehiculo_asignado: int,
      *     placa_vehiculo: string|null,
      *     empresa: string|null,
      *     conductor: string|null,
-     *     pendientes: int
+     *     pendientes: int,
+     *     id_productos: list<string>
      * }>
      */
     public function placasConPendientes(?string $usernameOverride = null): array
     {
+        return $this->consultarPlacasConPendientes($usernameOverride, 'hoy');
+    }
+
+    /**
+     * Misma lógica que el listado, pero con fecha_registro en los últimos N días (incluye ayer).
+     * Sirve para congelar/recuperar placas cuyos códigos aún están en inventario.
+     *
+     * @return list<object{
+     *     id_vehiculo_asignado: int,
+     *     placa_vehiculo: string|null,
+     *     empresa: string|null,
+     *     conductor: string|null,
+     *     pendientes: int,
+     *     id_productos: list<string>
+     * }>
+     */
+    public function placasConPendientesVentana(?string $usernameOverride = null, int $diasAtras = 7): array
+    {
+        return $this->consultarPlacasConPendientes($usernameOverride, 'ventana', max(0, $diasAtras));
+    }
+
+    /**
+     * @param  'hoy'|'ventana'|'ninguna'  $modoFecha
+     * @return list<object{
+     *     id_vehiculo_asignado: int,
+     *     placa_vehiculo: string|null,
+     *     empresa: string|null,
+     *     conductor: string|null,
+     *     pendientes: int,
+     *     id_productos: list<string>
+     * }>
+     */
+    protected function consultarPlacasConPendientes(
+        ?string $usernameOverride,
+        string $modoFecha,
+        int $diasAtras = 7,
+    ): array {
         $conn = $this->connectionName();
         if (! $this->colbeefEnabled() || $conn === null) {
             return [];
@@ -434,7 +495,12 @@ SQL;
         $bindings = [$idParte];
         $this->anexarSqlProductoEntregado($sql, $bindings);
         $this->anexarSqlFiltroUsuarioAsignacion($sql, $bindings, $usernameOverride);
-        $this->anexarSqlFechaRegistroHoy($sql, $bindings);
+
+        if ($modoFecha === 'ventana') {
+            $this->anexarSqlFechaRegistroVentana($sql, $bindings, $diasAtras);
+        } elseif ($modoFecha === 'hoy') {
+            $this->anexarSqlFechaRegistroHoy($sql, $bindings);
+        }
 
         // Viajes abiertos (sin salida) primero; luego placa.
         $sql .= ' ORDER BY (va.fecha_salida IS NULL) DESC, va.placa_vehiculo ASC, ppv.id ASC';
@@ -482,13 +548,23 @@ SQL;
                     'empresa' => null,
                     'conductor' => null,
                     'pendientes' => 0,
+                    'id_productos' => [],
+                    '_productos_set' => [],
                 ];
             }
 
-            $acumulado[$vid]->pendientes++;
+            if (! isset($acumulado[$vid]->_productos_set[$producto])) {
+                $acumulado[$vid]->_productos_set[$producto] = true;
+                $acumulado[$vid]->id_productos[] = $producto;
+                $acumulado[$vid]->pendientes++;
+            }
         }
 
-        $lista = array_values($acumulado);
+        $lista = array_values(array_map(static function (object $p): object {
+            unset($p->_productos_set);
+
+            return $p;
+        }, $acumulado));
         usort($lista, static function (object $x, object $y): int {
             $pa = strtolower(trim((string) ($x->placa_vehiculo ?? '')));
             $pb = strtolower(trim((string) ($y->placa_vehiculo ?? '')));
@@ -543,7 +619,15 @@ SQL;
         $bindings = [$idParte, $idVehiculoAsignado];
         $this->anexarSqlProductoEntregado($sql, $bindings);
         $this->anexarSqlFiltroUsuarioAsignacion($sql, $bindings, $usernameOverride);
-        $this->anexarSqlFechaRegistroHoy($sql, $bindings);
+        // Ventana reciente (no solo «hoy»): permite checklist de placas comprometidas de ayer
+        // cuyos códigos aún están en inventario.
+        if ($this->debeFiltrarFechaRegistroHoy() && ! $this->modoSoloConsultaColbeef()) {
+            $this->anexarSqlFechaRegistroVentana(
+                $sql,
+                $bindings,
+                DespachoAlistamientoCompromisoRegistrar::VENTANA_DIAS,
+            );
+        }
 
         $sql .= ' ORDER BY ppv.id ASC';
 

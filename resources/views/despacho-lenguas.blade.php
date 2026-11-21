@@ -835,8 +835,8 @@
                             local. Si necesita <strong>añadir</strong> una lengua que no estaba en la lista, al pulsar
                             <strong>Enter</strong> se agregará igual (inventario local). Use
                             <strong class="hint-quitar">×</strong> para desmarcar.
-                            <strong>Operador</strong> y <strong>placa</strong> se rellenan desde la placa elegida;
-                            elija el <strong>conductor</strong> con el botón o a mano antes de
+                            <strong>Operador</strong>, <strong>placa</strong> y <strong>conductor</strong> se rellenan
+                            desde la asignación Colbeef; puede corregir el conductor con el botón o a mano antes de
                             <strong>Terminar despacho</strong>.
                         @else
                             Escanee o escriba el código y pulse <strong>Enter</strong>. Si agregó uno por error, use la

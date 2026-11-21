@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Despacho;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Despacho\Concerns\ResuelveUsuarioVehiculoDespacho;
 use App\Models\Despacho;
+use App\Services\Despacho\DespachoAlistamientoCompromisoRegistrar;
 use App\Services\Despacho\DespachoParteProductoVehiculoConsulta;
 use App\Services\Inventario\InventarioLenguasSynchronizer;
 use Carbon\Carbon;
@@ -18,12 +19,14 @@ class DespachoSeleccionPlacasController extends Controller
 
     public function __construct(
         protected InventarioLenguasSynchronizer $inventarioSynchronizer,
+        protected DespachoAlistamientoCompromisoRegistrar $compromisoRegistrar,
     ) {}
 
     public function __invoke(Request $request): View
     {
         $error = null;
         $placas = [];
+        $comprometidas = [];
 
         $username = $this->usernameVehiculoEfectivo($request);
 
@@ -34,19 +37,49 @@ class DespachoSeleccionPlacasController extends Controller
             report($e);
         }
 
+        $consulta = app(DespachoParteProductoVehiculoConsulta::class);
+        $diaOperacion = $consulta->fechaRegistroReferenciaHoy();
+
         try {
-            $consulta = app(DespachoParteProductoVehiculoConsulta::class);
             $placas = $consulta->placasConPendientes($username);
             $placas = $this->excluirPlacasDespachadasHoy($placas);
+
+            // Ventana reciente (hoy + días atrás): códigos asignados a la placa que aún
+            // matchean inventario — así ayer sigue apareciendo en Comprometidas.
+            try {
+                $placasVentana = $consulta->placasConPendientesVentana(
+                    $username,
+                    DespachoAlistamientoCompromisoRegistrar::VENTANA_DIAS,
+                );
+                $this->compromisoRegistrar->registrarDesdePlacasVivas($diaOperacion, $placasVentana);
+            } catch (Throwable $e) {
+                report($e);
+            }
+
+            try {
+                $comprometidas = $this->compromisoRegistrar->backlogComprometidas($diaOperacion, $placas);
+            } catch (Throwable $e) {
+                report($e);
+                $comprometidas = [];
+            }
         } catch (Throwable $e) {
             report($e);
             $error = config('app.debug')
                 ? 'No se pudo consultar Colbeef/SIRT: '.$e->getMessage()
                 : 'No se pudo consultar la base de despacho corporativa. Revise POSTGRES_* / COLBEEF_DB_* y la VPN.';
+
+            // Sin Colbeef vivo, igual mostrar backlog local de la ventana si existe.
+            try {
+                $comprometidas = $this->compromisoRegistrar->backlogComprometidas($diaOperacion, []);
+            } catch (Throwable $inner) {
+                report($inner);
+                $comprometidas = [];
+            }
         }
 
         return view('despacho-seleccion-placas', [
             'placas' => $placas,
+            'comprometidas' => $comprometidas,
             'error' => $error,
             'filtroUserName' => $username,
             'filtraPorUserName' => (bool) config('despacho.filtrar_ppv_por_user_name_vehiculo', false),

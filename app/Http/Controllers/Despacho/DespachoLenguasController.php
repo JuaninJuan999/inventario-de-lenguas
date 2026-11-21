@@ -90,6 +90,8 @@ class DespachoLenguasController extends Controller
             trim((string) ($vehiculo->empresa ?? '')),
             $base['operadorPlacaFilas'] ?? [],
         );
+        // Conductor asignado a esa placa en Colbeef (va.id_conductor → a_persona).
+        $conductorPrefill = preg_replace('/\s+/u', ' ', trim((string) ($vehiculo->conductor ?? ''))) ?? '';
 
         $checklistTotalConInv = count(array_filter($checklistLines, static fn (array $l): bool => $l['en_inventario']));
         $checklistSinInv = count(array_filter($checklistLines, static fn (array $l): bool => ! $l['en_inventario']));
@@ -98,8 +100,7 @@ class DespachoLenguasController extends Controller
             'checklistMode' => true,
             'vehiculoEmpresaChecklist' => $empresaPrefill,
             'vehiculoPlacaChecklist' => $placaPrefill,
-            // Conductor siempre manual: quien despacha lo elige del listado o lo escribe.
-            'vehiculoConductorChecklist' => '',
+            'vehiculoConductorChecklist' => $conductorPrefill,
             'checklistLines' => $checklistLines,
             'checklistTotalConInventario' => $checklistTotalConInv,
             'checklistSinInventarioCount' => $checklistSinInv,

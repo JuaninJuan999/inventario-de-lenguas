@@ -35,6 +35,8 @@ class CambiosDestinosController extends Controller
             || $porVencer;
 
         $rows = collect();
+        $totalCoincidencias = 0;
+        $listadoLimitado = false;
 
         if ($filtrosActivos) {
             $op = $this->likeOperator();
@@ -43,7 +45,7 @@ class CambiosDestinosController extends Controller
             $hoyYmd = Carbon::now(VencimientoLengua::zona())->startOfDay()->format('Y-m-d');
             $diasExpr = $this->sqlDiasHastaVencimientoColumn();
 
-            $rows = IngresoLenguaLocal::query()
+            $query = IngresoLenguaLocal::query()
                 ->sinDespachar()
                 ->when($idProducto !== '', fn ($q) => $this->applyIdProductoFlexibleFilter($q, $op, $idProducto))
                 ->when($propietario !== '', fn ($q) => $q->where('propietario', $op, $patProp))
@@ -52,13 +54,23 @@ class CambiosDestinosController extends Controller
                 ->when($porVencer, function ($q) use ($diasExpr, $hoyYmd): void {
                     $q->whereNotNull('fecha_registro')
                         ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd]);
-                })
+                });
+
+            $totalCoincidencias = (clone $query)->count();
+
+            $query
                 ->orderByDesc('es_adicional')
                 ->orderByDesc('es_salida')
                 ->orderByDesc('imported_at')
-                ->orderByDesc('id')
-                ->limit(self::LISTADO_LIMIT)
-                ->get();
+                ->orderByDesc('id');
+
+            // Próximas a vencer: listar todas (conteo real). Otros filtros: tope de seguridad.
+            if (! $porVencer) {
+                $listadoLimitado = $totalCoincidencias > self::LISTADO_LIMIT;
+                $query->limit(self::LISTADO_LIMIT);
+            }
+
+            $rows = $query->get();
         }
 
         return view('cambios-destinos', [
@@ -72,6 +84,8 @@ class CambiosDestinosController extends Controller
             ],
             'filtrosActivos' => $filtrosActivos,
             'listadoLimit' => self::LISTADO_LIMIT,
+            'totalCoincidencias' => $totalCoincidencias,
+            'listadoLimitado' => $listadoLimitado,
         ]);
     }
 
@@ -110,9 +124,21 @@ class CambiosDestinosController extends Controller
 
     public function bulkUpdate(Request $request): RedirectResponse
     {
+        return $this->guardarCambios($request);
+    }
+
+    /**
+     * Guarda en un solo paso: destinos editados + cambios de ADI. + cambios de SAL.
+     */
+    public function guardarCambios(Request $request): RedirectResponse
+    {
         $validated = $request->validate([
-            'destinos' => ['required', 'array', 'min:1', 'max:500'],
+            'destinos' => ['nullable', 'array', 'max:10000'],
             'destinos.*' => ['nullable', 'string', 'max:60000'],
+            'adicionales' => ['nullable', 'array', 'max:10000'],
+            'adicionales.*' => ['nullable', 'in:0,1'],
+            'salidas' => ['nullable', 'array', 'max:10000'],
+            'salidas.*' => ['nullable', 'in:0,1'],
             'id_producto' => ['nullable', 'string', 'max:80'],
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
@@ -120,47 +146,114 @@ class CambiosDestinosController extends Controller
             'por_vencer' => ['nullable', 'boolean'],
         ]);
 
-        $updated = 0;
-        $omitidos = 0;
+        $destinos = is_array($validated['destinos'] ?? null) ? $validated['destinos'] : [];
+        $adicionales = is_array($validated['adicionales'] ?? null) ? $validated['adicionales'] : [];
+        $salidas = is_array($validated['salidas'] ?? null) ? $validated['salidas'] : [];
 
-        foreach ($validated['destinos'] as $id => $destinoRaw) {
-            $id = (int) $id;
-            if ($id <= 0) {
-                continue;
-            }
-
-            $destino = is_string($destinoRaw) ? trim($destinoRaw) : '';
-            $destino = $destino === '' ? null : $destino;
-
-            $ingreso = IngresoLenguaLocal::query()
-                ->sinDespachar()
-                ->whereKey($id)
-                ->first();
-
-            if ($ingreso === null) {
-                $omitidos++;
-
-                continue;
-            }
-
-            $actual = $ingreso->destino !== null ? trim((string) $ingreso->destino) : null;
-            $actual = $actual === '' ? null : $actual;
-
-            if ($actual === $destino) {
-                continue;
-            }
-
-            $ingreso->update([
-                'destino' => $destino,
-                'destino_local' => true,
-            ]);
-            $updated++;
+        if ($destinos === [] && $adicionales === [] && $salidas === []) {
+            return redirect()
+                ->route('cambios.destinos', $this->redirectQueryFromValidated($validated))
+                ->with('cambios_destinos_error', 'No hay cambios para guardar.');
         }
 
-        $query = $this->redirectQueryFromValidated($validated);
+        $destinosOk = 0;
+        $adiMarcar = 0;
+        $adiQuitar = 0;
+        $salMarcar = 0;
+        $salQuitar = 0;
+        $omitidos = 0;
 
-        if ($updated === 0) {
-            $msg = 'No había cambios de destino distintos a los ya guardados.';
+        DB::transaction(function () use (
+            $destinos,
+            $adicionales,
+            $salidas,
+            &$destinosOk,
+            &$adiMarcar,
+            &$adiQuitar,
+            &$salMarcar,
+            &$salQuitar,
+            &$omitidos,
+        ): void {
+            foreach ($destinos as $id => $destinoRaw) {
+                $id = (int) $id;
+                if ($id <= 0) {
+                    continue;
+                }
+                $destino = is_string($destinoRaw) ? trim($destinoRaw) : '';
+                $destino = $destino === '' ? null : $destino;
+
+                $ingreso = IngresoLenguaLocal::query()->sinDespachar()->whereKey($id)->first();
+                if ($ingreso === null) {
+                    $omitidos++;
+
+                    continue;
+                }
+
+                $actual = $ingreso->destino !== null ? trim((string) $ingreso->destino) : null;
+                $actual = $actual === '' ? null : $actual;
+                if ($actual === $destino) {
+                    continue;
+                }
+
+                $ingreso->update([
+                    'destino' => $destino,
+                    'destino_local' => true,
+                ]);
+                $destinosOk++;
+            }
+
+            foreach ($adicionales as $id => $valor) {
+                $id = (int) $id;
+                if ($id <= 0) {
+                    continue;
+                }
+                $marcar = (string) $valor === '1';
+                $ingreso = IngresoLenguaLocal::query()->sinDespachar()->whereKey($id)->first();
+                if ($ingreso === null) {
+                    $omitidos++;
+
+                    continue;
+                }
+                if ((bool) $ingreso->es_adicional === $marcar) {
+                    continue;
+                }
+                $ingreso->update(['es_adicional' => $marcar]);
+                if ($marcar) {
+                    $adiMarcar++;
+                } else {
+                    $adiQuitar++;
+                }
+            }
+
+            foreach ($salidas as $id => $valor) {
+                $id = (int) $id;
+                if ($id <= 0) {
+                    continue;
+                }
+                $marcar = (string) $valor === '1';
+                $ingreso = IngresoLenguaLocal::query()->sinDespachar()->whereKey($id)->first();
+                if ($ingreso === null) {
+                    $omitidos++;
+
+                    continue;
+                }
+                if ((bool) $ingreso->es_salida === $marcar) {
+                    continue;
+                }
+                $ingreso->update(['es_salida' => $marcar]);
+                if ($marcar) {
+                    $salMarcar++;
+                } else {
+                    $salQuitar++;
+                }
+            }
+        });
+
+        $query = $this->redirectQueryFromValidated($validated);
+        $total = $destinosOk + $adiMarcar + $adiQuitar + $salMarcar + $salQuitar;
+
+        if ($total === 0) {
+            $msg = 'No había cambios distintos a los ya guardados.';
             if ($omitidos > 0) {
                 $msg .= " ({$omitidos} fila(s) no disponibles o ya despachadas.)";
             }
@@ -170,9 +263,24 @@ class CambiosDestinosController extends Controller
                 ->with('cambios_destinos_error', $msg);
         }
 
-        $msg = $updated === 1
-            ? 'Se actualizó 1 destino correctamente.'
-            : "Se actualizaron {$updated} destinos correctamente.";
+        $partes = [];
+        if ($destinosOk > 0) {
+            $partes[] = $destinosOk === 1 ? '1 destino' : "{$destinosOk} destinos";
+        }
+        if ($adiMarcar > 0) {
+            $partes[] = $adiMarcar === 1 ? '1 ADI. marcada' : "{$adiMarcar} ADI. marcadas";
+        }
+        if ($adiQuitar > 0) {
+            $partes[] = $adiQuitar === 1 ? '1 ADI. quitada' : "{$adiQuitar} ADI. quitadas";
+        }
+        if ($salMarcar > 0) {
+            $partes[] = $salMarcar === 1 ? '1 SAL. marcada' : "{$salMarcar} SAL. marcadas";
+        }
+        if ($salQuitar > 0) {
+            $partes[] = $salQuitar === 1 ? '1 SAL. quitada' : "{$salQuitar} SAL. quitadas";
+        }
+
+        $msg = 'Cambios aplicados: '.implode(', ', $partes).'.';
         if ($omitidos > 0) {
             $msg .= " Se omitieron {$omitidos} fila(s) no disponibles.";
         }

@@ -588,6 +588,87 @@
             tr.row-filtrada-oculto {
                 display: none;
             }
+            .check-adicional-row.is-flag-dirty,
+            .check-salida-row.is-flag-dirty {
+                outline: 2px solid color-mix(in srgb, var(--brand-rose) 80%, #fff);
+                outline-offset: 2px;
+            }
+            .cambios-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 80;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                background: rgba(2, 8, 6, 0.72);
+                backdrop-filter: blur(2px);
+            }
+            .cambios-backdrop[hidden] {
+                display: none !important;
+            }
+            .cambios-dialog {
+                width: min(100%, 26rem);
+                border-radius: 0.9rem;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, transparent);
+                background: linear-gradient(165deg, rgba(10, 28, 22, 0.98), rgba(6, 16, 13, 0.98));
+                box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+                color: var(--text);
+            }
+            .cambios-dialog__head {
+                padding: 1rem 1.1rem 0.35rem;
+            }
+            .cambios-dialog__head h2 {
+                margin: 0;
+                font-size: 1.05rem;
+                font-weight: 750;
+            }
+            .cambios-dialog__body {
+                padding: 0.35rem 1.1rem 0.85rem;
+            }
+            .cambios-dialog__lead {
+                margin: 0 0 0.55rem;
+                font-size: 0.88rem;
+                opacity: 0.9;
+            }
+            .cambios-dialog__list {
+                margin: 0;
+                padding: 0.55rem 0.85rem 0.55rem 1.35rem;
+                border-radius: 0.55rem;
+                background: rgba(0, 0, 0, 0.28);
+                border: 1px solid color-mix(in srgb, var(--brand-green) 22%, transparent);
+                font-size: 0.88rem;
+                line-height: 1.45;
+            }
+            .cambios-dialog__list li + li {
+                margin-top: 0.28rem;
+            }
+            .cambios-dialog__foot {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 0.55rem;
+                padding: 0 1.1rem 1.05rem;
+            }
+            .btn-cambios-cancel {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 0.95rem;
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+                font-family: inherit;
+                color: var(--text);
+                border-radius: 6px;
+                cursor: pointer;
+                border: 1px solid color-mix(in srgb, var(--text) 28%, transparent);
+                background: rgba(255, 255, 255, 0.06);
+            }
+            .btn-cambios-cancel:hover {
+                background: rgba(255, 255, 255, 0.12);
+            }
             .sr-only {
                 position: absolute;
                 width: 1px;
@@ -609,8 +690,8 @@
                 <p class="sub">
                     Busque lenguas del <strong>inventario disponible</strong> (sin despachar) por <strong>ID producto</strong>,
                     <strong>propietario</strong>, <strong>solo adicionales</strong> o <strong>solo salidas</strong>;
-                    actualice el <strong>destino</strong> y marque <strong>Adicional (ADI.)</strong> o
-                    <strong>Salida (SAL.)</strong> en el listado.
+                    edite el <strong>destino</strong> y active/desactive <strong>ADI.</strong> o
+                    <strong>SAL.</strong>; un solo <strong>Guardar cambios</strong> aplica todo.
                 </p>
             </div>
             <a class="link-menu" href="{{ route('menu') }}">← Menú</a>
@@ -734,63 +815,16 @@
                     <div class="filtros-actions-bar" role="toolbar" aria-label="Acciones del listado">
                         <span class="filtros-actions-bar__label">Acciones</span>
                         <button
-                            type="submit"
+                            type="button"
                             class="btn-guardar btn-guardar--masivo"
-                            form="form-destinos-masivo"
                             id="btn-guardar-masivo-top"
                             disabled
                         >
-                            Guardar destinos pendientes
-                        </button>
-                        <button
-                            type="submit"
-                            name="accion"
-                            value="marcar"
-                            class="btn-marcar-adicional"
-                            form="form-adicionales-masivo"
-                            id="btn-adicionales-marcar"
-                            disabled
-                        >
-                            Marcar ADI. seleccionados
-                        </button>
-                        <button
-                            type="submit"
-                            name="accion"
-                            value="desmarcar"
-                            class="btn-desmarcar-adicional"
-                            form="form-adicionales-masivo"
-                            id="btn-adicionales-desmarcar"
-                            disabled
-                        >
-                            Quitar ADI.
-                        </button>
-                        <button
-                            type="submit"
-                            name="accion"
-                            value="marcar"
-                            class="btn-marcar-salida"
-                            form="form-salidas-masivo"
-                            id="btn-salidas-marcar"
-                            disabled
-                        >
-                            Marcar SAL. seleccionados
-                        </button>
-                        <button
-                            type="submit"
-                            name="accion"
-                            value="desmarcar"
-                            class="btn-desmarcar-salida"
-                            form="form-salidas-masivo"
-                            id="btn-salidas-desmarcar"
-                            disabled
-                        >
-                            Quitar SAL.
+                            Guardar cambios
                         </button>
                         <p class="pendientes-hint" id="pendientes-hint-top" hidden>
-                            <span class="js-pendientes-count">0</span> destino(s) por aplicar
+                            <span class="js-pendientes-resumen">Sin cambios</span>
                         </p>
-                        <p class="sel-count" id="adicionales-sel-count">0 ADI. seleccionado(s)</p>
-                        <p class="sel-count" id="salidas-sel-count">0 SAL. seleccionado(s)</p>
                     </div>
                 @endif
             </form>
@@ -800,7 +834,8 @@
                     Indique un criterio (<strong>ID producto</strong>, <strong>propietario</strong>,
                     <strong>solo adicionales</strong>, <strong>solo salidas</strong>) o pulse
                     <strong>Próximas a vencer</strong>. Solo se listan lenguas aún disponibles (no despachadas).
-                    Máximo {{ $listadoLimit }} filas por consulta.
+                    En búsquedas normales, máximo {{ number_format($listadoLimit, 0, ',', '.') }} filas;
+                    <strong>Próximas a vencer</strong> lista todas.
                 </p>
             @elseif ($rows->isEmpty())
                 <p class="muted">
@@ -815,7 +850,7 @@
                 </p>
             @else
                 <p class="muted">
-                    <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s)
+                    <strong>{{ number_format($totalCoincidencias, 0, ',', '.') }}</strong> registro(s) encontrado(s)
                     @if (! empty($filters['por_vencer']))
                         (próximas a vencer: hoy o mañana)
                     @endif
@@ -826,8 +861,12 @@
                     @elseif (! empty($filters['solo_salidas']))
                         · solo salidas
                     @endif
-                    . Edite destinos o marque/desmarque <strong>ADI.</strong> / <strong>SAL.</strong>; las filas de destino modificadas quedan
-                    <strong>subrayadas</strong> hasta guardar. Use la barra de <strong>Acciones</strong> arriba.
+                    @if (! empty($listadoLimitado))
+                        · listando las primeras <strong>{{ number_format($rows->count(), 0, ',', '.') }}</strong>
+                        (máx. {{ number_format($listadoLimit, 0, ',', '.') }})
+                    @endif
+                    . Edite destinos o active/desactive <strong>ADI.</strong> / <strong>SAL.</strong> en cada fila;
+                    luego pulse <strong>Guardar cambios</strong> (arriba o abajo) para confirmar todo junto.
                 </p>
 
                 <div class="listado-filtro-rapido">
@@ -845,55 +884,20 @@
                     </div>
                     <p class="filtro-rapido-meta" id="filtro-rapido-meta" aria-live="polite">
                         Mostrando <strong id="filtro-rapido-visibles">{{ $rows->count() }}</strong> de
-                        <strong>{{ $rows->count() }}</strong>
-                        · Editadas: <strong id="filtro-rapido-editadas">0</strong>
+                        <strong>{{ $rows->count() }}</strong> en pantalla
+                        @if (($totalCoincidencias ?? 0) > $rows->count())
+                            · total coincidencias: <strong>{{ number_format($totalCoincidencias, 0, ',', '.') }}</strong>
+                        @endif
+                        · Pendientes: <strong id="filtro-rapido-editadas">0</strong>
                         · ADI.: <strong>{{ $rows->where('es_adicional', true)->count() }}</strong>
                         · SAL.: <strong>{{ $rows->where('es_salida', true)->count() }}</strong>
                     </p>
                 </div>
 
                 <form
-                    id="form-adicionales-masivo"
-                    method="post"
-                    action="{{ route('cambios.destinos.adicionales_bulk') }}"
-                >
-                    @csrf
-                    <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
-                    <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
-                    @if (! empty($filters['solo_adicionales']))
-                        <input type="hidden" name="solo_adicionales" value="1" />
-                    @endif
-                    @if (! empty($filters['solo_salidas']))
-                        <input type="hidden" name="solo_salidas" value="1" />
-                    @endif
-                    @if (! empty($filters['por_vencer']))
-                        <input type="hidden" name="por_vencer" value="1" />
-                    @endif
-                </form>
-
-                <form
-                    id="form-salidas-masivo"
-                    method="post"
-                    action="{{ route('cambios.destinos.salidas_bulk') }}"
-                >
-                    @csrf
-                    <input type="hidden" name="id_producto" value="{{ $filters['id_producto'] }}" />
-                    <input type="hidden" name="propietario" value="{{ $filters['propietario'] }}" />
-                    @if (! empty($filters['solo_adicionales']))
-                        <input type="hidden" name="solo_adicionales" value="1" />
-                    @endif
-                    @if (! empty($filters['solo_salidas']))
-                        <input type="hidden" name="solo_salidas" value="1" />
-                    @endif
-                    @if (! empty($filters['por_vencer']))
-                        <input type="hidden" name="por_vencer" value="1" />
-                    @endif
-                </form>
-
-                <form
                     id="form-destinos-masivo"
                     method="post"
-                    action="{{ route('cambios.destinos.bulk') }}"
+                    action="{{ route('cambios.destinos.guardar') }}"
                     data-dirty-tracker="1"
                 >
                     @csrf
@@ -913,26 +917,26 @@
                         <table class="data">
                             <thead>
                                 <tr>
-                                    <th class="col-check" scope="col" title="Adicional — seleccionar visibles">
+                                    <th class="col-check" scope="col" title="Adicional — estado deseado (visibles)">
                                         <span class="col-check-label" aria-hidden="true">ADI.</span>
-                                        <label class="sr-only" for="check-todos-adicionales">Seleccionar todos (Adicional)</label>
+                                        <label class="sr-only" for="check-todos-adicionales">Marcar ADI. en visibles</label>
                                         <input
                                             type="checkbox"
                                             id="check-todos-adicionales"
-                                            title="ADI. — seleccionar visibles para marcar/quitar Adicional"
+                                            title="ADI. — activar/desactivar en filas visibles"
                                         />
                                     </th>
                                     <th class="col-producto">ID producto</th>
                                     <th class="col-prop">Propietario</th>
                                     <th>Ref. turno</th>
                                     <th class="col-destino">Destino</th>
-                                    <th class="col-check col-check--salida" scope="col" title="Salida — seleccionar visibles">
+                                    <th class="col-check col-check--salida" scope="col" title="Salida — estado deseado (visibles)">
                                         <span class="col-check-label" aria-hidden="true">SAL.</span>
-                                        <label class="sr-only" for="check-todos-salidas">Seleccionar todos (Salida)</label>
+                                        <label class="sr-only" for="check-todos-salidas">Marcar SAL. en visibles</label>
                                         <input
                                             type="checkbox"
                                             id="check-todos-salidas"
-                                            title="SAL. — seleccionar visibles para marcar/quitar Salida"
+                                            title="SAL. — activar/desactivar en filas visibles"
                                         />
                                     </th>
                                 </tr>
@@ -953,11 +957,11 @@
                                             <input
                                                 type="checkbox"
                                                 class="check-adicional-row"
-                                                form="form-adicionales-masivo"
-                                                name="ids[]"
                                                 value="{{ $row->id }}"
+                                                data-original="{{ $esAdicional ? '1' : '0' }}"
+                                                @checked($esAdicional)
                                                 aria-label="ADI. {{ $row->id_producto }}"
-                                                title="Seleccionar para Adicional"
+                                                title="Marcar o quitar Adicional (se guarda con Guardar cambios)"
                                             />
                                         </td>
                                         <td class="col-producto">
@@ -988,11 +992,11 @@
                                             <input
                                                 type="checkbox"
                                                 class="check-salida-row"
-                                                form="form-salidas-masivo"
-                                                name="ids[]"
                                                 value="{{ $row->id }}"
+                                                data-original="{{ $esSalida ? '1' : '0' }}"
+                                                @checked($esSalida)
                                                 aria-label="SAL. {{ $row->id_producto }}"
-                                                title="Seleccionar para Salida"
+                                                title="Marcar o quitar Salida (se guarda con Guardar cambios)"
                                             />
                                         </td>
                                     </tr>
@@ -1003,20 +1007,44 @@
 
                     <div class="bulk-actions-bar">
                         <p class="pendientes-hint" id="pendientes-hint-bottom" hidden>
-                            <span class="js-pendientes-count">0</span> cambio(s) por aplicar
+                            <span class="js-pendientes-resumen">Sin cambios</span>
                         </p>
                         <button
-                            type="submit"
+                            type="button"
                             class="btn-guardar btn-guardar--masivo"
                             id="btn-guardar-masivo-bottom"
                             disabled
                         >
-                            Guardar destinos pendientes
+                            Guardar cambios
                         </button>
                     </div>
                 </form>
             @endif
         </section>
+
+        <div class="cambios-backdrop" id="cambios-confirm-backdrop" role="presentation" aria-hidden="true" hidden>
+            <div
+                class="cambios-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cambios-confirm-title"
+                id="cambios-confirm-dialog"
+            >
+                <div class="cambios-dialog__head">
+                    <h2 id="cambios-confirm-title">¿Guardar cambios?</h2>
+                </div>
+                <div class="cambios-dialog__body">
+                    <p class="cambios-dialog__lead">Se aplicarán al inventario disponible:</p>
+                    <ul class="cambios-dialog__list" id="cambios-confirm-list"></ul>
+                </div>
+                <div class="cambios-dialog__foot">
+                    <button type="button" class="btn-cambios-cancel" id="cambios-confirm-cancel">Cancelar</button>
+                    <button type="button" class="btn-guardar btn-guardar--masivo" id="cambios-confirm-ok">
+                        Confirmar y guardar
+                    </button>
+                </div>
+            </div>
+        </div>
         <script>
             (function () {
                 var tips = document.querySelectorAll('.check-adicionales__tip');
@@ -1061,95 +1089,33 @@
                     if (!form) {
                         return;
                     }
+
                     var buttons = [
                         document.getElementById('btn-guardar-masivo-top'),
                         document.getElementById('btn-guardar-masivo-bottom'),
                     ].filter(Boolean);
                     var hints = document.querySelectorAll('.pendientes-hint');
-                    var countEls = document.querySelectorAll('.js-pendientes-count');
+                    var resumenEls = document.querySelectorAll('.js-pendientes-resumen');
                     var editadasEl = document.getElementById('filtro-rapido-editadas');
+                    var tbody = document.getElementById('tabla-destinos-body');
+                    var checkTodos = document.getElementById('check-todos-adicionales');
+                    var checkTodosSalidas = document.getElementById('check-todos-salidas');
+                    var filtroRapido = document.getElementById('filtro-rapido-id');
+                    var visiblesEl = document.getElementById('filtro-rapido-visibles');
+                    var backdrop = document.getElementById('cambios-confirm-backdrop');
+                    var listEl = document.getElementById('cambios-confirm-list');
+                    var btnCancel = document.getElementById('cambios-confirm-cancel');
+                    var btnOk = document.getElementById('cambios-confirm-ok');
+                    var submitting = false;
 
                     function norm(v) {
                         return String(v == null ? '' : v).replace(/\r\n/g, '\n').trim();
                     }
 
-                    function markDirty(textarea, dirty) {
-                        var tr = textarea.closest('tr');
-                        var rowId = tr ? tr.getAttribute('data-row-id') : '';
-                        textarea.classList.toggle('is-dirty', dirty);
-                        if (tr) {
-                            tr.classList.toggle('row-pendiente', dirty);
-                        }
-                        if (dirty && rowId) {
-                            textarea.setAttribute('name', 'destinos[' + rowId + ']');
-                        } else {
-                            textarea.removeAttribute('name');
-                        }
+                    function flagDirty(cb) {
+                        var original = cb.getAttribute('data-original') === '1';
+                        return cb.checked !== original;
                     }
-
-                    function refresh() {
-                        var n = 0;
-                        form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
-                            var dirty = norm(ta.value) !== norm(ta.getAttribute('data-original'));
-                            markDirty(ta, dirty);
-                            if (dirty) {
-                                n++;
-                            }
-                        });
-                        buttons.forEach(function (btn) {
-                            btn.disabled = n === 0;
-                        });
-                        hints.forEach(function (h) {
-                            if (n > 0) {
-                                h.hidden = false;
-                            } else {
-                                h.hidden = true;
-                            }
-                        });
-                        countEls.forEach(function (el) {
-                            el.textContent = String(n);
-                        });
-                        if (editadasEl) {
-                            editadasEl.textContent = String(n);
-                        }
-                    }
-
-                    form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
-                        // Al cargar, sin name hasta que haya cambio (evita POST masivo vacío de no editados).
-                        ta.removeAttribute('name');
-                        ta.addEventListener('input', refresh);
-                        ta.addEventListener('change', refresh);
-                        ta.addEventListener('blur', refresh);
-                    });
-
-                    form.addEventListener('submit', function (e) {
-                        refresh();
-                        var n = form.querySelectorAll('textarea.destino-input[name]').length;
-                        if (n === 0) {
-                            e.preventDefault();
-                            alert('No hay destinos modificados para guardar.');
-                            return;
-                        }
-                        if (!confirm('¿Aplicar ' + n + ' cambio(s) de destino?')) {
-                            e.preventDefault();
-                        }
-                    });
-
-                    refresh();
-
-                    var filtroRapido = document.getElementById('filtro-rapido-id');
-                    var visiblesEl = document.getElementById('filtro-rapido-visibles');
-                    var tbody = document.getElementById('tabla-destinos-body');
-                    var checkTodos = document.getElementById('check-todos-adicionales');
-                    var checkTodosSalidas = document.getElementById('check-todos-salidas');
-                    var btnMarcarSel = document.getElementById('btn-adicionales-marcar');
-                    var btnDesmarcarSel = document.getElementById('btn-adicionales-desmarcar');
-                    var btnMarcarSalidas = document.getElementById('btn-salidas-marcar');
-                    var btnDesmarcarSalidas = document.getElementById('btn-salidas-desmarcar');
-                    var selCountEl = document.getElementById('adicionales-sel-count');
-                    var selCountSalidasEl = document.getElementById('salidas-sel-count');
-                    var formAdicionales = document.getElementById('form-adicionales-masivo');
-                    var formSalidas = document.getElementById('form-salidas-masivo');
 
                     function filasVisibles() {
                         if (!tbody) {
@@ -1160,62 +1126,321 @@
                         );
                     }
 
-                    function refreshSeleccionPorClase(rowClass, checkTodosEl, btnMarcar, btnDesmarcar, countEl, label) {
-                        var n = 0;
+                    function collectChanges() {
+                        var destinos = 0;
+                        var adiMarcar = 0;
+                        var adiQuitar = 0;
+                        var salMarcar = 0;
+                        var salQuitar = 0;
+
+                        form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
+                            if (norm(ta.value) !== norm(ta.getAttribute('data-original'))) {
+                                destinos++;
+                            }
+                        });
+
+                        form.querySelectorAll('.check-adicional-row').forEach(function (cb) {
+                            if (!flagDirty(cb)) {
+                                return;
+                            }
+                            if (cb.checked) {
+                                adiMarcar++;
+                            } else {
+                                adiQuitar++;
+                            }
+                        });
+
+                        form.querySelectorAll('.check-salida-row').forEach(function (cb) {
+                            if (!flagDirty(cb)) {
+                                return;
+                            }
+                            if (cb.checked) {
+                                salMarcar++;
+                            } else {
+                                salQuitar++;
+                            }
+                        });
+
+                        return {
+                            destinos: destinos,
+                            adiMarcar: adiMarcar,
+                            adiQuitar: adiQuitar,
+                            salMarcar: salMarcar,
+                            salQuitar: salQuitar,
+                            total: destinos + adiMarcar + adiQuitar + salMarcar + salQuitar,
+                        };
+                    }
+
+                    function resumenTexto(c) {
+                        if (c.total === 0) {
+                            return 'Sin cambios';
+                        }
+                        var partes = [];
+                        if (c.destinos > 0) {
+                            partes.push(
+                                c.destinos === 1 ? '1 destino' : c.destinos + ' destinos',
+                            );
+                        }
+                        if (c.adiMarcar > 0) {
+                            partes.push(
+                                c.adiMarcar === 1
+                                    ? '1 ADI. a marcar'
+                                    : c.adiMarcar + ' ADI. a marcar',
+                            );
+                        }
+                        if (c.adiQuitar > 0) {
+                            partes.push(
+                                c.adiQuitar === 1
+                                    ? '1 ADI. a quitar'
+                                    : c.adiQuitar + ' ADI. a quitar',
+                            );
+                        }
+                        if (c.salMarcar > 0) {
+                            partes.push(
+                                c.salMarcar === 1
+                                    ? '1 SAL. a marcar'
+                                    : c.salMarcar + ' SAL. a marcar',
+                            );
+                        }
+                        if (c.salQuitar > 0) {
+                            partes.push(
+                                c.salQuitar === 1
+                                    ? '1 SAL. a quitar'
+                                    : c.salQuitar + ' SAL. a quitar',
+                            );
+                        }
+                        return partes.join(' · ');
+                    }
+
+                    function syncRowState(tr) {
+                        if (!tr) {
+                            return;
+                        }
+                        var ta = tr.querySelector('textarea.destino-input');
+                        var cbAdi = tr.querySelector('.check-adicional-row');
+                        var cbSal = tr.querySelector('.check-salida-row');
+                        var dirtyDest =
+                            ta &&
+                            norm(ta.value) !== norm(ta.getAttribute('data-original'));
+                        var dirtyAdi = cbAdi ? flagDirty(cbAdi) : false;
+                        var dirtySal = cbSal ? flagDirty(cbSal) : false;
+
+                        if (ta) {
+                            ta.classList.toggle('is-dirty', dirtyDest);
+                            var rowId = tr.getAttribute('data-row-id') || '';
+                            if (dirtyDest && rowId) {
+                                ta.setAttribute('name', 'destinos[' + rowId + ']');
+                            } else {
+                                ta.removeAttribute('name');
+                            }
+                        }
+                        if (cbAdi) {
+                            cbAdi.classList.toggle('is-flag-dirty', dirtyAdi);
+                        }
+                        if (cbSal) {
+                            cbSal.classList.toggle('is-flag-dirty', dirtySal);
+                        }
+                        tr.classList.toggle('row-pendiente', dirtyDest || dirtyAdi || dirtySal);
+                    }
+
+                    function syncHeaderCheck(rowClass, checkTodosEl) {
+                        if (!checkTodosEl) {
+                            return;
+                        }
+                        var checks = filasVisibles()
+                            .map(function (tr) {
+                                return tr.querySelector('.' + rowClass);
+                            })
+                            .filter(Boolean);
+                        var checked = checks.filter(function (c) {
+                            return c.checked;
+                        }).length;
+                        checkTodosEl.checked = checks.length > 0 && checked === checks.length;
+                        checkTodosEl.indeterminate = checked > 0 && checked < checks.length;
+                    }
+
+                    function clearFlagHiddens() {
+                        form.querySelectorAll('input.js-flag-payload').forEach(function (el) {
+                            el.remove();
+                        });
+                    }
+
+                    function injectFlagHiddens() {
+                        clearFlagHiddens();
+                        form.querySelectorAll('.check-adicional-row').forEach(function (cb) {
+                            if (!flagDirty(cb)) {
+                                return;
+                            }
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.className = 'js-flag-payload';
+                            input.name = 'adicionales[' + cb.value + ']';
+                            input.value = cb.checked ? '1' : '0';
+                            form.appendChild(input);
+                        });
+                        form.querySelectorAll('.check-salida-row').forEach(function (cb) {
+                            if (!flagDirty(cb)) {
+                                return;
+                            }
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.className = 'js-flag-payload';
+                            input.name = 'salidas[' + cb.value + ']';
+                            input.value = cb.checked ? '1' : '0';
+                            form.appendChild(input);
+                        });
+                    }
+
+                    function refresh() {
                         if (tbody) {
-                            tbody
-                                .querySelectorAll(
-                                    'tr[data-id-producto]:not(.row-filtrada-oculto) .' + rowClass + ':checked',
-                                )
-                                .forEach(function () {
-                                    n++;
-                                });
+                            tbody.querySelectorAll('tr[data-row-id]').forEach(syncRowState);
                         }
-                        if (countEl) {
-                            countEl.textContent = n + ' ' + label + ' seleccionado(s)';
+                        var c = collectChanges();
+                        var texto = resumenTexto(c);
+                        buttons.forEach(function (btn) {
+                            btn.disabled = c.total === 0;
+                        });
+                        hints.forEach(function (h) {
+                            h.hidden = c.total === 0;
+                        });
+                        resumenEls.forEach(function (el) {
+                            el.textContent = texto;
+                        });
+                        if (editadasEl) {
+                            editadasEl.textContent = String(c.total);
                         }
-                        if (btnMarcar) {
-                            btnMarcar.disabled = n === 0;
+                        syncHeaderCheck('check-adicional-row', checkTodos);
+                        syncHeaderCheck('check-salida-row', checkTodosSalidas);
+                    }
+
+                    function openModal(c) {
+                        if (!backdrop || !listEl) {
+                            return;
                         }
-                        if (btnDesmarcar) {
-                            btnDesmarcar.disabled = n === 0;
+                        var items = [];
+                        if (c.destinos > 0) {
+                            items.push(
+                                c.destinos === 1
+                                    ? '1 destino modificado'
+                                    : c.destinos + ' destinos modificados',
+                            );
                         }
-                        if (checkTodosEl) {
-                            var visibles = filasVisibles();
-                            var checks = visibles
-                                .map(function (tr) {
-                                    return tr.querySelector('.' + rowClass);
-                                })
-                                .filter(Boolean);
-                            var checked = checks.filter(function (c) {
-                                return c.checked;
-                            }).length;
-                            checkTodosEl.checked = checks.length > 0 && checked === checks.length;
-                            checkTodosEl.indeterminate = checked > 0 && checked < checks.length;
+                        if (c.adiMarcar > 0) {
+                            items.push(
+                                c.adiMarcar === 1
+                                    ? '1 código a marcar como ADI.'
+                                    : c.adiMarcar + ' códigos a marcar como ADI.',
+                            );
+                        }
+                        if (c.adiQuitar > 0) {
+                            items.push(
+                                c.adiQuitar === 1
+                                    ? '1 código a quitar ADI.'
+                                    : c.adiQuitar + ' códigos a quitar ADI.',
+                            );
+                        }
+                        if (c.salMarcar > 0) {
+                            items.push(
+                                c.salMarcar === 1
+                                    ? '1 código a marcar como SAL.'
+                                    : c.salMarcar + ' códigos a marcar como SAL.',
+                            );
+                        }
+                        if (c.salQuitar > 0) {
+                            items.push(
+                                c.salQuitar === 1
+                                    ? '1 código a quitar SAL.'
+                                    : c.salQuitar + ' códigos a quitar SAL.',
+                            );
+                        }
+                        listEl.innerHTML = items
+                            .map(function (t) {
+                                return '<li>' + t + '</li>';
+                            })
+                            .join('');
+                        backdrop.hidden = false;
+                        backdrop.removeAttribute('hidden');
+                        backdrop.setAttribute('aria-hidden', 'false');
+                        document.body.style.overflow = 'hidden';
+                        if (btnOk) {
+                            btnOk.focus();
                         }
                     }
 
-                    function refreshSeleccionAdicionales() {
-                        refreshSeleccionPorClase(
-                            'check-adicional-row',
-                            checkTodos,
-                            btnMarcarSel,
-                            btnDesmarcarSel,
-                            selCountEl,
-                            'ADI.',
-                        );
+                    function closeModal() {
+                        if (!backdrop) {
+                            return;
+                        }
+                        backdrop.hidden = true;
+                        backdrop.setAttribute('hidden', 'hidden');
+                        backdrop.setAttribute('aria-hidden', 'true');
+                        document.body.style.overflow = '';
                     }
 
-                    function refreshSeleccionSalidas() {
-                        refreshSeleccionPorClase(
-                            'check-salida-row',
-                            checkTodosSalidas,
-                            btnMarcarSalidas,
-                            btnDesmarcarSalidas,
-                            selCountSalidasEl,
-                            'SAL.',
-                        );
+                    function pedirGuardar() {
+                        refresh();
+                        var c = collectChanges();
+                        if (c.total === 0) {
+                            alert('No hay cambios para guardar.');
+                            return;
+                        }
+                        openModal(c);
                     }
+
+                    function confirmarGuardar() {
+                        if (submitting) {
+                            return;
+                        }
+                        refresh();
+                        var c = collectChanges();
+                        if (c.total === 0) {
+                            closeModal();
+                            alert('No hay cambios para guardar.');
+                            return;
+                        }
+                        injectFlagHiddens();
+                        submitting = true;
+                        closeModal();
+                        form.submit();
+                    }
+
+                    form.querySelectorAll('textarea.destino-input').forEach(function (ta) {
+                        ta.removeAttribute('name');
+                        ta.addEventListener('input', refresh);
+                        ta.addEventListener('change', refresh);
+                        ta.addEventListener('blur', refresh);
+                    });
+
+                    form.addEventListener('submit', function (e) {
+                        if (submitting) {
+                            return;
+                        }
+                        e.preventDefault();
+                        pedirGuardar();
+                    });
+
+                    buttons.forEach(function (btn) {
+                        btn.addEventListener('click', pedirGuardar);
+                    });
+
+                    if (btnCancel) {
+                        btnCancel.addEventListener('click', closeModal);
+                    }
+                    if (btnOk) {
+                        btnOk.addEventListener('click', confirmarGuardar);
+                    }
+                    if (backdrop) {
+                        backdrop.addEventListener('click', function (e) {
+                            if (e.target === backdrop) {
+                                closeModal();
+                            }
+                        });
+                    }
+                    document.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape' && backdrop && !backdrop.hidden) {
+                            closeModal();
+                        }
+                    });
 
                     if (filtroRapido && tbody) {
                         function aplicarFiltroRapido() {
@@ -1225,27 +1450,20 @@
                                 .replace(/[\s]+/g, '');
                             var visibles = 0;
                             tbody.querySelectorAll('tr[data-id-producto]').forEach(function (tr) {
-                                var id = String(tr.getAttribute('data-id-producto') || '').replace(/[\s]+/g, '');
+                                var id = String(tr.getAttribute('data-id-producto') || '').replace(
+                                    /[\s]+/g,
+                                    '',
+                                );
                                 var ok = q === '' || id.indexOf(q) !== -1;
                                 tr.classList.toggle('row-filtrada-oculto', !ok);
                                 if (ok) {
                                     visibles++;
-                                } else {
-                                    var cbAdi = tr.querySelector('.check-adicional-row');
-                                    var cbSal = tr.querySelector('.check-salida-row');
-                                    if (cbAdi) {
-                                        cbAdi.checked = false;
-                                    }
-                                    if (cbSal) {
-                                        cbSal.checked = false;
-                                    }
                                 }
                             });
                             if (visiblesEl) {
                                 visiblesEl.textContent = String(visibles);
                             }
-                            refreshSeleccionAdicionales();
-                            refreshSeleccionSalidas();
+                            refresh();
                         }
                         filtroRapido.addEventListener('input', aplicarFiltroRapido);
                         filtroRapido.addEventListener('search', aplicarFiltroRapido);
@@ -1256,11 +1474,11 @@
                             if (!e.target) {
                                 return;
                             }
-                            if (e.target.classList.contains('check-adicional-row')) {
-                                refreshSeleccionAdicionales();
-                            }
-                            if (e.target.classList.contains('check-salida-row')) {
-                                refreshSeleccionSalidas();
+                            if (
+                                e.target.classList.contains('check-adicional-row') ||
+                                e.target.classList.contains('check-salida-row')
+                            ) {
+                                refresh();
                             }
                         });
                     }
@@ -1274,7 +1492,7 @@
                                     cb.checked = on;
                                 }
                             });
-                            refreshSeleccionAdicionales();
+                            refresh();
                         });
                     }
 
@@ -1287,42 +1505,11 @@
                                     cb.checked = on;
                                 }
                             });
-                            refreshSeleccionSalidas();
+                            refresh();
                         });
                     }
 
-                    function bindBulkConfirm(formEl, rowClass, formAttr, etiqueta) {
-                        if (!formEl) {
-                            return;
-                        }
-                        formEl.addEventListener('submit', function (e) {
-                            var n = tbody
-                                ? tbody.querySelectorAll('.' + rowClass + ':checked').length
-                                : document.querySelectorAll(
-                                      '.' + rowClass + '[form="' + formAttr + '"]:checked',
-                                  ).length;
-                            if (n === 0) {
-                                e.preventDefault();
-                                alert('Seleccione al menos un código.');
-                                return;
-                            }
-                            var submitter = e.submitter;
-                            var accion = submitter && submitter.value ? submitter.value : 'marcar';
-                            var msg =
-                                accion === 'desmarcar'
-                                    ? '¿Quitar la marca de ' + etiqueta + ' a ' + n + ' código(s)?'
-                                    : '¿Marcar ' + n + ' código(s) como ' + etiqueta + '?';
-                            if (!confirm(msg)) {
-                                e.preventDefault();
-                            }
-                        });
-                    }
-
-                    bindBulkConfirm(formAdicionales, 'check-adicional-row', 'form-adicionales-masivo', 'adicional');
-                    bindBulkConfirm(formSalidas, 'check-salida-row', 'form-salidas-masivo', 'salida');
-
-                    refreshSeleccionAdicionales();
-                    refreshSeleccionSalidas();
+                    refresh();
                 })();
             </script>
         @endif

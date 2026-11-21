@@ -228,6 +228,23 @@
                 font-weight: 500;
                 color: color-mix(in srgb, var(--text) 65%, transparent);
             }
+            .seccion-alistamiento {
+                margin: 0 0 1.35rem;
+            }
+            .seccion-alistamiento:last-child {
+                margin-bottom: 0;
+            }
+            .seccion-alistamiento__title {
+                margin: 0 0 0.35rem;
+                font-size: 0.98rem;
+                font-weight: 750;
+            }
+            .seccion-alistamiento__hint {
+                margin: 0 0 0.75rem;
+                font-size: 0.8rem;
+                line-height: 1.4;
+                color: color-mix(in srgb, var(--text) 68%, transparent);
+            }
             @media (max-width: 640px) {
                 .page-bar {
                     flex-direction: column;
@@ -377,7 +394,13 @@
                 </p>
             @endif
 
-            @if (($error === null) && $placas === [])
+            @php
+                $comprometidas = $comprometidas ?? [];
+                $hayVivas = $placas !== [];
+                $hayComprometidas = $comprometidas !== [];
+            @endphp
+
+            @if (($error === null) && ! $hayVivas && ! $hayComprometidas)
                 <div class="empty-state" role="status">
                     <p class="empty-state__title">Alistamiento vacío</p>
                     <p class="empty-state__text">
@@ -389,42 +412,95 @@
                         <a href="/inventario-de-lenguas">Abrir inventario</a>
                     </div>
                 </div>
-            @elseif ($placas !== [])
-                @php
-                    $totalPlacas = count($placas);
-                    $totalPendientes = (int) collect($placas)->sum(static fn ($p) => (int) ($p->pendientes ?? 0));
-                @endphp
-                <p class="listado-resumen" role="status">
-                    <span>Placas listadas: <strong>{{ $totalPlacas }}</strong></span>
-                    <span class="listado-resumen__meta">· {{ $totalPendientes }} código(s) pendiente(s) en total</span>
-                </p>
-                <div class="table-wrap">
-                    <table class="data">
-                        <thead>
-                            <tr>
-                                <th>Placa</th>
-                                <th>Pendientes</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($placas as $p)
-                                <tr>
-                                    <td data-label="Placa">{{ $p->placa_vehiculo ?? '—' }}</td>
-                                    <td data-label="Pendientes">{{ (int) ($p->pendientes ?? 0) }}</td>
-                                    <td data-label="">
-                                        <a
-                                            class="btn-abrir"
-                                            href="{{ route('despacho.lenguas.checklist', ['id_vehiculo_asignado' => $p->id_vehiculo_asignado]) }}"
-                                        >
-                                            Abrir checklist
-                                        </a>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+            @else
+                @if ($hayVivas)
+                    @php
+                        $totalPlacas = count($placas);
+                        $totalPendientes = (int) collect($placas)->sum(static fn ($p) => (int) ($p->pendientes ?? 0));
+                    @endphp
+                    <div class="seccion-alistamiento">
+                        <h2 class="seccion-alistamiento__title">En Colbeef hoy</h2>
+                        <p class="seccion-alistamiento__hint">
+                            Placas con códigos pendientes según Colbeef e inventario local disponible.
+                        </p>
+                        <p class="listado-resumen" role="status">
+                            <span>Placas listadas: <strong>{{ $totalPlacas }}</strong></span>
+                            <span class="listado-resumen__meta">· {{ $totalPendientes }} código(s) pendiente(s) en total</span>
+                        </p>
+                        <div class="table-wrap">
+                            <table class="data">
+                                <thead>
+                                    <tr>
+                                        <th>Placa</th>
+                                        <th>Pendientes</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($placas as $p)
+                                        <tr>
+                                            <td data-label="Placa">{{ $p->placa_vehiculo ?? '—' }}</td>
+                                            <td data-label="Pendientes">{{ (int) ($p->pendientes ?? 0) }}</td>
+                                            <td data-label="">
+                                                <a
+                                                    class="btn-abrir"
+                                                    href="{{ route('despacho.lenguas.checklist', ['id_vehiculo_asignado' => $p->id_vehiculo_asignado]) }}"
+                                                >
+                                                    Abrir checklist
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($hayComprometidas)
+                    @php
+                        $totalComp = count($comprometidas);
+                        $totalCompPend = (int) collect($comprometidas)->sum(static fn ($p) => (int) ($p->pendientes ?? 0));
+                    @endphp
+                    <div class="seccion-alistamiento">
+                        <h2 class="seccion-alistamiento__title">Comprometidas / por salir</h2>
+                        <p class="listado-resumen" role="status">
+                            <span>Placas comprometidas: <strong>{{ $totalComp }}</strong></span>
+                            <span class="listado-resumen__meta">· {{ $totalCompPend }} código(s) aún en inventario</span>
+                        </p>
+                        <div class="table-wrap">
+                            <table class="data">
+                                <thead>
+                                    <tr>
+                                        <th>Placa</th>
+                                        <th>Pendientes</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($comprometidas as $p)
+                                        <tr>
+                                            <td data-label="Placa">{{ $p->placa_vehiculo ?? '—' }}</td>
+                                            <td data-label="Pendientes">{{ (int) ($p->pendientes ?? 0) }}</td>
+                                            <td data-label="">
+                                                <a
+                                                    class="btn-abrir"
+                                                    href="{{ route('despacho.lenguas.checklist', ['id_vehiculo_asignado' => $p->id_vehiculo_asignado]) }}"
+                                                >
+                                                    Abrir checklist
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @elseif ($hayVivas)
+                    <p class="muted" style="margin-top: 0.25rem">
+                        No hay placas comprometidas pendientes fuera del listado Colbeef.
+                    </p>
+                @endif
             @endif
         </section>
     </body>
