@@ -752,7 +752,9 @@
                 function fetchSuggestions(q) {
                     const seq = ++reqSeq;
                     const url = new URL(suggestUrl, window.location.origin);
-                    url.searchParams.set('q', q);
+                    // "_" primero: mitiga Nginx try_files con "?$is_args" (rompe el primer param).
+                    url.searchParams.set('_', '1');
+                    url.searchParams.set('busca', q);
                     fetch(url.toString(), {
                         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                         credentials: 'same-origin',

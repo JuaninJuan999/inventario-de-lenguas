@@ -15,6 +15,18 @@ php artisan route:clear
 php artisan modulos:sync-matriz
 ```
 
+## 1b. Nginx (si sirve en `:8007`)
+
+Si las sugerencias de decomiso o los filtros `?q=` fallan en la IP LAN pero funcionan en `127.0.0.1:8000`, corregir `try_files`:
+
+→ `docs/inventario/nginx-query-string.md`
+
+```nginx
+try_files $uri $uri/ /index.php$is_args$args;
+```
+
+(no usar `/index.php?$is_args$args`)
+
 ## 2. Configurar URL pública
 
 Editar `.env` del **server**:

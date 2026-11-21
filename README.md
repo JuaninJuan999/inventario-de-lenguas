@@ -205,6 +205,7 @@ docs/
   inventario/checklist-server.md
   inventario/deploy-server-205.md
   inventario/filtro-id-producto-server.md
+  inventario/nginx-query-string.md
   inventario/reiniciar-desde-excel.md
   inventario/depurar-vencidos.md
   inventario/importar-excel-adicionales.md

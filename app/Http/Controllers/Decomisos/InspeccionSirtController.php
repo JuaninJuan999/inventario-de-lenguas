@@ -265,8 +265,10 @@ class InspeccionSirtController extends Controller
             return response()->json(['items' => [], 'motivo' => 'sin_permiso'], 403);
         }
 
+        // "busca" evita choques con proxies/Nginx mal configurados que corrompen el primer "?q=".
+        $qRaw = $request->input('busca', $request->input('q', ''));
         $q = DespachoInventarioMatch::normalizarGuionesIdProducto(
-            substr($request->string('q')->trim()->toString(), 0, 80),
+            substr(trim((string) $qRaw), 0, 80),
         );
         if (mb_strlen($q) < 2) {
             return response()->json(['items' => [], 'motivo' => 'corto']);

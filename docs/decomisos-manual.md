@@ -46,13 +46,12 @@ Si en el server **Aplicar** no filtra (o salta a `127.0.0.1`):
 
 Si no aparecen sugerencias / sale “Sin coincidencias” o “No está en el inventario local”:
 
-1. `git pull` + `route:clear` + `view:clear`
-2. Sesión con rol que pueda registrar manual (calidad/admin, no solo lectura)
-3. El código debe existir en **Inventario de Lenguas del mismo server** y **sin despachar**  
-   (Ingresos SIRT ≠ réplica local: si solo está en SIRT, sincronice o importe)
-4. Si el mensaje dice **ya no está disponible**, ese id ya tiene `despachado_at` (despacho/decomiso previo)
-5. Probar en Inventario filtrando el mismo fragmento (p. ej. `05097`) en `http://192.168.20.205:8007/inventario-de-lenguas`
-6. Consola del navegador → Network → `sugerencias-producto?q=...` debe ser **200** JSON same-origin
+1. **Nginx LAN (`:8007`)**: si `try_files` tiene `/index.php?$is_args$args` (con `?` de más), las sugerencias/filtros fallan. Ver `docs/inventario/nginx-query-string.md` y dejar `/index.php$is_args$args` + `nginx -s reload`
+2. `git pull` + `route:clear` + `view:clear`
+3. Sesión con rol que pueda registrar manual (calidad/admin, no solo lectura)
+4. El código debe existir en **Inventario de Lenguas del mismo host** y **sin despachar**
+5. Si el mensaje dice **ya no está disponible**, ese id ya tiene `despachado_at`
+6. Network → `sugerencias-producto?_=1&busca=...` → **200** JSON con `items`
 
 ### 2. Dictamen por defecto
 
