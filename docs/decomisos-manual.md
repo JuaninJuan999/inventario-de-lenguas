@@ -1,8 +1,10 @@
 # Decomisos — alta manual, sugerencias y fecha de beneficio
 
-Documentación para que el server (`192.168.20.205:8007`) quede igual que local tras `git pull`.
+Documentación para el **server de producción** `http://192.168.20.205:8007/` (no confundir con el PC de desarrollo `.11`).
 
-## Tras actualizar código
+Guía unificada tras pull: `docs/inventario/PULL-EN-SERVER-205.md`
+
+## Tras actualizar código (en el 205)
 
 ```bash
 cd /ruta/del/proyecto
@@ -11,6 +13,10 @@ php artisan route:clear
 php artisan view:clear
 php artisan config:clear
 ```
+
+`.env` del server: `APP_URL=http://192.168.20.205:8007`
+
+Si Nginx sirve el sitio: corregir `try_files` → `docs/inventario/nginx-query-string.md`
 
 Rutas nuevas que deben existir:
 
@@ -25,7 +31,8 @@ Comprobar: `php artisan route:list --name=decomisos`
 ### 1. Sugerencias al escribir Id producto
 
 - Al escribir ≥ 2 caracteres en **Decomiso manual → Id producto**, el navegador llama a  
-  `GET /decomisos-de-lenguas/sugerencias-producto?q=...`
+  `GET /decomisos-de-lenguas/sugerencias-producto?_=1&busca=...`  
+  (acepta también `q`; el `_` / `busca` evitan el bug Nginx `??q=`)
 - Solo lista lenguas **disponibles** en inventario local (`sinDespachar`).
 - Solo roles con permiso de **escritura** en decomisos (p. ej. calidad, admin). Lectura → 403 / lista vacía.
 - Flechas / Enter para elegir; muestra código + fecha de beneficio + propietario.

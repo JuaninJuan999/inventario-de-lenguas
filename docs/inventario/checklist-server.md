@@ -1,14 +1,29 @@
 # Checklist servidor — inventario operativo (igual que local)
 
+**Server de producción:** `192.168.20.205:8007`  
+(El `.11` es el PC de desarrollo en LAN, no el server.)
+
+Guía corta post-pull: `docs/inventario/PULL-EN-SERVER-205.md`
+
 Tras `git pull`, seguir en orden según lo que falte en el server.
 
 ```bash
 cd /ruta/del/proyecto
-git pull
+git pull origin main
 php artisan config:clear
 php artisan view:clear
 php artisan route:clear
 php artisan modulos:sync-matriz
+```
+
+### Nginx `try_files` (si el 205 sirve por `:8007`)
+
+Sin esto, sugerencias de decomiso y algunos filtros `?q=` fallan en la IP:
+
+→ `docs/inventario/nginx-query-string.md`
+
+```nginx
+try_files $uri $uri/ /index.php$is_args$args;
 ```
 
 ### `APP_URL` y filtros de Inventario (ajuste crítico)
@@ -19,13 +34,13 @@ php artisan modulos:sync-matriz
 http://192.168.20.205:8007/
 ```
 
-En el `.env` **del server** (no el de Laragon local):
+En el `.env` **del server 205** (no el de Laragon del PC `.11`):
 
 ```env
 APP_URL=http://192.168.20.205:8007
 ```
 
-No uses `http://127.0.0.1:8000` ni la IP de otro PC (p. ej. `.11`). Si `APP_URL` apunta a localhost, al pulsar **Aplicar** / chips / Excel el navegador puede ir a una URL incorrecta y los filtros “no funcionan”.
+No uses `http://127.0.0.1:8000` ni la IP del PC de desarrollo (`.11`). Si `APP_URL` apunta a localhost u otra IP, al pulsar **Aplicar** / chips / Excel el navegador puede ir a una URL incorrecta y los filtros “no funcionan”.
 
 Además, Inventario ya no depende de `route()` absoluto para **Aplicar** / chips / Excel / sync: usa `action=""` + paths `/inventario-de-lenguas...` y un submit JS same-origin (ver `docs/inventario/filtro-id-producto-server.md`).
 

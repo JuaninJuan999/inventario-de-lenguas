@@ -1,10 +1,13 @@
-# Despliegue rápido — server `192.168.20.205:8007`
+# Despliegue rápido — server producción `192.168.20.205:8007`
 
-Pasos para dejar el server igual que el entorno local (código + URL + filtros).
+**Producción = `192.168.20.205`.**  
+No usar `192.168.20.11` (PC de desarrollo) como `APP_URL` del server.
+
+Guía post-pull ampliada: `docs/inventario/PULL-EN-SERVER-205.md`
 
 ## 1. Traer código
 
-En el server, dentro del proyecto:
+En el **server 205**, dentro del proyecto:
 
 ```bash
 cd /ruta/del/proyecto   # carpeta inventario-de-lenguas en 192.168.20.205
@@ -15,9 +18,9 @@ php artisan route:clear
 php artisan modulos:sync-matriz
 ```
 
-## 1b. Nginx (si sirve en `:8007`)
+## 1b. Nginx en el 205 (si sirve en `:8007`)
 
-Si las sugerencias de decomiso o los filtros `?q=` fallan en la IP LAN pero funcionan en `127.0.0.1:8000`, corregir `try_files`:
+Si las sugerencias de decomiso o los filtros `?q=` fallan en `192.168.20.205:8007` pero funcionan en artisan/`127.0.0.1`, corregir `try_files` **en el 205**:
 
 → `docs/inventario/nginx-query-string.md`
 
@@ -25,7 +28,7 @@ Si las sugerencias de decomiso o los filtros `?q=` fallan en la IP LAN pero func
 try_files $uri $uri/ /index.php$is_args$args;
 ```
 
-(no usar `/index.php?$is_args$args`)
+(no usar `/index.php?$is_args$args` — ese `?` de más rompe el query string)
 
 ## 2. Configurar URL pública
 
@@ -49,6 +52,8 @@ Entrar siempre por: `http://192.168.20.205:8007/`
 | Filtros Inventario (rutas relativas) | Este ajuste + `APP_URL` correcto |
 | Dashboard: ingresos últimos 5 días | Panel en dashboard (reemplaza “Importados sync”) |
 | Decomisos: sugerencias, Decomisado default, fecha beneficio | `docs/decomisos-manual.md` |
+| Nginx `try_files` (sugerencias/filtros en :8007) | `docs/inventario/nginx-query-string.md` |
+| Checklist post-pull producción | `docs/inventario/PULL-EN-SERVER-205.md` |
 | Baseline Excel / v2 / vencidos / aviso auxiliar | `docs/inventario/checklist-server.md` |
 
 ## 4. Validar filtros
@@ -67,6 +72,8 @@ Entrar siempre por: `http://192.168.20.205:8007/`
 
 ## Relacionado
 
+- Post-pull 205: `docs/inventario/PULL-EN-SERVER-205.md`
 - Checklist: `docs/inventario/checklist-server.md`
 - Filtro Id producto: `docs/inventario/filtro-id-producto-server.md`
+- Nginx query string: `docs/inventario/nginx-query-string.md`
 - Decomisos manual: `docs/decomisos-manual.md`

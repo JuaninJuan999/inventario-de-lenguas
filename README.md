@@ -202,6 +202,7 @@ config/
 docs/
   sincronizacion-inventario.md
   roles-y-modulos.md
+  inventario/PULL-EN-SERVER-205.md
   inventario/checklist-server.md
   inventario/deploy-server-205.md
   inventario/filtro-id-producto-server.md
