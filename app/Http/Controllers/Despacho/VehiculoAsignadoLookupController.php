@@ -87,6 +87,10 @@ class VehiculoAsignadoLookupController extends Controller
         // Evita comodines accidentales en ILIKE
         $search = str_replace(['%', '_'], '', $search);
 
+        if ($focus === 'conductor') {
+            return $this->lookupConductoresUnicos($connection, $userName, $search, $focus);
+        }
+
         $sql = <<<'SQL'
 SELECT
     va.id,
@@ -108,11 +112,8 @@ SQL;
             if ($focus === 'empresa') {
                 $sql .= ' AND COALESCE(e.nombre, \'\') ILIKE ?';
                 $bindings[] = $like;
-            } elseif ($focus === 'placa') {
-                $sql .= ' AND va.placa_vehiculo ILIKE ?';
-                $bindings[] = $like;
             } else {
-                $sql .= ' AND COALESCE(p.nombres, \'\') ILIKE ?';
+                $sql .= ' AND va.placa_vehiculo ILIKE ?';
                 $bindings[] = $like;
             }
         }
@@ -149,6 +150,87 @@ SQL;
             'focus' => $focus,
             'filtro_user_name' => $userName,
             'data' => $data,
+        ]);
+    }
+
+    /**
+     * Conductores únicos por nombre (sin repetir por cada vehículo asignado).
+     */
+    protected function lookupConductoresUnicos(
+        string $connection,
+        string $userName,
+        string $search,
+        string $focus,
+    ): JsonResponse {
+        // DISTINCT ON: una fila por nombre normalizado; se queda con el va.id más reciente.
+        $sql = <<<'SQL'
+SELECT DISTINCT ON (LOWER(TRIM(COALESCE(p.nombres, ''))))
+    va.id,
+    va.placa_vehiculo,
+    va.user_name AS usuario_registra,
+    TRIM(p.nombres) AS nombre_conductor,
+    e.nombre AS empresa
+FROM trazabilidad_proceso.vehiculo_asignado va
+INNER JOIN a_recursos_humanos.a_persona p ON va.id_conductor = p.id
+LEFT JOIN a_organizaciones.a_empresa_persona ep ON p.id = ep.id_persona
+LEFT JOIN a_organizaciones.a_empresa e ON ep.id_empresa = e.id
+WHERE va.user_name = ?
+  AND TRIM(COALESCE(p.nombres, '')) <> ''
+SQL;
+
+        $bindings = [$userName];
+
+        if ($search !== '') {
+            $sql .= ' AND COALESCE(p.nombres, \'\') ILIKE ?';
+            $bindings[] = '%'.$search.'%';
+        }
+
+        $sql .= ' ORDER BY LOWER(TRIM(COALESCE(p.nombres, \'\'))), va.id DESC LIMIT 200';
+
+        try {
+            $rows = DB::connection($connection)->select($sql, $bindings);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo consultar la base de datos. Revise COLBEEF_DB_* y que existan los esquemas/tablas.',
+                'data' => [],
+            ], 503);
+        }
+
+        $seen = [];
+        $data = [];
+        foreach ($rows as $row) {
+            $a = (array) $row;
+            $nombre = preg_replace('/\s+/u', ' ', trim((string) ($a['nombre_conductor'] ?? ''))) ?? '';
+            if ($nombre === '') {
+                continue;
+            }
+            $key = mb_strtolower($nombre);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $data[] = [
+                'id' => (int) ($a['id'] ?? 0),
+                'placa_vehiculo' => $a['placa_vehiculo'] ?? null,
+                'usuario_registra' => $a['usuario_registra'] ?? null,
+                'nombre_conductor' => $nombre,
+                'empresa' => $a['empresa'] ?? null,
+            ];
+        }
+
+        usort($data, static function (array $x, array $y): int {
+            return strcasecmp((string) $x['nombre_conductor'], (string) $y['nombre_conductor']);
+        });
+
+        return response()->json([
+            'ok' => true,
+            'message' => null,
+            'focus' => $focus,
+            'filtro_user_name' => $userName,
+            'data' => array_values($data),
         ]);
     }
 }

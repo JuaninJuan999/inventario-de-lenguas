@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Decomisos\InspeccionSirtController;
 use App\Http\Controllers\Despacho\DespachoFinalizarInventarioController;
 use App\Http\Controllers\Despacho\DespachoLenguasController;
+use App\Http\Controllers\Despacho\DespachoOperadorPlacaStoreController;
 use App\Http\Controllers\Despacho\DespachoSeleccionPlacasController;
 use App\Http\Controllers\Despacho\HistoriaDespachoLenguasController;
 use App\Http\Controllers\Despacho\LenguaDestinoInventarioController;
@@ -108,6 +109,8 @@ Route::middleware('auth')->group(function () {
             ->name('despacho.lookup.lengua_destino');
         Route::post('/despacho-de-lenguas/finalizar-inventario', DespachoFinalizarInventarioController::class)
             ->name('despacho.finalizar.inventario');
+        Route::post('/despacho-de-lenguas/operador-placa', DespachoOperadorPlacaStoreController::class)
+            ->name('despacho.operador_placa.store');
     });
 
     Route::middleware('module:desposte')->group(function () {

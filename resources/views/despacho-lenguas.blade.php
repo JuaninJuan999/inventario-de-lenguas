@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         @include('partials.favicon')
         <title>Despacho de Lenguas — {{ config('app.name') }}</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -532,6 +533,79 @@
                 justify-content: flex-end;
                 gap: 0.5rem;
             }
+            .lookup-add {
+                padding: 0.65rem 0.85rem 0.75rem;
+                border-top: 1px solid color-mix(in srgb, var(--brand-green) 25%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 6%, transparent);
+            }
+            .lookup-add[hidden] {
+                display: none !important;
+            }
+            .lookup-add__title {
+                margin: 0 0 0.45rem;
+                font-size: 0.78rem;
+                font-weight: 700;
+                color: var(--brand-green);
+                letter-spacing: 0.02em;
+                text-transform: uppercase;
+            }
+            .lookup-add__hint {
+                margin: 0 0 0.55rem;
+                font-size: 0.75rem;
+                color: color-mix(in srgb, var(--text) 60%, transparent);
+                line-height: 1.35;
+            }
+            .lookup-add__row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.45rem;
+                align-items: stretch;
+            }
+            .lookup-add__row input {
+                flex: 1 1 8rem;
+                min-width: 0;
+                padding: 0.45rem 0.6rem;
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 40%, #1a3d2e);
+                background: rgba(0, 0, 0, 0.35);
+                color: var(--text);
+                font-size: 0.88rem;
+                font-family: inherit;
+            }
+            .lookup-add__row input:focus {
+                outline: 2px solid var(--brand-green);
+                outline-offset: 1px;
+            }
+            .lookup-add__save {
+                flex: 0 0 auto;
+                padding: 0.45rem 0.9rem;
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, var(--brand-green) 55%, transparent);
+                background: color-mix(in srgb, var(--brand-green) 18%, transparent);
+                color: var(--brand-green);
+                font-weight: 700;
+                font-size: 0.85rem;
+                cursor: pointer;
+                font-family: inherit;
+                white-space: nowrap;
+            }
+            .lookup-add__save:hover:not(:disabled) {
+                background: color-mix(in srgb, var(--brand-green) 28%, transparent);
+            }
+            .lookup-add__save:disabled {
+                opacity: 0.55;
+                cursor: wait;
+            }
+            .lookup-add__msg {
+                margin: 0.45rem 0 0;
+                font-size: 0.78rem;
+            }
+            .lookup-add__msg--ok {
+                color: var(--brand-green);
+            }
+            .lookup-add__msg--err {
+                color: color-mix(in srgb, var(--brand-rose) 90%, #fff);
+            }
             .btn-close-modal {
                 padding: 0.45rem 1rem;
                 border-radius: 9999px;
@@ -949,6 +1023,32 @@
                         </table>
                     </div>
                 </div>
+                <div class="lookup-add" id="lookup-add" hidden>
+                    <p class="lookup-add__title">Añadir al listado</p>
+                    <p class="lookup-add__hint">
+                        Nuevo operador con su placa, o una placa nueva si el operador ya existe (elija el nombre del desplegable o escríbalo igual).
+                    </p>
+                    <div class="lookup-add__row">
+                        <input
+                            type="text"
+                            id="lookup-add-operador"
+                            list="lookup-operadores-datalist"
+                            placeholder="Operador logístico"
+                            autocomplete="off"
+                            maxlength="255"
+                        >
+                        <input
+                            type="text"
+                            id="lookup-add-placa"
+                            placeholder="Placa vehículo"
+                            autocomplete="off"
+                            maxlength="64"
+                        >
+                        <button type="button" class="lookup-add__save" id="lookup-add-save">Añadir</button>
+                    </div>
+                    <p class="lookup-add__msg" id="lookup-add-msg" hidden></p>
+                    <datalist id="lookup-operadores-datalist"></datalist>
+                </div>
                 <div class="lookup-dialog__foot">
                     <button type="button" class="btn-close-modal" id="lookup-close">Cerrar</button>
                 </div>
@@ -959,6 +1059,7 @@
             window.despachoVehiculosUrl = @json(route('despacho.lookup.vehiculos', [], false));
             window.despachoLenguaDestinoUrl = @json(route('despacho.lookup.lengua_destino', [], false));
             window.despachoFinalizarInventarioUrl = @json(route('despacho.finalizar.inventario', [], false));
+            window.despachoOperadorPlacaStoreUrl = @json(route('despacho.operador_placa.store', [], false));
             window.despachoOperadorPlacaFilas = @json($operadorPlacaFilas ?? []);
             window.despachoSeleccionUrl = @json(route('despacho.lenguas'));
             window.despachoCodigoBarrasSuffixDigitos = {{ (int) config('despacho.codigo_barras_suffix_digitos', 4) }};
@@ -973,10 +1074,165 @@
                 var lookupStatus = document.getElementById('lookup-status');
                 var lookupTbody = document.getElementById('lookup-tbody');
                 var lookupClose = document.getElementById('lookup-close');
+                var lookupAdd = document.getElementById('lookup-add');
+                var lookupAddOperador = document.getElementById('lookup-add-operador');
+                var lookupAddPlaca = document.getElementById('lookup-add-placa');
+                var lookupAddSave = document.getElementById('lookup-add-save');
+                var lookupAddMsg = document.getElementById('lookup-add-msg');
+                var lookupOperadoresDatalist = document.getElementById('lookup-operadores-datalist');
                 var lookupTargetField = null;
                 var debounceTimer = null;
                 var lastController = null;
                 var lastFiltroUserName = '';
+                var lookupAddSaving = false;
+
+                function csrfToken() {
+                    var meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta && meta.getAttribute('content')) {
+                        return meta.getAttribute('content');
+                    }
+                    var formToken = document.querySelector('#form-despacho [name="_token"]');
+                    return formToken ? formToken.value : '';
+                }
+
+                function setLookupAddMsg(text, kind) {
+                    if (!lookupAddMsg) return;
+                    if (!text) {
+                        lookupAddMsg.hidden = true;
+                        lookupAddMsg.textContent = '';
+                        lookupAddMsg.className = 'lookup-add__msg';
+                        return;
+                    }
+                    lookupAddMsg.hidden = false;
+                    lookupAddMsg.textContent = text;
+                    lookupAddMsg.className =
+                        'lookup-add__msg ' +
+                        (kind === 'ok' ? 'lookup-add__msg--ok' : 'lookup-add__msg--err');
+                }
+
+                function refreshOperadoresDatalist() {
+                    if (!lookupOperadoresDatalist) return;
+                    var filas = window.despachoOperadorPlacaFilas;
+                    var seen = {};
+                    var ops = [];
+                    if (Array.isArray(filas)) {
+                        filas.forEach(function (row) {
+                            var op = String(row.operador != null ? row.operador : '').trim();
+                            if (!op) return;
+                            var key = op.toLowerCase();
+                            if (seen[key]) return;
+                            seen[key] = true;
+                            ops.push(op);
+                        });
+                    }
+                    ops.sort(function (a, b) {
+                        return a.localeCompare(b, 'es', { sensitivity: 'base' });
+                    });
+                    lookupOperadoresDatalist.innerHTML = '';
+                    ops.forEach(function (op) {
+                        var opt = document.createElement('option');
+                        opt.value = op;
+                        lookupOperadoresDatalist.appendChild(opt);
+                    });
+                }
+
+                function showLookupAdd(show) {
+                    if (!lookupAdd) return;
+                    if (show) {
+                        lookupAdd.hidden = false;
+                        lookupAdd.removeAttribute('hidden');
+                        if (lookupAddOperador) lookupAddOperador.value = '';
+                        if (lookupAddPlaca) lookupAddPlaca.value = '';
+                        setLookupAddMsg('', '');
+                        refreshOperadoresDatalist();
+                    } else {
+                        lookupAdd.hidden = true;
+                        lookupAdd.setAttribute('hidden', 'hidden');
+                        setLookupAddMsg('', '');
+                    }
+                }
+
+                async function guardarOperadorPlaca() {
+                    if (lookupAddSaving) return;
+                    var op = lookupAddOperador ? String(lookupAddOperador.value || '').trim() : '';
+                    var pl = lookupAddPlaca ? String(lookupAddPlaca.value || '').trim() : '';
+                    if (!op || !pl) {
+                        setLookupAddMsg('Indique operador logístico y placa.', 'err');
+                        return;
+                    }
+                    var url = window.despachoOperadorPlacaStoreUrl;
+                    if (!url) {
+                        setLookupAddMsg('Ruta de guardado no configurada.', 'err');
+                        return;
+                    }
+                    lookupAddSaving = true;
+                    if (lookupAddSave) lookupAddSave.disabled = true;
+                    setLookupAddMsg('Guardando…', '');
+                    try {
+                        var res = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken(),
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                operador_logistico: op,
+                                placa: pl,
+                            }),
+                        });
+                        var data = null;
+                        try {
+                            data = await res.json();
+                        } catch (e) {
+                            data = null;
+                        }
+                        if (!res.ok || !data || !data.ok) {
+                            var msg =
+                                (data && data.message) ||
+                                (data && data.errors && (data.errors.placa || data.errors.operador_logistico)
+                                    ? [].concat(
+                                          data.errors.operador_logistico || [],
+                                          data.errors.placa || [],
+                                      ).join(' ')
+                                    : null) ||
+                                'No se pudo guardar.';
+                            setLookupAddMsg(msg, 'err');
+                            if (data && Array.isArray(data.filas)) {
+                                window.despachoOperadorPlacaFilas = data.filas;
+                                refreshOperadoresDatalist();
+                                runLocalOperadorCatalog(lookupSearch ? lookupSearch.value : '');
+                            }
+                            return;
+                        }
+                        if (Array.isArray(data.filas)) {
+                            window.despachoOperadorPlacaFilas = data.filas;
+                        } else if (data.fila) {
+                            if (!Array.isArray(window.despachoOperadorPlacaFilas)) {
+                                window.despachoOperadorPlacaFilas = [];
+                            }
+                            window.despachoOperadorPlacaFilas.push(data.fila);
+                        }
+                        refreshOperadoresDatalist();
+                        if (lookupAddOperador) lookupAddOperador.value = '';
+                        if (lookupAddPlaca) lookupAddPlaca.value = '';
+                        setLookupAddMsg(data.message || 'Añadido al listado.', 'ok');
+                        if (lookupSearch) {
+                            lookupSearch.value = data.fila && data.fila.placa ? String(data.fila.placa) : '';
+                        }
+                        runLocalOperadorCatalog(lookupSearch ? lookupSearch.value : '');
+                        if (data.fila) {
+                            applySelection(data.fila);
+                        }
+                    } catch (err) {
+                        setLookupAddMsg('Error de red al guardar.', 'err');
+                    } finally {
+                        lookupAddSaving = false;
+                        if (lookupAddSave) lookupAddSave.disabled = false;
+                    }
+                }
 
                 function esc(s) {
                     if (s == null || s === '') return '—';
@@ -1025,6 +1281,7 @@
                             'Consulta SIRT (vehículo asignado). Escriba para acotar la búsqueda.';
                     }
                     lookupStatus.className = 'lookup-msg lookup-msg--muted';
+                    showLookupAdd(field === 'empresa' || field === 'placa');
                     lookupBackdrop.hidden = false;
                     lookupBackdrop.removeAttribute('hidden');
                     lookupBackdrop.setAttribute('aria-hidden', 'false');
@@ -1047,6 +1304,7 @@
                     lookupBackdrop.setAttribute('aria-hidden', 'true');
                     document.body.style.overflow = '';
                     lookupTargetField = null;
+                    showLookupAdd(false);
                     if (lastController) {
                         lastController.abort();
                         lastController = null;
@@ -1167,8 +1425,11 @@
                         return;
                     }
                     lookupStatus.textContent =
-                        rows.length +
-                        ' resultado(s). Pulse una fila para copiar ese valor al campo del formulario.';
+                        field === 'conductor'
+                            ? rows.length +
+                              ' conductor(es). Pulse una fila para copiar el nombre al formulario.'
+                            : rows.length +
+                              ' resultado(s). Pulse una fila para copiar ese valor al campo del formulario.';
                     lookupStatus.className = 'lookup-msg lookup-msg--muted';
                     rows.forEach(function (row) {
                         var tr = document.createElement('tr');
@@ -1277,6 +1538,23 @@
                     lookupDialog.addEventListener('click', function (e) {
                         e.stopPropagation();
                     });
+                }
+                if (lookupAddSave) {
+                    lookupAddSave.addEventListener('click', function () {
+                        guardarOperadorPlaca();
+                    });
+                }
+                function onLookupAddEnter(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        guardarOperadorPlaca();
+                    }
+                }
+                if (lookupAddOperador) {
+                    lookupAddOperador.addEventListener('keydown', onLookupAddEnter);
+                }
+                if (lookupAddPlaca) {
+                    lookupAddPlaca.addEventListener('keydown', onLookupAddEnter);
                 }
             })();
         </script>

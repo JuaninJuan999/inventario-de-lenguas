@@ -47,8 +47,13 @@ class DespachoSeleccionPlacasController extends Controller
     }
 
     /**
-     * Oculta vehículos cuyo checklist ya se cerró en el día operativo actual
-     * (desde las 00:00 de esa fecha hasta ahora), aunque el cierre sea después de medianoche.
+     * Oculta vehículos ya despachados en el día operativo actual (00:00 → ahora),
+     * aunque el cierre sea después de medianoche.
+     *
+     * Incluye:
+     * - checklist Colbeef (id_vehiculo_asignado), y
+     * - despacho manual con la misma placa (sin id_vehiculo_asignado), para que no
+     *   vuelva a listarse en alistamiento si ya se cerró por «Despacho manual».
      *
      * @param  list<object>  $placas
      * @return list<object>
@@ -64,24 +69,51 @@ class DespachoSeleccionPlacasController extends Controller
         $diaOperacion = $consulta->fechaRegistroReferenciaHoy();
         $inicioOperacion = Carbon::parse($diaOperacion, $tz)->startOfDay();
 
-        $cerradosIds = Despacho::query()
-            ->whereNotNull('id_vehiculo_asignado')
+        $despachosHoy = Despacho::query()
             ->where('realizado_at', '>=', $inicioOperacion)
+            ->get(['id_vehiculo_asignado', 'placa']);
+
+        $cerradosIds = $despachosHoy
             ->pluck('id_vehiculo_asignado')
+            ->filter(static fn ($id): bool => $id !== null && (int) $id > 0)
             ->map(static fn ($id): int => (int) $id)
             ->unique()
             ->all();
 
-        if ($cerradosIds === []) {
+        // Solo despacho manual (sin id_vehiculo_asignado): ocultar esa placa el resto del día.
+        // Los de checklist ya se ocultan por id_vehiculo_asignado.
+        $cerradasPlacas = [];
+        foreach ($despachosHoy as $d) {
+            if ($d->id_vehiculo_asignado !== null && (int) $d->id_vehiculo_asignado > 0) {
+                continue;
+            }
+            $norm = DespachoParteProductoVehiculoConsulta::normalizarPlacaVehiculo(
+                $d->placa !== null ? (string) $d->placa : null,
+            );
+            if ($norm !== '') {
+                $cerradasPlacas[$norm] = true;
+            }
+        }
+
+        if ($cerradosIds === [] && $cerradasPlacas === []) {
             return $placas;
         }
 
         $cerrSet = array_fill_keys($cerradosIds, true);
 
-        return array_values(array_filter($placas, static function ($p) use ($cerrSet): bool {
+        return array_values(array_filter($placas, static function ($p) use ($cerrSet, $cerradasPlacas): bool {
             $vid = (int) ($p->id_vehiculo_asignado ?? 0);
+            if ($vid > 0 && isset($cerrSet[$vid])) {
+                return false;
+            }
+            $placaNorm = DespachoParteProductoVehiculoConsulta::normalizarPlacaVehiculo(
+                isset($p->placa_vehiculo) ? (string) $p->placa_vehiculo : null,
+            );
+            if ($placaNorm !== '' && isset($cerradasPlacas[$placaNorm])) {
+                return false;
+            }
 
-            return $vid < 1 || ! isset($cerrSet[$vid]);
+            return true;
         }));
     }
 }

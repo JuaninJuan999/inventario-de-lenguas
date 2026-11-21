@@ -250,6 +250,56 @@ class InventarioLenguasSynchronizer
     }
 
     /**
+     * Sincroniza desde SIRT solo si la última sync está más antigua que el intervalo
+     * (INVENTARIO_LENGUAS_SYNC_INTERVAL). Pensado para pantallas que leen la réplica
+     * local (p. ej. dashboard) sin depender de abrir Inventario.
+     *
+     * @return array{
+     *     success: bool,
+     *     message: string,
+     *     importados: int,
+     *     hit_limit: bool,
+     *     limite: int,
+     *     max_insensibilizacion_id: int|null,
+     *     min_insensibilizacion_id: int|null,
+     *     skipped?: bool
+     * }
+     */
+    public function syncIfDue(?int $userId = null): array
+    {
+        $interval = (int) config('ingresos_lenguas.inventario_sync_interval_seconds', 120);
+        if ($interval > 0) {
+            $interval = max(30, $interval);
+        } else {
+            // Intervalo 0 = sin polling en Inventario; en dashboard usamos 2 min por defecto.
+            $interval = 120;
+        }
+
+        $last = $this->meta()['last_sync_at'] ?? null;
+        if (is_string($last) && $last !== '') {
+            try {
+                $age = Carbon::parse($last)->diffInSeconds(now());
+                if ($age < $interval) {
+                    return [
+                        'success' => true,
+                        'message' => 'Réplica aún fresca; sync omitida.',
+                        'importados' => 0,
+                        'hit_limit' => false,
+                        'limite' => 0,
+                        'max_insensibilizacion_id' => null,
+                        'min_insensibilizacion_id' => null,
+                        'skipped' => true,
+                    ];
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $this->sync(null, null, [], $userId);
+    }
+
+    /**
      * @param  array{id_producto: string, propietario: string}  $filters
      * @return array{
      *     success: bool,

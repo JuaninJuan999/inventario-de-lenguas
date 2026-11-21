@@ -198,9 +198,9 @@ class DespachoParteProductoVehiculoConsulta
     }
 
     /**
-     * Catálogo de placas autorizadas en BD local (tabla despacho_operador_placas).
+     * Catálogo de placas autorizadas (BD + config), para filtrar alistamiento.
      *
-     * @return array<string, true>|null null si no se aplica filtro (opción off o tabla vacía).
+     * @return array<string, true>|null null si no se aplica filtro (opción off o catálogo vacío).
      */
     protected function catalogoPlacasLocalNormalizado(): ?array
     {
@@ -208,13 +208,9 @@ class DespachoParteProductoVehiculoConsulta
             return null;
         }
 
-        if (! DespachoOperadorPlaca::query()->exists()) {
-            return null;
-        }
-
         $keys = [];
-        foreach (DespachoOperadorPlaca::query()->pluck('placa') as $placa) {
-            $k = self::normalizarPlacaVehiculo((string) $placa);
+        foreach (DespachoOperadorPlaca::filasParaDespacho() as $fila) {
+            $k = self::normalizarPlacaVehiculo((string) ($fila['placa'] ?? ''));
             if ($k !== '') {
                 $keys[$k] = true;
             }

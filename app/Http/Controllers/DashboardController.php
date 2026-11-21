@@ -6,6 +6,7 @@ use App\Models\DecomisoManual;
 use App\Models\Despacho;
 use App\Models\Desposte;
 use App\Models\IngresoLenguaLocal;
+use App\Services\Inventario\InventarioLenguasSynchronizer;
 use App\Support\VencimientoLengua;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,20 @@ use Throwable;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected InventarioLenguasSynchronizer $inventarioSynchronizer,
+    ) {}
+
     public function __invoke(): View
     {
+        // KPIs / gráfico de ingresos leen la réplica local; sin sync quedan viejos
+        // hasta abrir Inventario. Aquí se actualiza SIRT→local si ya venció el intervalo.
+        try {
+            $this->inventarioSynchronizer->syncIfDue(auth()->id());
+        } catch (Throwable $e) {
+            report($e);
+        }
+
         $tz = VencimientoLengua::zona();
         $hoy = Carbon::now($tz)->startOfDay();
         $hoyYmd = $hoy->toDateString();
