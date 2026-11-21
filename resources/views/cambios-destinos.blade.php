@@ -223,6 +223,47 @@
                 align-items: center;
                 margin-top: 0.85rem;
             }
+            .filtros-actions-bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.45rem 0.55rem;
+                align-items: center;
+                width: 100%;
+                margin-top: 0.75rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid color-mix(in srgb, var(--brand-green) 22%, transparent);
+            }
+            .filtros-actions-bar__label {
+                margin: 0 0.15rem 0 0;
+                font-size: 0.65rem;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: color-mix(in srgb, var(--brand-green) 80%, var(--text));
+            }
+            .btn-por-vencer {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.42rem 1rem;
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                text-decoration: none;
+                color: #3a2a08;
+                border: 1px solid color-mix(in srgb, #f5d78e 55%, #fff);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+                background: linear-gradient(145deg, #f5d78e, color-mix(in srgb, #f5d78e 70%, #c4a04a));
+            }
+            .btn-por-vencer:hover {
+                filter: brightness(1.05);
+            }
+            .btn-por-vencer.is-active {
+                box-shadow: 0 0 0 2px color-mix(in srgb, #f5d78e 45%, transparent);
+            }
             .btn-marcar-adicional {
                 display: inline-flex;
                 align-items: center;
@@ -308,16 +349,7 @@
                 accent-color: var(--brand-green);
                 cursor: pointer;
             }
-            .adicionales-bulk-bar,
-            .salidas-bulk-bar {
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                gap: 0.45rem 0.65rem;
-                margin: 0 0 0.55rem;
-            }
-            .adicionales-bulk-bar .sel-count,
-            .salidas-bulk-bar .sel-count {
+            .sel-count {
                 margin: 0;
                 font-size: 0.78rem;
                 color: color-mix(in srgb, var(--text) 68%, transparent);
@@ -592,7 +624,7 @@
                 <p class="alert alert--err" role="alert">{{ session('cambios_destinos_error') }}</p>
             @endif
 
-            <form class="filtros-form" method="get" action="{{ route('cambios.destinos') }}" aria-labelledby="filtros-cambios-heading">
+            <form class="filtros-form" id="filtros-cambios" method="get" action="" aria-labelledby="filtros-cambios-heading">
                 <h2 id="filtros-cambios-heading" class="filtros-form__title">Filtros de búsqueda</h2>
                 <div class="filtros-grid">
                     <div class="filtros-field">
@@ -681,13 +713,26 @@
                             </span>
                         </label>
                     </div>
+                    @if (! empty($filters['por_vencer']))
+                        <input type="hidden" name="por_vencer" value="1" />
+                    @endif
                 </div>
                 <div class="filtros-actions">
                     <button type="submit" class="btn-filtrar">Buscar en inventario</button>
+                    <a
+                        class="btn-por-vencer{{ ! empty($filters['por_vencer']) ? ' is-active' : '' }}"
+                        href="/cambios-de-destinos?por_vencer=1"
+                        title="Lista lenguas disponibles que vencen hoy o mañana (vida útil 4 días)"
+                    >
+                        Próximas a vencer
+                    </a>
                     @if ($filtrosActivos)
-                        <a class="link-limpiar" href="{{ route('cambios.destinos') }}">Limpiar</a>
+                        <a class="link-limpiar" href="/cambios-de-destinos">Limpiar</a>
                     @endif
-                    @if ($filtrosActivos && $rows->isNotEmpty())
+                </div>
+                @if ($filtrosActivos && $rows->isNotEmpty())
+                    <div class="filtros-actions-bar" role="toolbar" aria-label="Acciones del listado">
+                        <span class="filtros-actions-bar__label">Acciones</span>
                         <button
                             type="submit"
                             class="btn-guardar btn-guardar--masivo"
@@ -697,38 +742,92 @@
                         >
                             Guardar destinos pendientes
                         </button>
+                        <button
+                            type="submit"
+                            name="accion"
+                            value="marcar"
+                            class="btn-marcar-adicional"
+                            form="form-adicionales-masivo"
+                            id="btn-adicionales-marcar"
+                            disabled
+                        >
+                            Marcar ADI. seleccionados
+                        </button>
+                        <button
+                            type="submit"
+                            name="accion"
+                            value="desmarcar"
+                            class="btn-desmarcar-adicional"
+                            form="form-adicionales-masivo"
+                            id="btn-adicionales-desmarcar"
+                            disabled
+                        >
+                            Quitar ADI.
+                        </button>
+                        <button
+                            type="submit"
+                            name="accion"
+                            value="marcar"
+                            class="btn-marcar-salida"
+                            form="form-salidas-masivo"
+                            id="btn-salidas-marcar"
+                            disabled
+                        >
+                            Marcar SAL. seleccionados
+                        </button>
+                        <button
+                            type="submit"
+                            name="accion"
+                            value="desmarcar"
+                            class="btn-desmarcar-salida"
+                            form="form-salidas-masivo"
+                            id="btn-salidas-desmarcar"
+                            disabled
+                        >
+                            Quitar SAL.
+                        </button>
                         <p class="pendientes-hint" id="pendientes-hint-top" hidden>
-                            <span class="js-pendientes-count">0</span> cambio(s) por aplicar
+                            <span class="js-pendientes-count">0</span> destino(s) por aplicar
                         </p>
-                    @endif
-                </div>
+                        <p class="sel-count" id="adicionales-sel-count">0 ADI. seleccionado(s)</p>
+                        <p class="sel-count" id="salidas-sel-count">0 SAL. seleccionado(s)</p>
+                    </div>
+                @endif
             </form>
 
             @if (! $filtrosActivos)
                 <p class="muted">
                     Indique un criterio (<strong>ID producto</strong>, <strong>propietario</strong>,
-                    <strong>solo adicionales</strong> o <strong>solo salidas</strong>) y pulse
-                    <strong>Buscar en inventario</strong>. Solo se listan lenguas aún disponibles (no despachadas).
+                    <strong>solo adicionales</strong>, <strong>solo salidas</strong>) o pulse
+                    <strong>Próximas a vencer</strong>. Solo se listan lenguas aún disponibles (no despachadas).
                     Máximo {{ $listadoLimit }} filas por consulta.
                 </p>
             @elseif ($rows->isEmpty())
                 <p class="muted">
-                    No hay registros que coincidan. Este módulo usa la misma base de datos local que
-                    <strong>Inventario de lenguas</strong> y solo muestra filas <strong>disponibles</strong> (sin
-                    despachar). Si ese ID ya salió en un despacho, no se listará aquí tampoco.
+                    @if (! empty($filters['por_vencer']))
+                        No hay lenguas <strong>próximas a vencer</strong> (hoy o mañana) disponibles en inventario
+                        con los demás filtros aplicados.
+                    @else
+                        No hay registros que coincidan. Este módulo usa la misma base de datos local que
+                        <strong>Inventario de lenguas</strong> y solo muestra filas <strong>disponibles</strong> (sin
+                        despachar). Si ese ID ya salió en un despacho, no se listará aquí tampoco.
+                    @endif
                 </p>
             @else
                 <p class="muted">
                     <strong>{{ $rows->count() }}</strong> registro(s) encontrado(s)
+                    @if (! empty($filters['por_vencer']))
+                        (próximas a vencer: hoy o mañana)
+                    @endif
                     @if (! empty($filters['solo_adicionales']) && ! empty($filters['solo_salidas']))
-                        (solo adicionales y salidas)
+                        · solo adicionales y salidas
                     @elseif (! empty($filters['solo_adicionales']))
-                        (solo adicionales)
+                        · solo adicionales
                     @elseif (! empty($filters['solo_salidas']))
-                        (solo salidas)
+                        · solo salidas
                     @endif
                     . Edite destinos o marque/desmarque <strong>ADI.</strong> / <strong>SAL.</strong>; las filas de destino modificadas quedan
-                    <strong>subrayadas</strong> hasta guardar.
+                    <strong>subrayadas</strong> hasta guardar. Use la barra de <strong>Acciones</strong> arriba.
                 </p>
 
                 <div class="listado-filtro-rapido">
@@ -767,15 +866,9 @@
                     @if (! empty($filters['solo_salidas']))
                         <input type="hidden" name="solo_salidas" value="1" />
                     @endif
-                    <div class="adicionales-bulk-bar">
-                        <button type="submit" name="accion" value="marcar" class="btn-marcar-adicional" id="btn-adicionales-marcar" disabled>
-                            Marcar ADI. seleccionados
-                        </button>
-                        <button type="submit" name="accion" value="desmarcar" class="btn-desmarcar-adicional" id="btn-adicionales-desmarcar" disabled>
-                            Quitar ADI. a seleccionados
-                        </button>
-                        <p class="sel-count" id="adicionales-sel-count">0 ADI. seleccionado(s)</p>
-                    </div>
+                    @if (! empty($filters['por_vencer']))
+                        <input type="hidden" name="por_vencer" value="1" />
+                    @endif
                 </form>
 
                 <form
@@ -792,15 +885,9 @@
                     @if (! empty($filters['solo_salidas']))
                         <input type="hidden" name="solo_salidas" value="1" />
                     @endif
-                    <div class="salidas-bulk-bar">
-                        <button type="submit" name="accion" value="marcar" class="btn-marcar-salida" id="btn-salidas-marcar" disabled>
-                            Marcar SAL. seleccionados
-                        </button>
-                        <button type="submit" name="accion" value="desmarcar" class="btn-desmarcar-salida" id="btn-salidas-desmarcar" disabled>
-                            Quitar SAL. a seleccionados
-                        </button>
-                        <p class="sel-count" id="salidas-sel-count">0 SAL. seleccionado(s)</p>
-                    </div>
+                    @if (! empty($filters['por_vencer']))
+                        <input type="hidden" name="por_vencer" value="1" />
+                    @endif
                 </form>
 
                 <form
@@ -817,6 +904,9 @@
                     @endif
                     @if (! empty($filters['solo_salidas']))
                         <input type="hidden" name="solo_salidas" value="1" />
+                    @endif
+                    @if (! empty($filters['por_vencer']))
+                        <input type="hidden" name="por_vencer" value="1" />
                     @endif
 
                     <div class="table-wrap">

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\IngresoLenguaLocal;
 use App\Support\DespachoCodigoBarras;
 use App\Support\DespachoInventarioMatch;
+use App\Support\VencimientoLengua;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,8 +26,13 @@ class CambiosDestinosController extends Controller
         $propietario = substr($request->string('propietario')->trim()->toString(), 0, 200);
         $soloAdicionales = $request->boolean('solo_adicionales');
         $soloSalidas = $request->boolean('solo_salidas');
+        $porVencer = $request->boolean('por_vencer');
 
-        $filtrosActivos = $idProducto !== '' || $propietario !== '' || $soloAdicionales || $soloSalidas;
+        $filtrosActivos = $idProducto !== ''
+            || $propietario !== ''
+            || $soloAdicionales
+            || $soloSalidas
+            || $porVencer;
 
         $rows = collect();
 
@@ -33,6 +40,8 @@ class CambiosDestinosController extends Controller
             $op = $this->likeOperator();
 
             $patProp = '%'.$propietario.'%';
+            $hoyYmd = Carbon::now(VencimientoLengua::zona())->startOfDay()->format('Y-m-d');
+            $diasExpr = $this->sqlDiasHastaVencimientoColumn();
 
             $rows = IngresoLenguaLocal::query()
                 ->sinDespachar()
@@ -40,6 +49,10 @@ class CambiosDestinosController extends Controller
                 ->when($propietario !== '', fn ($q) => $q->where('propietario', $op, $patProp))
                 ->when($soloAdicionales, fn ($q) => $q->where('es_adicional', true))
                 ->when($soloSalidas, fn ($q) => $q->where('es_salida', true))
+                ->when($porVencer, function ($q) use ($diasExpr, $hoyYmd): void {
+                    $q->whereNotNull('fecha_registro')
+                        ->whereRaw("({$diasExpr}) BETWEEN 0 AND 1", [$hoyYmd]);
+                })
                 ->orderByDesc('es_adicional')
                 ->orderByDesc('es_salida')
                 ->orderByDesc('imported_at')
@@ -55,6 +68,7 @@ class CambiosDestinosController extends Controller
                 'propietario' => $propietario,
                 'solo_adicionales' => $soloAdicionales,
                 'solo_salidas' => $soloSalidas,
+                'por_vencer' => $porVencer,
             ],
             'filtrosActivos' => $filtrosActivos,
             'listadoLimit' => self::LISTADO_LIMIT,
@@ -75,6 +89,7 @@ class CambiosDestinosController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
             'solo_salidas' => ['nullable', 'boolean'],
+            'por_vencer' => ['nullable', 'boolean'],
         ]);
 
         $destino = $validated['destino'] ?? null;
@@ -102,6 +117,7 @@ class CambiosDestinosController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
             'solo_salidas' => ['nullable', 'boolean'],
+            'por_vencer' => ['nullable', 'boolean'],
         ]);
 
         $updated = 0;
@@ -178,6 +194,7 @@ class CambiosDestinosController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
             'solo_salidas' => ['nullable', 'boolean'],
+            'por_vencer' => ['nullable', 'boolean'],
         ]);
 
         $accion = $validated['accion'] ?? 'marcar';
@@ -239,6 +256,7 @@ class CambiosDestinosController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
             'solo_salidas' => ['nullable', 'boolean'],
+            'por_vencer' => ['nullable', 'boolean'],
         ]);
 
         $marcar = $validated['accion'] === 'marcar';
@@ -288,6 +306,7 @@ class CambiosDestinosController extends Controller
             'propietario' => ['nullable', 'string', 'max:200'],
             'solo_adicionales' => ['nullable', 'boolean'],
             'solo_salidas' => ['nullable', 'boolean'],
+            'por_vencer' => ['nullable', 'boolean'],
         ]);
 
         $marcar = $validated['accion'] === 'marcar';
@@ -386,7 +405,19 @@ class CambiosDestinosController extends Controller
     }
 
     /**
-     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int}
+     * Días hasta vencimiento (fecha registro + 4), mismo criterio que Inventario / Dashboard.
+     */
+    private function sqlDiasHastaVencimientoColumn(): string
+    {
+        return match (DB::getDriverName()) {
+            'pgsql' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE ((fecha_registro + INTERVAL \'4 days\')::date - CAST(? AS date))::integer END)',
+            'sqlite' => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE CAST(ROUND(julianday(date(fecha_registro, \'+4 days\')) - julianday(?)) AS INTEGER) END)',
+            default => '(CASE WHEN fecha_registro IS NULL THEN NULL ELSE DATEDIFF(DATE_ADD(fecha_registro, INTERVAL 4 DAY), ?) END)',
+        };
+    }
+
+    /**
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int, por_vencer?: int}
      */
     private function redirectQuery(Request $request): array
     {
@@ -395,12 +426,13 @@ class CambiosDestinosController extends Controller
             'propietario' => $request->input('propietario'),
             'solo_adicionales' => $request->boolean('solo_adicionales'),
             'solo_salidas' => $request->boolean('solo_salidas'),
+            'por_vencer' => $request->boolean('por_vencer'),
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $validated
-     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int}
+     * @return array{id_producto?: string, propietario?: string, solo_adicionales?: int, solo_salidas?: int, por_vencer?: int}
      */
     private function redirectQueryFromValidated(array $validated): array
     {
@@ -414,6 +446,9 @@ class CambiosDestinosController extends Controller
         }
         if (! empty($validated['solo_salidas'])) {
             $query['solo_salidas'] = 1;
+        }
+        if (! empty($validated['por_vencer'])) {
+            $query['por_vencer'] = 1;
         }
 
         return $query;
