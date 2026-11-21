@@ -113,6 +113,85 @@
                 margin-inline: auto;
             }
 
+            .welcome-hero {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .welcome-mark {
+                position: relative;
+                width: clamp(5.5rem, 16vw, 7.5rem);
+                height: clamp(5.5rem, 16vw, 7.5rem);
+                border-radius: 50%;
+                overflow: hidden;
+                border: 3px solid color-mix(in srgb, var(--brand-green) 70%, #fff);
+                background: #0a0a0a;
+                box-shadow:
+                    0 0 0 6px color-mix(in srgb, var(--brand-green) 16%, transparent),
+                    0 0 0 12px color-mix(in srgb, var(--brand-rose) 10%, transparent),
+                    0 18px 48px rgba(0, 0, 0, 0.45),
+                    0 0 56px color-mix(in srgb, var(--brand-green) 35%, transparent);
+            }
+
+            .welcome-mark img {
+                display: block;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .welcome-mark::after {
+                content: "";
+                position: absolute;
+                inset: -18%;
+                border-radius: 50%;
+                background: radial-gradient(
+                    circle,
+                    color-mix(in srgb, var(--brand-green) 28%, transparent) 0%,
+                    transparent 68%
+                );
+                z-index: -1;
+                pointer-events: none;
+            }
+
+            @keyframes welcome-mark-float {
+                0%,
+                100% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-0.45rem);
+                }
+            }
+
+            @keyframes welcome-mark-glow {
+                0%,
+                100% {
+                    box-shadow:
+                        0 0 0 6px color-mix(in srgb, var(--brand-green) 16%, transparent),
+                        0 0 0 12px color-mix(in srgb, var(--brand-rose) 10%, transparent),
+                        0 18px 48px rgba(0, 0, 0, 0.45),
+                        0 0 56px color-mix(in srgb, var(--brand-green) 35%, transparent);
+                }
+                50% {
+                    box-shadow:
+                        0 0 0 7px color-mix(in srgb, var(--brand-green) 24%, transparent),
+                        0 0 0 14px color-mix(in srgb, var(--brand-rose) 14%, transparent),
+                        0 22px 52px rgba(0, 0, 0, 0.5),
+                        0 0 72px color-mix(in srgb, var(--brand-green) 48%, transparent);
+                }
+            }
+
+            @media (prefers-reduced-motion: no-preference) {
+                .welcome-mark {
+                    animation:
+                        welcome-mark-float 3.2s ease-in-out infinite,
+                        welcome-mark-glow 3.2s ease-in-out infinite;
+                }
+            }
+
             .welcome-layout {
                 display: flex;
                 flex-direction: column;
@@ -213,12 +292,23 @@
         @endphp
 
         <div class="welcome-card-wrap shrink-0">
-            <div class="welcome-card px-4 py-3 text-center sm:px-5 sm:py-4">
-                <h1 class="welcome-title">
-                    @foreach ($welcomeChars as $i => $ch)
-                        <span class="welcome-char" style="--char-i: {{ $i }}">{{ $ch }}</span>
-                    @endforeach
-                </h1>
+            <div class="welcome-hero">
+                <div class="welcome-mark" aria-hidden="true">
+                    <img
+                        src="{{ asset('images/lengua.png') }}"
+                        alt=""
+                        width="120"
+                        height="120"
+                        decoding="async"
+                    >
+                </div>
+                <div class="welcome-card px-4 py-3 text-center sm:px-5 sm:py-4">
+                    <h1 class="welcome-title">
+                        @foreach ($welcomeChars as $i => $ch)
+                            <span class="welcome-char" style="--char-i: {{ $i }}">{{ $ch }}</span>
+                        @endforeach
+                    </h1>
+                </div>
             </div>
         </div>
 
